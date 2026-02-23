@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../../widgets/wrestler_avatar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../logic/game_state_provider.dart';
 import '../../../logic/promoter_provider.dart';
@@ -89,6 +91,7 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
                       label: const Text("ENTER BOOKING HUB", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0)),
                       onPressed: () {
+                        HapticFeedback.heavyImpact();
                         setState(() {
                           _hasPassedPreShow = true;
                         });
@@ -210,6 +213,7 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
                                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("⚠️ ACTION REQUIRED: Check your Front Office Inbox before advancing!"), backgroundColor: Colors.redAccent));
                                     }
                                   : () async {
+                                      HapticFeedback.heavyImpact();
                                       ref.read(soundProvider).playSound("bell.mp3");
 
                                       if (context.mounted) {
@@ -306,6 +310,7 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
 
     return GestureDetector(
       onTap: () {
+        HapticFeedback.selectionClick();
         if (!isBooked) Navigator.push(context, MaterialPageRoute(builder: (_) => BookingScreen(segmentLabel: label)));
       },
       child: Container(
@@ -321,7 +326,15 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
                 children: [
                   Text(label, style: const TextStyle(color: Colors.grey, fontSize: 10, letterSpacing: 1.0)),
                   const SizedBox(height: 4),
-                  Text(matchTitle, style: TextStyle(color: titleColor, fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  if (isBooked && bookedMatch!.wrestlers.isNotEmpty)
+                    Row(
+                      children: [
+                        ...bookedMatch!.wrestlers.take(2).map((w) => Padding(padding: const EdgeInsets.only(right: 6.0), child: WrestlerAvatar(wrestler: w, radius: 12))),
+                        Expanded(child: Text(matchTitle, style: TextStyle(color: titleColor, fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                      ],
+                    )
+                  else
+                    Text(matchTitle, style: TextStyle(color: titleColor, fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
                   Text(statusText, style: const TextStyle(color: Colors.amber, fontSize: 12)),
                 ],
               ),

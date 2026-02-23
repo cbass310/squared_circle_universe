@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../logic/booking_provider.dart';
 import '../../../logic/promoter_provider.dart';
@@ -133,6 +134,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.green, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
               onPressed: () {
+                        HapticFeedback.selectionClick();
                 if (selectedWrestler1Id != null && selectedWrestler2Id != null && selectedWrestler1Id != selectedWrestler2Id) {
                   
                   // Rebuild the Wrestler objects from the selected IDs right before simulating!
@@ -271,6 +273,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, padding: const EdgeInsets.symmetric(vertical: 16)),
               onPressed: () {
+                        HapticFeedback.selectionClick();
                 notifier.reset();
                 Navigator.pop(context); 
               },

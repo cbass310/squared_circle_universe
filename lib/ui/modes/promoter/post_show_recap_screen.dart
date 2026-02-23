@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/match.dart';
 import '../../../logic/game_state_provider.dart';
@@ -120,6 +121,7 @@ class PostShowRecapScreen extends ConsumerWidget {
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
                       onPressed: () {
+                        HapticFeedback.heavyImpact();
                         // 🛠️ FIX: Force the app to rebuild the HubScreen (resetting to Home)
                         // and push the Finances screen on top.
                         Navigator.pushAndRemoveUntil(

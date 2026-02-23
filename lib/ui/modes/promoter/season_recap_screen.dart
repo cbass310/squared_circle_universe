@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
 import '../../../logic/game_state_provider.dart';
@@ -91,6 +92,7 @@ class _SeasonRecapScreenState extends ConsumerState<SeasonRecapScreen> {
                         ),
                       ),
                       onPressed: () async {
+                        HapticFeedback.heavyImpact();
                         await ref.read(gameProvider.notifier).processYearEnd();
                         if (context.mounted) {
                           Navigator.pushAndRemoveUntil(
