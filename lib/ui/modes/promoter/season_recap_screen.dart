@@ -1,31 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../logic/promoter_provider.dart'; // For Awards Logic
+import 'package:isar/isar.dart';
 import '../../../logic/game_state_provider.dart';
-import 'promoter_home_screen.dart'; 
+import '../../../data/models/wrestler.dart';
+import '../../screens/hub_screen.dart';
 
 class SeasonRecapScreen extends ConsumerStatefulWidget {
-  const SeasonRecapScreen({super.key});
+  const SeasonRecapScreen({Key? key}) : super(key: key);
 
   @override
   ConsumerState<SeasonRecapScreen> createState() => _SeasonRecapScreenState();
 }
 
 class _SeasonRecapScreenState extends ConsumerState<SeasonRecapScreen> {
-  AwardResult? awards;
+  Wrestler? woty;
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _calculate();
+    _loadData();
   }
 
-  Future<void> _calculate() async {
-    // 1. Run the heavy calculation from your existing logic
-    final result = ref.read(rosterProvider.notifier).calculateYearEndAwards();
+  Future<void> _loadData() async {
+    final isar = Isar.getInstance();
+    if (isar != null) {
+      final roster = await isar.wrestlers.where().findAll();
+      roster.sort((a, b) => b.pop.compareTo(a.pop));
+      if (roster.isNotEmpty) {
+        woty = roster.first;
+      }
+    }
     if (mounted) {
       setState(() {
-        awards = result;
+        isLoading = false;
       });
     }
   }
@@ -33,194 +41,105 @@ class _SeasonRecapScreenState extends ConsumerState<SeasonRecapScreen> {
   @override
   Widget build(BuildContext context) {
     final gameState = ref.watch(gameProvider);
-    
-    // If loading, show spinner
-    if (awards == null) {
-        return const Scaffold(
-            backgroundColor: Colors.black,
-            body: Center(child: CircularProgressIndicator(color: Colors.amber)),
-        );
+    final ledger = gameState.ledger;
+
+    double highestRating = 0.0;
+    if (ledger.isNotEmpty) {
+      highestRating = ledger.reduce((a, b) => a.showRating > b.showRating ? a : b).showRating;
     }
 
-    // --- CALCULATE SEASON RESULT ---
-    // Fixed: Removed missing rivalryProvider. Using safe defaults for now.
-    final int wins = 0; // Placeholder until Rivalry system is built
-    final int losses = 0;
-    final double winPct = (wins + losses) > 0 ? (wins / (wins + losses)) * 100 : 0;
-    
-    bool isChampion = wins >= losses;
-    String titleText = isChampion ? "SEASON CHAMPION" : "SEASON COMPLETE";
-    Color themeColor = isChampion ? Colors.amber : Colors.grey;
-    String imagePath = isChampion ? "assets/images/trophy.png" : "assets/images/game_over.png";
+    final totalProfit = ledger.fold(0, (sum, e) => sum + e.profit);
+    final nextYear = gameState.year + 1;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF121212),
       body: Row(
         children: [
-          // ------------------------------------------------
-          // LEFT COLUMN: THE DATA REPORT (40%)
-          // ------------------------------------------------
+          // LEFT COLUMN (40%) - The Data
           Expanded(
             flex: 4,
             child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.black,
-                border: Border(right: BorderSide(color: Colors.white10)),
-              ),
+              color: const Color(0xFF121212),
+              padding: const EdgeInsets.all(40.0),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                   // HEADER
-                  SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Row(
-                        children: [
-                          Icon(Icons.emoji_events, color: themeColor),
-                          const SizedBox(width: 10),
-                          Text("YEAR ${gameState.year} RECAP", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5)),
-                        ],
+                  const Text(
+                    'YEAR-END AWARDS GALA',
+                    style: TextStyle(
+                      fontSize: 32, 
+                      fontWeight: FontWeight.bold, 
+                      color: Colors.amber,
+                    ),
+                  ),
+                  const SizedBox(height: 50),
+                  _buildStatRow('Event of the Year', '⭐ ${highestRating.toStringAsFixed(1)} Rating'),
+                  const SizedBox(height: 30),
+                  _buildStatRow('Wrestler of the Year', isLoading ? 'Loading...' : (woty?.name ?? 'N/A')),
+                  const SizedBox(height: 30),
+                  _buildStatRow('Total Annual Profit', '\$${totalProfit.toString()}'),
+                  const Spacer(),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 60,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: () async {
+                        await ref.read(gameProvider.notifier).processYearEnd();
+                        if (context.mounted) {
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(builder: (_) => const HubScreen()),
+                            (route) => false,
+                          );
+                        }
+                      },
+                      child: Text(
+                        'ADVANCE TO YEAR $nextYear',
+                        style: const TextStyle(
+                          fontSize: 20, 
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
-                  
-                  Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      children: [
-                        // 1. SEASON OUTCOME CARD
-                        Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [themeColor.withOpacity(0.2), Colors.black],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: themeColor),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text("FINAL STANDING", style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 10, fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 5),
-                              Text(titleText, style: TextStyle(color: themeColor, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1)),
-                              const SizedBox(height: 15),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  _buildStatItem("WINS", "$wins", Colors.green),
-                                  _buildStatItem("LOSSES", "$losses", Colors.red),
-                                  _buildStatItem("WIN %", "${winPct.toStringAsFixed(0)}%", Colors.blue),
-                                ],
-                              )
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // 2. THE AWARDS (From your Logic)
-                        const Text("ACCOLADES //", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 10),
-                        
-                        _buildAwardTile("WRESTLER OF THE YEAR", awards!.wrestlerOfTheYear, Icons.person, Colors.purpleAccent),
-                        const SizedBox(height: 10),
-                        _buildAwardTile("MATCH OF THE YEAR", "${awards!.matchOfTheYear} (${awards!.matchRating}⭐)", Icons.star, Colors.orangeAccent),
-                        
-                        const SizedBox(height: 20),
-
-                        // 3. FINANCIALS
-                          Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1E1E1E),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.white12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text("FINANCIAL GROWTH //", style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 15),
-                              _buildFinanceRow("TOTAL PROFIT", "\$${awards!.totalProfit}", awards!.totalProfit > 0 ? Colors.green : Colors.red),
-                              const SizedBox(height: 8),
-                              _buildFinanceRow("FAN BASE", "${gameState.fans} FANS", Colors.blueAccent),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // START NEXT SEASON BUTTON
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.fast_forward),
-                        label: Text("BEGIN YEAR ${gameState.year + 1}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: themeColor, 
-                          foregroundColor: Colors.black, 
-                          padding: const EdgeInsets.all(20)
-                        ),
-                        onPressed: () {
-                           // 1. Reset Logic (Safe Call)
-                           // ref.read(gameProvider.notifier).startNewSeason(); // Uncomment when function exists
-                           
-                           // 2. Go Home
-                           Navigator.pushAndRemoveUntil(
-                             context, 
-                             MaterialPageRoute(builder: (_) => const PromoterHomeScreen()), 
-                             (route) => false
-                           );
-                        },
-                      ),
-                    ),
-                  )
                 ],
               ),
             ),
           ),
-
-          // ------------------------------------------------
-          // RIGHT COLUMN: VISUALS (60%)
-          // ------------------------------------------------
+          // RIGHT COLUMN (60%) - The Visuals
           Expanded(
             flex: 6,
             child: Stack(
               fit: StackFit.expand,
               children: [
-                // Background
                 Image.asset(
-                  imagePath, 
+                  'assets/images/awards_gala.png',
                   fit: BoxFit.cover,
-                  errorBuilder: (c, e, s) => Container(color: const Color(0xFF101010)),
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.grey[900],
+                      child: const Center(
+                        child: Icon(Icons.emoji_events, size: 150, color: Colors.amber),
+                      ),
+                    );
+                  },
                 ),
-                // Gradient Overlay
                 Container(
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     gradient: LinearGradient(
+                      colors: [Color(0xFF121212), Colors.transparent],
                       begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [Colors.black, Colors.transparent],
-                      stops: const [0.0, 0.4],
+                      end: Alignment.center,
                     ),
                   ),
                 ),
-                // Text Overlay
-                Positioned(
-                  bottom: 50,
-                  right: 50,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                        Text(isChampion ? "VICTORY" : "COMPLETE", style: TextStyle(fontSize: 60, fontWeight: FontWeight.w900, color: themeColor.withOpacity(0.9), letterSpacing: 2)),
-                        Text("PREPARE FOR NEXT SEASON", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.5), letterSpacing: 5)),
-                    ],
-                  ),
-                )
               ],
             ),
           ),
@@ -229,45 +148,19 @@ class _SeasonRecapScreenState extends ConsumerState<SeasonRecapScreen> {
     );
   }
 
-  Widget _buildStatItem(String label, String value, Color color) {
+  Widget _buildStatRow(String title, String value) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(value, style: TextStyle(color: color, fontSize: 24, fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
-
-  Widget _buildAwardTile(String label, String value, IconData icon, Color color) {
-      return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E),
-              borderRadius: BorderRadius.circular(8),
-              border: Border(left: BorderSide(color: color, width: 4))
-          ),
-          child: Row(
-              children: [
-                  Icon(icon, color: color),
-                  const SizedBox(width: 15),
-                  Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
-                          Text(value, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                      ],
-                  )
-              ],
-          ),
-      );
-  }
-
-  Widget _buildFinanceRow(String label, String value, Color color) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-        Text(value, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.bold)),
+        Text(
+          title, 
+          style: const TextStyle(fontSize: 18, color: Colors.grey),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value, 
+          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
       ],
     );
   }

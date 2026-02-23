@@ -523,6 +523,34 @@ class GameNotifier extends StateNotifier<GameState> {
       });
   }
 
+
+  Future<void> processYearEnd() async {
+    if (_isar == null) return;
+
+    // Evaluate the 52-week ledger for Event of the Year
+    double highestRating = 0.0;
+    if (state.ledger.isNotEmpty) {
+      highestRating = state.ledger.reduce((a, b) => a.showRating > b.showRating ? a : b).showRating;
+    }
+
+    // Calculate Total Annual Profit
+    int totalProfit = state.ledger.fold(0, (sum, e) => sum + e.profit);
+
+    // Evaluate Roster for Wrestler of the Year
+    final roster = await _isar!.wrestlers.where().findAll();
+    roster.sort((a, b) => b.pop.compareTo(a.pop));
+    Wrestler? woty = roster.isNotEmpty ? roster.first : null;
+
+    // Clear the ledger, reset week to 1, increment year by 1
+    state = state.copyWith(
+      week: 1,
+      year: state.year + 1,
+      ledger: [],
+    );
+
+    await _saveGame();
+  }
+
   List<String> _generateHighlights() {
     List<String> notes = [];
     for (var m in state.currentCard) {
