@@ -15,7 +15,7 @@ extension GetRivalryCollection on Isar {
 
 const RivalrySchema = CollectionSchema(
   name: r'Rivalry',
-  id: 6984051708322725130,
+  id: 200006,
   properties: {
     r'durationWeeks': PropertySchema(
       id: 0,

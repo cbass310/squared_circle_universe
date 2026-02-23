@@ -15,7 +15,7 @@ extension GetGameSaveCollection on Isar {
 
 const GameSaveSchema = CollectionSchema(
   name: r'GameSave',
-  id: -2957817159186665000,
+  id: 200018,
   properties: {
     r'cash': PropertySchema(
       id: 0,

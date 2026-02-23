@@ -15,7 +15,7 @@ extension GetTvNetworkDealCollection on Isar {
 
 const TvNetworkDealSchema = CollectionSchema(
   name: r'TvNetworkDeal',
-  id: -3474307617173001440,
+  id: 200019,
   properties: {
     r'cannibalizesPPVs': PropertySchema(
       id: 0,

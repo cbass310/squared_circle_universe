@@ -15,7 +15,7 @@ extension GetNewsItemCollection on Isar {
 
 const NewsItemSchema = CollectionSchema(
   name: r'NewsItem',
-  id: 3948361493121068986,
+  id: 200002,
   properties: {
     r'actionRequired': PropertySchema(
       id: 0,

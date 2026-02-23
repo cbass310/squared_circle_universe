@@ -286,7 +286,7 @@ class BookingNotifier extends StateNotifier<BookingState> {
     }
     
     final match = Match()
-      ..id = DateTime.now().millisecondsSinceEpoch
+      ..id = 100000
       ..winnerName = winner.name
       ..type = state.selectedType
       ..agentNote = state.selectedNote // Save the note to history!
