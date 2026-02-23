@@ -6,7 +6,8 @@ import '../../logic/promoter_provider.dart'; // Logic
 import '../../logic/roster_importer.dart'; // Importer
 
 // IMPORT THE NEW LEADERBOARD SCREEN
-import '../modes/leaderboard/leaderboard_screen.dart'; 
+import '../modes/leaderboard/leaderboard_screen.dart';
+import '../modes/network/global_network_auth_screen.dart'; 
 
 // --- THE GREAT PIVOT IMPORTS ---
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -66,20 +67,20 @@ class HubScreen extends ConsumerWidget {
                       const SizedBox(height: 20),
 
                       // --- MAIN MENU BUTTONS ---
-                      
+
                       // 1. PROMOTER MODE
                       _buildMenuButton(
                         context,
                         icon: Icons.business_center_rounded,
                         title: "PROMOTER MODE",
-                        subtitle: hasSaveFile 
-                            ? "Continue Year ${rosterState.titleHistory.isEmpty ? 1 : 'Current'}" 
+                        subtitle: hasSaveFile
+                            ? "Continue Year ${rosterState.titleHistory.isEmpty ? 1 : 'Current'}"
                             : "Build your empire. Manage your roster.",
                         color: Colors.amber,
                         onTap: () => _showCareerOptions(context, ref, hasSaveFile),
                       ),
                       const SizedBox(height: 16),
-                      
+
                       // 2. LEAGUE PICK 'EM
                       _buildMenuButton(
                         context,
@@ -88,13 +89,11 @@ class HubScreen extends ConsumerWidget {
                         subtitle: "Compete online. Predict winners.",
                         color: Colors.blueAccent,
                         onTap: () {
-                          // This is where they will log in!
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Online features coming soon!")));
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const GlobalNetworkAuthScreen()));
                         },
                       ),
                       const SizedBox(height: 16),
-                      
+
                       // 3. GLOBAL LEADERBOARDS
                       _buildMenuButton(
                         context,
@@ -119,7 +118,7 @@ class HubScreen extends ConsumerWidget {
                           try {
                             final supabase = Supabase.instance.client;
                             final user = supabase.auth.currentUser;
-                            
+
                             // 🚀 THE FIX: Red SnackBar for Security Check
                             if (user == null) {
                               if (context.mounted) {
@@ -154,7 +153,7 @@ class HubScreen extends ConsumerWidget {
 
                             // Open File Picker and Upload
                             await CsvImportService.importRosterCSV(newLeagueId);
-                            
+
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
@@ -163,7 +162,7 @@ class HubScreen extends ConsumerWidget {
                                 ),
                               );
                             }
-                            
+
                           } catch (e) {
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -176,7 +175,7 @@ class HubScreen extends ConsumerWidget {
                           }
                         },
                       ),
-                      
+
                       const SizedBox(height: 40),
                       const Center(child: Text("v1.0.0 RELEASE", style: TextStyle(color: Colors.white10, fontSize: 10))),
                     ],
