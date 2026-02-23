@@ -15,7 +15,7 @@ extension GetFinancialRecordCollection on Isar {
 
 const FinancialRecordSchema = CollectionSchema(
   name: r'FinancialRecord',
-  id: 200001,
+  id: 6814186009972095999,
   properties: {
     r'facilityCosts': PropertySchema(
       id: 0,

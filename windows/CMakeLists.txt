@@ -1,10 +1,15 @@
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
 project(squared_circle_universe LANGUAGES CXX)
+if(MSVC)
+  add_compile_options(/WX-)
+  add_compile_options(/wd4996)
+endif()
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
 set(BINARY_NAME "squared_circle_universe")
+add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.

@@ -1,15 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+// --- THE GREAT PIVOT IMPORTS ---
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 import 'ui/screens/hub_screen.dart'; 
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
+  
+  // 1. Unlock the vault to get your keys
+  await dotenv.load(fileName: ".env");
+  
+  // 2. Fire up the pure-Dart Supabase Engine
+  await Supabase.initialize(
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
+  
   runApp(const ProviderScope(child: MyApp()));
 }
 
@@ -29,7 +38,7 @@ class MyApp extends StatelessWidget {
         cardColor: const Color(0xFF1E1E1E), // Card Grey
         primaryColor: const Color(0xFFFFD740), // Gold Accent
         
-        // 2. SMOOTH PAGE TRANSITIONS (Added this block)
+        // 2. SMOOTH PAGE TRANSITIONS
         pageTransitionsTheme: const PageTransitionsTheme(
           builders: {
             TargetPlatform.android: ZoomPageTransitionsBuilder(),
@@ -74,7 +83,7 @@ class MyApp extends StatelessWidget {
         ), 
         colorScheme: ColorScheme.fromSwatch(brightness: Brightness.dark).copyWith(secondary: const Color(0xFF18FFFF)), // Cyan Accent
       ),
-      home: const HubScreen(), // The new Entry Point
+      home: const HubScreen(), // The Entry Point
     );
   }
 }

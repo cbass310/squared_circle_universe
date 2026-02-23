@@ -15,7 +15,7 @@ extension GetWrestlerCollection on Isar {
 
 const WrestlerSchema = CollectionSchema(
   name: r'Wrestler',
-  id: 200013,
+  id: -6551481669569375151,
   properties: {
     r'cardPosition': PropertySchema(
       id: 0,

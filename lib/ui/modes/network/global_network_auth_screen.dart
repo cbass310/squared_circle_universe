@@ -8,7 +8,8 @@ class GlobalNetworkAuthScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authProvider);
+    // UPDATED: Now points to the new Supabase authStateProvider
+    final authState = ref.watch(authStateProvider);
     final isAuthenticating = authState == AuthState.authenticating;
 
     return Scaffold(
@@ -36,7 +37,7 @@ class GlobalNetworkAuthScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Sync your offline legacy. Join Pick'em leagues. Dominate the world leaderboards.',
+                    "Sync your offline legacy. Join Pick'em leagues. Dominate the world leaderboards.",
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.white70,
@@ -56,7 +57,8 @@ class GlobalNetworkAuthScreen extends ConsumerWidget {
                       label: 'Continue with Google',
                       onPressed: () {
                         HapticFeedback.heavyImpact();
-                        ref.read(authProvider.notifier).signInWithGoogle();
+                        // UPDATED: Now triggers the Supabase Google Login
+                        ref.read(authStateProvider.notifier).signInWithGoogle();
                       },
                     ),
                     const SizedBox(height: 16),
@@ -65,7 +67,8 @@ class GlobalNetworkAuthScreen extends ConsumerWidget {
                       label: 'Sign in with Apple',
                       onPressed: () {
                         HapticFeedback.heavyImpact();
-                        ref.read(authProvider.notifier).signInWithApple();
+                        // UPDATED: Now triggers the Supabase Apple Login
+                        ref.read(authStateProvider.notifier).signInWithApple();
                       },
                     ),
                     const SizedBox(height: 30),

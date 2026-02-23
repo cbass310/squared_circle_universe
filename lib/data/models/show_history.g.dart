@@ -15,7 +15,7 @@ extension GetShowHistoryCollection on Isar {
 
 const ShowHistorySchema = CollectionSchema(
   name: r'ShowHistory',
-  id: 200014,
+  id: -4118309659678317111,
   properties: {
     r'attendance': PropertySchema(
       id: 0,
@@ -65,7 +65,7 @@ const ShowHistorySchema = CollectionSchema(
   idName: r'id',
   indexes: {
     r'timestamp': IndexSchema(
-      id: 200015,
+      id: 1852253767416892198,
       name: r'timestamp',
       unique: false,
       replace: false,
@@ -80,7 +80,7 @@ const ShowHistorySchema = CollectionSchema(
   },
   links: {
     r'matches': LinkSchema(
-      id: 200016,
+      id: -7167609467175284141,
       name: r'matches',
       target: r'Match',
       single: false,

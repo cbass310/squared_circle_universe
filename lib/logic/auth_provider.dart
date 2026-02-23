@@ -1,56 +1,53 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-enum AuthState { initial, unauthenticated, authenticating, authenticated, error }
+enum AuthState { initial, unauthenticated, authenticating, authenticated }
 
+// 1. The Supabase Engine
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final SupabaseClient _supabase = Supabase.instance.client;
 
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
-
-  Future<UserCredential?> signInWithGoogle() async {
-    final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-    if (googleUser == null) return null;
-
-    final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-    final AuthCredential credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
-    );
-
-    return await _auth.signInWithCredential(credential);
+  // Listen to the cloud to see if the user is logged in
+  Stream<AuthState> get authStateChanges {
+    return _supabase.auth.onAuthStateChange.map((event) {
+      if (event.session != null) {
+        return AuthState.authenticated;
+      } else {
+        return AuthState.unauthenticated;
+      }
+    });
   }
 
-  Future<UserCredential?> signInWithApple() async {
-    final appleCredential = await SignInWithApple.getAppleIDCredential(
-      scopes: [
-        AppleIDAuthorizationScopes.email,
-        AppleIDAuthorizationScopes.fullName,
-      ],
-    );
+  // Supabase makes Google Sign-In a one-liner!
+  Future<void> signInWithGoogle() async {
+    await _supabase.auth.signInWithOAuth(OAuthProvider.google);
+  }
 
-    final AuthCredential credential = OAuthProvider('apple.com').credential(
-      idToken: appleCredential.identityToken,
-      accessToken: appleCredential.authorizationCode,
-    );
-
-    return await _auth.signInWithCredential(credential);
+  // Supabase makes Apple Sign-In a one-liner too!
+  Future<void> signInWithApple() async {
+    await _supabase.auth.signInWithOAuth(OAuthProvider.apple);
+  }
+  
+  Future<void> signOut() async {
+    await _supabase.auth.signOut();
   }
 }
 
+// 2. The Riverpod Providers
+final authServiceProvider = Provider<AuthService>((ref) => AuthService());
+
+final authStateProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
+  return AuthNotifier(ref.read(authServiceProvider));
+});
+
+// 3. The State Manager
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthService _authService;
 
   AuthNotifier(this._authService) : super(AuthState.initial) {
-    _authService.authStateChanges.listen((User? user) {
-      if (user != null) {
-        state = AuthState.authenticated;
-      } else {
-        state = AuthState.unauthenticated;
-      }
+    // Automatically update the UI if the login status changes
+    _authService.authStateChanges.listen((state) {
+      this.state = state;
     });
   }
 
@@ -59,7 +56,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       await _authService.signInWithGoogle();
     } catch (e) {
-      state = AuthState.error;
+      state = AuthState.unauthenticated;
     }
   }
 
@@ -68,14 +65,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       await _authService.signInWithApple();
     } catch (e) {
-      state = AuthState.error;
+      state = AuthState.unauthenticated;
     }
   }
+  
+  Future<void> signOut() async {
+    await _authService.signOut();
+  }
 }
-
-final authServiceProvider = Provider<AuthService>((ref) => AuthService());
-
-final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  final authService = ref.watch(authServiceProvider);
-  return AuthNotifier(authService);
-});

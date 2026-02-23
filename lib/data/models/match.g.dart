@@ -15,7 +15,7 @@ extension GetMatchCollection on Isar {
 
 const MatchSchema = CollectionSchema(
   name: r'Match',
-  id: 200003,
+  id: -4384922031457139852,
   properties: {
     r'agentNote': PropertySchema(
       id: 0,
@@ -63,7 +63,7 @@ const MatchSchema = CollectionSchema(
   indexes: {},
   links: {
     r'wrestlers': LinkSchema(
-      id: 200004,
+      id: -6770233852519899281,
       name: r'wrestlers',
       target: r'Wrestler',
       single: false,

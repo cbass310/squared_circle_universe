@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "808517988064",
+    "project_id": "squared-circle-universe",
+    "storage_bucket": "squared-circle-universe.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:808517988064:android:44ac9d58a4a7fec1022a85",
+        "android_client_info": {
+          "package_name": "com.example.squared_circle_universe"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "808517988064-q1umpjtpu1ti0pck6pknndtvir0klakp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAWn50jAN_dT8VaRiNsW8U6Fd9ixGWKo9k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "808517988064-q1umpjtpu1ti0pck6pknndtvir0klakp.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

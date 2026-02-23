@@ -15,7 +15,7 @@ extension GetCompanyCollection on Isar {
 
 const CompanySchema = CollectionSchema(
   name: r'Company',
-  id: 200005,
+  id: -3921622125198845844,
   properties: {
     r'cash': PropertySchema(
       id: 0,

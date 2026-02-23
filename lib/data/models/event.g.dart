@@ -15,7 +15,7 @@ extension GetEventCollection on Isar {
 
 const EventSchema = CollectionSchema(
   name: r'Event',
-  id: 200007,
+  id: 2102939193127251002,
   properties: {
     r'attendance': PropertySchema(
       id: 0,
@@ -51,7 +51,7 @@ const EventSchema = CollectionSchema(
   indexes: {},
   links: {
     r'matches': LinkSchema(
-      id: 200008,
+      id: 6756206065150415727,
       name: r'matches',
       target: r'Match',
       single: false,

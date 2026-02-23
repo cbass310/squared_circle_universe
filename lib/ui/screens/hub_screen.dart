@@ -8,6 +8,10 @@ import '../../logic/roster_importer.dart'; // Importer
 // IMPORT THE NEW LEADERBOARD SCREEN
 import '../modes/leaderboard/leaderboard_screen.dart'; 
 
+// --- THE GREAT PIVOT IMPORTS ---
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../logic/csv_import_service.dart';
+
 class HubScreen extends ConsumerWidget {
   const HubScreen({super.key});
 
@@ -33,77 +37,150 @@ class HubScreen extends ConsumerWidget {
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 40.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // GAME LOGO
-                    Center(
-                      child: Image.asset(
-                        "assets/images/imagelogo.png", 
-                        height: 140,
-                        fit: BoxFit.contain,
-                        errorBuilder: (c, e, s) => const Icon(Icons.sports_mma, size: 80, color: Colors.amber),
+                // 🚀 THE FIX: SingleChildScrollView destroys the Yellow Tape!
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // GAME LOGO
+                      Center(
+                        child: Image.asset(
+                          "assets/images/imagelogo.png", 
+                          height: 140,
+                          fit: BoxFit.contain,
+                          errorBuilder: (c, e, s) => const Icon(Icons.sports_mma, size: 80, color: Colors.amber),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 60),
+                      const SizedBox(height: 60),
 
-                    // SECTION TITLE
-                    const Text(
-                      "SELECT MODE",
-                      style: TextStyle(
-                        color: Colors.white54,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2.0,
+                      // SECTION TITLE
+                      const Text(
+                        "SELECT MODE",
+                        style: TextStyle(
+                          color: Colors.white54,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 2.0,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                    // --- MAIN MENU BUTTONS ---
-                    
-                    // 1. PROMOTER MODE
-                    _buildMenuButton(
-                      context,
-                      icon: Icons.business_center_rounded,
-                      title: "PROMOTER MODE",
-                      subtitle: hasSaveFile 
-                          ? "Continue Year ${rosterState.titleHistory.isEmpty ? 1 : 'Current'}" 
-                          : "Build your empire. Manage your roster.",
-                      color: Colors.amber,
-                      onTap: () => _showCareerOptions(context, ref, hasSaveFile),
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    // 2. LEAGUE PICK 'EM
-                    _buildMenuButton(
-                      context,
-                      icon: Icons.public,
-                      title: "LEAGUE PICK 'EM",
-                      subtitle: "Compete online. Predict winners.",
-                      color: Colors.blueAccent,
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Online features coming soon!")));
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    // 3. GLOBAL LEADERBOARDS (Replaced Fantasy DB)
-                    _buildMenuButton(
-                      context,
-                      icon: Icons.leaderboard_rounded,
-                      title: "GLOBAL LEADERBOARDS",
-                      subtitle: "See where you rank in the world.",
-                      color: Colors.purpleAccent,
-                      onTap: () {
-                        // Navigate directly to the new Leaderboard screen
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const LeaderboardScreen()));
-                      },
-                    ),
-                    
-                    const Spacer(),
-                    const Center(child: Text("v1.0.0 RELEASE", style: TextStyle(color: Colors.white10, fontSize: 10))),
-                  ],
+                      // --- MAIN MENU BUTTONS ---
+                      
+                      // 1. PROMOTER MODE
+                      _buildMenuButton(
+                        context,
+                        icon: Icons.business_center_rounded,
+                        title: "PROMOTER MODE",
+                        subtitle: hasSaveFile 
+                            ? "Continue Year ${rosterState.titleHistory.isEmpty ? 1 : 'Current'}" 
+                            : "Build your empire. Manage your roster.",
+                        color: Colors.amber,
+                        onTap: () => _showCareerOptions(context, ref, hasSaveFile),
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // 2. LEAGUE PICK 'EM
+                      _buildMenuButton(
+                        context,
+                        icon: Icons.public,
+                        title: "LEAGUE PICK 'EM",
+                        subtitle: "Compete online. Predict winners.",
+                        color: Colors.blueAccent,
+                        onTap: () {
+                          // This is where they will log in!
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Online features coming soon!")));
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // 3. GLOBAL LEADERBOARDS
+                      _buildMenuButton(
+                        context,
+                        icon: Icons.leaderboard_rounded,
+                        title: "GLOBAL LEADERBOARDS",
+                        subtitle: "See where you rank in the world.",
+                        color: Colors.purpleAccent,
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const LeaderboardScreen()));
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // 4. COMMISSIONER TOOLS (Phase 4.2 CSV Import)
+                      _buildMenuButton(
+                        context,
+                        icon: Icons.upload_file,
+                        title: "COMMISSIONER MODE",
+                        subtitle: "Import custom CSV rosters.",
+                        color: Colors.greenAccent,
+                        onTap: () async {
+                          try {
+                            final supabase = Supabase.instance.client;
+                            final user = supabase.auth.currentUser;
+                            
+                            // 🚀 THE FIX: Red SnackBar for Security Check
+                            if (user == null) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("🚨 Access Denied: Please sign in to the Global Network first!"),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                              return;
+                            }
+
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Building League Room... Please wait."),
+                                  backgroundColor: Colors.blue,
+                                ),
+                              );
+                            }
+
+                            // Generate the League
+                            final leagueResponse = await supabase.from('leagues').insert({
+                              'commissioner_id': user.id,
+                              'name': 'Squared Circle Alpha',
+                              'invite_code': 'ALPHA_${DateTime.now().millisecondsSinceEpoch}',
+                              'max_players': 12
+                            }).select('id').single();
+
+                            final newLeagueId = leagueResponse['id'];
+
+                            // Open File Picker and Upload
+                            await CsvImportService.importRosterCSV(newLeagueId);
+                            
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Upload complete! 🚀 The Roster is live."),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                            
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text("🚨 System Error: $e"),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                      ),
+                      
+                      const SizedBox(height: 40),
+                      const Center(child: Text("v1.0.0 RELEASE", style: TextStyle(color: Colors.white10, fontSize: 10))),
+                    ],
+                  ),
                 ),
               ),
             ),

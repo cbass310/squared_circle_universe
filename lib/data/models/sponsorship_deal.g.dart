@@ -15,7 +15,7 @@ extension GetSponsorshipDealCollection on Isar {
 
 const SponsorshipDealSchema = CollectionSchema(
   name: r'SponsorshipDeal',
-  id: 200017,
+  id: -7911858723318706949,
   properties: {
     r'archetype': PropertySchema(
       id: 0,

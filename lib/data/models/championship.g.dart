@@ -15,7 +15,7 @@ extension GetChampionshipCollection on Isar {
 
 const ChampionshipSchema = CollectionSchema(
   name: r'Championship',
-  id: 200009,
+  id: 2012614306586847484,
   properties: {
     r'history': PropertySchema(
       id: 0,
@@ -47,7 +47,7 @@ const ChampionshipSchema = CollectionSchema(
   indexes: {},
   links: {
     r'champion': LinkSchema(
-      id: 200010,
+      id: 1877216697257004914,
       name: r'champion',
       target: r'Wrestler',
       single: true,

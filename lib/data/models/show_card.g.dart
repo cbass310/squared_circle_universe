@@ -15,7 +15,7 @@ extension GetShowCardCollection on Isar {
 
 const ShowCardSchema = CollectionSchema(
   name: r'ShowCard',
-  id: 200011,
+  id: 1584437036395739341,
   properties: {
     r'finalRating': PropertySchema(
       id: 0,
@@ -61,7 +61,7 @@ const ShowCardSchema = CollectionSchema(
   indexes: {},
   links: {
     r'bookedMatches': LinkSchema(
-      id: 200012,
+      id: -1814807706840138470,
       name: r'bookedMatches',
       target: r'Match',
       single: false,
