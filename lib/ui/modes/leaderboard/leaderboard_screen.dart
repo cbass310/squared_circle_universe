@@ -1,143 +1,136 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../logic/leaderboard_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class LeaderboardScreen extends ConsumerStatefulWidget {
+class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
 
   @override
-  ConsumerState<LeaderboardScreen> createState() => _LeaderboardScreenState();
+  State<LeaderboardScreen> createState() => _LeaderboardScreenState();
 }
 
-class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
+class _LeaderboardScreenState extends State<LeaderboardScreen> {
+  final _supabase = Supabase.instance.client;
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _leaderboard = [];
+
   @override
   void initState() {
     super.initState();
-    // Refresh score every time we open this screen
-    Future.microtask(() => ref.read(leaderboardProvider.notifier).submitUserScore());
+    _fetchGlobalScores();
+  }
+
+  Future _fetchGlobalScores() async {
+    try {
+      // Fetch the top 100 promoters in the world, sorted by highest score
+      final response = await _supabase
+          .from('promoter_scores')
+          .select()
+          .order('score', ascending: false)
+          .limit(100);
+
+      if (mounted) {
+        setState(() {
+          _leaderboard = List<Map<String, dynamic>>.from(response);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching leaderboard: $e");
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Color _getRankColor(int index) {
+    if (index == 0) return Colors.amber; // 1st Place Gold
+    if (index == 1) return const Color(0xFFC0C0C0); // 2nd Place Silver
+    if (index == 2) return const Color(0xFFCD7F32); // 3rd Place Bronze
+    return Colors.white10; // Everyone else
   }
 
   @override
   Widget build(BuildContext context) {
-    final entries = ref.watch(leaderboardProvider);
-
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
-        title: const Text("GLOBAL RANKINGS", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 2)),
-        centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
-        actions: [
-          // MOCK SOLANA CONNECT BUTTON
-          Container(
-            margin: const EdgeInsets.all(10),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.purpleAccent.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.purpleAccent),
-            ),
-            child: const Row(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.purpleAccent),
+          onPressed: () => Navigator.pop(context)
+        ),
+        title: const Text(
+          "GLOBAL RANKINGS",
+          style: TextStyle(color: Colors.purpleAccent, fontWeight: FontWeight.bold, letterSpacing: 2.0)
+        ),
+        centerTitle: true,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: Colors.purpleAccent))
+          : Column(
               children: [
-                Icon(Icons.wallet, size: 16, color: Colors.purpleAccent),
-                SizedBox(width: 5),
-                Text("Connect", style: TextStyle(fontSize: 12, color: Colors.purpleAccent)),
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text(
+                    "TOP PROMOTERS WORLDWIDE",
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 1.5)
+                  ),
+                ),
+                const Divider(color: Colors.white10, height: 1, thickness: 2),
+                Expanded(
+                  child: _leaderboard.isEmpty
+                      ? const Center(
+                          child: Text(
+                            "THE HALL OF FAME IS EMPTY.
+BE THE FIRST TO MAKE HISTORY.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.white54, fontSize: 16, fontWeight: FontWeight.bold, height: 1.5)
+                          )
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.only(top: 8, bottom: 24),
+                          itemCount: _leaderboard.length,
+                          itemBuilder: (context, index) {
+                            final entry = _leaderboard[index];
+                            final isTopThree = index < 3;
+                            final rankColor = _getRankColor(index);
+
+                            return Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1E1E1E),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: rankColor, width: isTopThree ? 2 : 1)
+                              ),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: rankColor,
+                                  child: Text(
+                                    "${index + 1}", 
+                                    style: TextStyle(
+                                      color: isTopThree ? Colors.black : Colors.white, 
+                                      fontWeight: FontWeight.bold
+                                    )
+                                  ),
+                                ),
+                                title: Text(
+                                  entry['promotion_name'].toString().toUpperCase(), 
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.0)
+                                ),
+                                trailing: Text(
+                                  "${entry['score']} PTS", 
+                                  style: TextStyle(
+                                    color: isTopThree ? rankColor : Colors.purpleAccent, 
+                                    fontSize: 18, 
+                                    fontWeight: FontWeight.w900
+                                  )
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
               ],
             ),
-          )
-        ],
-      ),
-      body: Column(
-        children: [
-          // HEADER
-          Container(
-            padding: const EdgeInsets.all(20),
-            color: const Color(0xFF1E1E1E),
-            child: const Row(
-              children: [
-                SizedBox(width: 40, child: Text("RNK", style: TextStyle(color: Colors.grey, fontSize: 10))),
-                Expanded(child: Text("PROMOTER", style: TextStyle(color: Colors.grey, fontSize: 10))),
-                Text("SCORE", style: TextStyle(color: Colors.grey, fontSize: 10)),
-              ],
-            ),
-          ),
-
-          // LIST
-          Expanded(
-            child: ListView.builder(
-              itemCount: entries.length,
-              itemBuilder: (context, index) {
-                final entry = entries[index];
-                final rank = index + 1;
-                final isTop3 = rank <= 3;
-
-                return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: entry.isUser ? Colors.green.withOpacity(0.1) : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
-                    border: entry.isUser ? Border.all(color: Colors.green, width: 1) : null,
-                  ),
-                  child: Row(
-                    children: [
-                      // RANK COLUMN
-                      SizedBox(
-                        width: 40,
-                        child: isTop3 
-                          ? Icon(Icons.emoji_events, color: _getRankColor(rank), size: 20)
-                          : Text("#$rank", style: const TextStyle(color: Colors.white54, fontWeight: FontWeight.bold)),
-                      ),
-                      
-                      // AVATAR
-                      CircleAvatar(
-                        backgroundColor: entry.isUser ? Colors.blueAccent : Colors.grey[800],
-                        radius: 16,
-                        child: Text(entry.promoterName[0], style: const TextStyle(color: Colors.white, fontSize: 12)),
-                      ),
-                      const SizedBox(width: 12),
-
-                      // NAME COLUMN
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(entry.companyName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                            Text(entry.promoterName, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11)),
-                          ],
-                        ),
-                      ),
-
-                      // SCORE COLUMN
-                      Text(
-                        _formatScore(entry.score),
-                        style: TextStyle(
-                          color: isTop3 ? _getRankColor(rank) : Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          fontFamily: "Monospace"
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
     );
-  }
-
-  Color _getRankColor(int rank) {
-    if (rank == 1) return const Color(0xFFFFD700); // Gold
-    if (rank == 2) return const Color(0xFFC0C0C0); // Silver
-    if (rank == 3) return const Color(0xFFCD7F32); // Bronze
-    return Colors.white;
-  }
-
-  String _formatScore(int score) {
-    return score.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
   }
 }
