@@ -9,6 +9,7 @@ import '../../logic/roster_importer.dart'; // Importer
 import '../modes/leaderboard/leaderboard_screen.dart';
 import '../modes/network/global_network_auth_screen.dart';
 import '../modes/network/player_join_screen.dart';
+import 'promoter_auth_gate_screen.dart';
 import '../modes/network/commissioner_dashboard_screen.dart'; 
 
 // --- THE GREAT PIVOT IMPORTS ---
@@ -91,17 +92,13 @@ class HubScreen extends ConsumerWidget {
                         subtitle: "Compete online. Predict winners.",
                         color: Colors.blueAccent,
                         onTap: () {
-                        final user = Supabase.instance.client.auth.currentUser;
-
-                        if (user != null) {
-                          // User is logged in, send them to the Join Screen
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerJoinScreen()));
-                        } else {
-                          // User is NOT logged in, send them to Auth Screen
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const GlobalNetworkAuthScreen()));
-                        }
-                      },
-                      ),
+        final user = Supabase.instance.client.auth.currentUser;
+        if (user != null) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Routing to Online Promoter Mode... (Coming Soon)"), backgroundColor: Colors.cyan));
+        } else {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const PromoterAuthGateScreen()));
+        }
+      },
                       const SizedBox(height: 16),
 
                       // 3. GLOBAL LEADERBOARDS
