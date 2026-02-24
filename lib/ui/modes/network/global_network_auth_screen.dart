@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import '../../../logic/auth_provider.dart';
 
+// --- PIVOT IMPORTS ---
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState; // Added for Dev Bypass
+
 class GlobalNetworkAuthScreen extends ConsumerWidget {
   const GlobalNetworkAuthScreen({Key? key}) : super(key: key);
 
@@ -14,6 +17,17 @@ class GlobalNetworkAuthScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
+      
+      // 🚀 THE ESCAPE HATCH (Back Button)
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      
       body: Row(
         children: [
           // LEFT COLUMN (40%) - The Gateway
@@ -57,7 +71,6 @@ class GlobalNetworkAuthScreen extends ConsumerWidget {
                       label: 'Continue with Google',
                       onPressed: () {
                         HapticFeedback.heavyImpact();
-                        // UPDATED: Now triggers the Supabase Google Login
                         ref.read(authStateProvider.notifier).signInWithGoogle();
                       },
                     ),
@@ -67,10 +80,49 @@ class GlobalNetworkAuthScreen extends ConsumerWidget {
                       label: 'Sign in with Apple',
                       onPressed: () {
                         HapticFeedback.heavyImpact();
-                        // UPDATED: Now triggers the Supabase Apple Login
                         ref.read(authStateProvider.notifier).signInWithApple();
                       },
                     ),
+                    
+                    const SizedBox(height: 40),
+
+                    // 🚨 TEMPORARY DEV BYPASS BUTTON 🚨
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.bug_report, color: Colors.white),
+                        label: const Text("DEV BYPASS: INSTANT LOGIN"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent.shade700, 
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                        ),
+                        onPressed: () async {
+                          try {
+                            // Force login using the fake account
+                            await Supabase.instance.client.auth.signInWithPassword(
+                              email: 'test@test.com',
+                              password: 'password123',
+                            );
+                            
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("Bypass Successful! Access Granted."), backgroundColor: Colors.green),
+                              );
+                              // Kick us back to the Hub Screen so we can hit the Commissioner Button
+                              Navigator.pop(context); 
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                               ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text("🚨 Error: $e"), backgroundColor: Colors.red),
+                              );
+                            }
+                          }
+                        },
+                      ),
+                    ),
+                    // ------------------------------------
+
                     const SizedBox(height: 30),
                     Center(
                       child: TextButton(
