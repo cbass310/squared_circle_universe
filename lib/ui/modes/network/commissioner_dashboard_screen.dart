@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'scoring_rules_screen.dart';
+import 'weekly_event_auditor_screen.dart';
 class CommissionerDashboardScreen extends StatefulWidget {
 final String leagueId;
 const CommissionerDashboardScreen({super.key, required this.leagueId});
@@ -115,6 +116,18 @@ return Scaffold(
           ),
           onPressed: () {
             Navigator.push(context, MaterialPageRoute(builder: (_) => ScoringRulesScreen(leagueId: widget.leagueId)));
+          },
+        ),
+        const SizedBox(height: 24),
+        ElevatedButton.icon(
+          icon: const Icon(Icons.assignment_turned_in, color: Colors.black),
+          label: const Text("LOG WEEKLY RESULTS"),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.cyanAccent,
+            minimumSize: const Size(double.infinity, 50),
+          ),
+          onPressed: () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => WeeklyEventAuditorScreen(leagueId: widget.leagueId)));
           },
         ),
         const SizedBox(height: 24),
