@@ -7,7 +7,8 @@ import '../../logic/roster_importer.dart'; // Importer
 
 // IMPORT THE NEW LEADERBOARD SCREEN
 import '../modes/leaderboard/leaderboard_screen.dart';
-import '../modes/network/global_network_auth_screen.dart'; 
+import '../modes/network/global_network_auth_screen.dart';
+import '../modes/network/commissioner_dashboard_screen.dart'; 
 
 // --- THE GREAT PIVOT IMPORTS ---
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -155,12 +156,9 @@ class HubScreen extends ConsumerWidget {
                             await CsvImportService.importRosterCSV(newLeagueId);
 
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text("Upload complete! 🚀 The Roster is live."),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
+                              Navigator.push(context, MaterialPageRoute(
+                                builder: (_) => CommissionerDashboardScreen(leagueId: newLeagueId)
+                              ));
                             }
 
                           } catch (e) {
