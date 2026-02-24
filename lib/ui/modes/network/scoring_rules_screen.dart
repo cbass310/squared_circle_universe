@@ -8,7 +8,7 @@ const ScoringRulesScreen({super.key, required this.leagueId});
 State createState() => _ScoringRulesScreenState();
 }
 
-class _ScoringRulesScreenState extends State {
+class _ScoringRulesScreenState extends State<ScoringRulesScreen> {
 final _supabase = Supabase.instance.client;
 bool _isLoading = true;
 
