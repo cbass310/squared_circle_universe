@@ -9,7 +9,7 @@ State createState() => _WeeklyEventAuditorScreenState();
 }
 
 class _WeeklyEventAuditorScreenState extends
-State<WeeklyEventAuditorScreen> {
+ State<WeeklyEventAuditorScreen> {
 final _supabase = Supabase.instance.client;
 bool _isLoading = true;
 List _wrestlers = [];

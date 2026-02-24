@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'draft_screen.dart';
 
 class PlayerJoinScreen extends StatefulWidget {
   const PlayerJoinScreen({super.key});
@@ -8,7 +9,6 @@ class PlayerJoinScreen extends StatefulWidget {
   State<PlayerJoinScreen> createState() => _PlayerJoinScreenState();
 }
 
-// NOTICE THE FIX HERE: <PlayerJoinScreen> is strictly required.
 class _PlayerJoinScreenState extends State<PlayerJoinScreen> {
   final _supabase = Supabase.instance.client;
   final _codeController = TextEditingController();
@@ -23,9 +23,12 @@ class _PlayerJoinScreenState extends State<PlayerJoinScreen> {
 
     setState(() => _isLoading = true);
 
+    // FIX: We declare 'league' out here so BOTH the try and catch blocks can see it!
+    Map<String, dynamic>? league;
+
     try {
       // 1. Search the cloud for the League
-      final league = await _supabase.from('leagues').select().eq('invite_code', code).maybeSingle();
+      league = await _supabase.from('leagues').select().eq('invite_code', code).maybeSingle();
 
       if (league == null) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("League not found. Check the code!"), backgroundColor: Colors.red));
@@ -43,15 +46,18 @@ class _PlayerJoinScreenState extends State<PlayerJoinScreen> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Successfully joined ${league['name']}! 🏆"), backgroundColor: Colors.green));
-        Navigator.pop(context); // Send them back for now
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Access Granted! 🏆"), backgroundColor: Colors.green));
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => DraftScreen(leagueId: league!['id'])));
       }
     } catch (e) {
       debugPrint("Join Error: $e");
       if (mounted) {
-         // Safety check if they try to join a league they are already in
-         final errorMsg = e.toString().contains('duplicate key') ? "You are already in this league!" : "Error: $e";
-         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg), backgroundColor: Colors.red));
+         if (e.toString().contains('duplicate key')) {
+           // They are already in the league, let them into the draft room!
+           Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => DraftScreen(leagueId: league!['id'])));
+         } else {
+           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+         }
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
