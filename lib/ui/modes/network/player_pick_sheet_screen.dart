@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'league_standings_screen.dart';
 
 class PlayerPickSheetScreen extends StatefulWidget {
   final String leagueId;
@@ -192,6 +193,19 @@ class _PlayerPickSheetScreenState extends State<PlayerPickSheetScreen> {
                           ),
                           onPressed: _submitPicks,
                         ),
+                      const SizedBox(height: 24),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.leaderboard, color: Colors.amber),
+                        label: const Text("VIEW LEAGUE STANDINGS", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.amber)),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.amber),
+                          minimumSize: const Size(double.infinity, 60),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => LeagueStandingsScreen(leagueId: widget.leagueId)));
+                        },
+                      ),
                     ],
                   ),
                 ),
