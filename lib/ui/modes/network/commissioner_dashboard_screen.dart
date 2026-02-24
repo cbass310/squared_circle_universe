@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'scoring_rules_screen.dart';
 import 'weekly_event_auditor_screen.dart';
 import 'commissioner_event_creator_screen.dart';
+import 'commissioner_event_grader_screen.dart';
 class CommissionerDashboardScreen extends StatefulWidget {
 final String leagueId;
 const CommissionerDashboardScreen({super.key, required this.leagueId});
@@ -129,6 +130,18 @@ return Scaffold(
           ),
           onPressed: () {
             Navigator.push(context, MaterialPageRoute(builder: (_) => CommissionerEventCreatorScreen(leagueId: widget.leagueId)));
+          },
+        ),
+        const SizedBox(height: 16),
+        ElevatedButton.icon(
+          icon: const Icon(Icons.gavel, color: Colors.black),
+          label: const Text("GRADE COMPLETED EVENT", style: TextStyle(fontWeight: FontWeight.bold)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.amber,
+            minimumSize: const Size(double.infinity, 50),
+          ),
+          onPressed: () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => CommissionerEventGraderScreen(leagueId: widget.leagueId)));
           },
         ),
         const SizedBox(height: 24),
