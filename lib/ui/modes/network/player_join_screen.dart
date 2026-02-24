@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'draft_screen.dart';
+import 'player_pick_sheet_screen.dart';
 
 class PlayerJoinScreen extends StatefulWidget {
   const PlayerJoinScreen({super.key});
@@ -47,14 +47,14 @@ class _PlayerJoinScreenState extends State<PlayerJoinScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Access Granted! 🏆"), backgroundColor: Colors.green));
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => DraftScreen(leagueId: league!['id'])));
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => PlayerPickSheetScreen(leagueId: league!['id'])));
       }
     } catch (e) {
       debugPrint("Join Error: $e");
       if (mounted) {
          if (e.toString().contains('duplicate key')) {
            // They are already in the league, let them into the draft room!
-           Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => DraftScreen(leagueId: league!['id'])));
+           Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => PlayerPickSheetScreen(leagueId: league!['id'])));
          } else {
            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
          }
