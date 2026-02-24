@@ -19,7 +19,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     _fetchGlobalScores();
   }
 
-  Future _fetchGlobalScores() async {
+  Future<void> _fetchGlobalScores() async {
     try {
       // Fetch the top 100 promoters in the world, sorted by highest score
       final response = await _supabase
@@ -55,11 +55,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.purpleAccent),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.purpleAccent), 
           onPressed: () => Navigator.pop(context)
         ),
         title: const Text(
-          "GLOBAL RANKINGS",
+          "GLOBAL RANKINGS", 
           style: TextStyle(color: Colors.purpleAccent, fontWeight: FontWeight.bold, letterSpacing: 2.0)
         ),
         centerTitle: true,
@@ -71,7 +71,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                 const Padding(
                   padding: EdgeInsets.all(16.0),
                   child: Text(
-                    "TOP PROMOTERS WORLDWIDE",
+                    "TOP PROMOTERS WORLDWIDE", 
                     style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 1.5)
                   ),
                 ),
@@ -80,8 +80,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                   child: _leaderboard.isEmpty
                       ? const Center(
                           child: Text(
-                            "THE HALL OF FAME IS EMPTY.
-BE THE FIRST TO MAKE HISTORY.",
+                            "THE HALL OF FAME IS EMPTY.\nBE THE FIRST TO MAKE HISTORY.", 
                             textAlign: TextAlign.center,
                             style: TextStyle(color: Colors.white54, fontSize: 16, fontWeight: FontWeight.bold, height: 1.5)
                           )
@@ -93,7 +92,7 @@ BE THE FIRST TO MAKE HISTORY.",
                             final entry = _leaderboard[index];
                             final isTopThree = index < 3;
                             final rankColor = _getRankColor(index);
-
+                            
                             return Container(
                               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                               decoration: BoxDecoration(

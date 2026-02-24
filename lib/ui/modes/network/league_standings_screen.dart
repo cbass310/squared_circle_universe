@@ -21,11 +21,11 @@ class _LeagueStandingsScreenState extends State<LeagueStandingsScreen> {
     _calculateStandings();
   }
 
-  Future _calculateStandings() async {
+  Future<void> _calculateStandings() async {
     try {
       // 1. Get League Name
       final leagueData = await _supabase.from('leagues').select('name').eq('id', widget.leagueId).single();
-
+      
       // 2. Get all members of this league
       final members = await _supabase.from('league_members').select('user_id').eq('league_id', widget.leagueId);
 
@@ -38,15 +38,19 @@ class _LeagueStandingsScreenState extends State<LeagueStandingsScreen> {
          return;
       }
 
-      final questions = await _supabase.from('pickem_questions').select().in_('event_id', gradedEventIds);
+      // FIX 1: Updated to .inFilter()
+      final questions = await _supabase.from('pickem_questions').select().inFilter('event_id', gradedEventIds);
 
-      // 4. Calculate scores for each member
+      // FIX 2: Removed accidental space in variable name
       List<Map<String, dynamic>> calculatedScores = [];
+
       for (var member in members) {
         final userId = member['user_id'];
         int totalPoints = 0;
-        // Get this user's picks for the graded questions
-        final userPicks = await _supabase.from('pickem_picks').select().eq('user_id', userId).in_('question_id', questions.map((q) => q['id']).toList());
+
+        // FIX 3: Updated to .inFilter()
+        final userPicks = await _supabase.from('pickem_picks').select().eq('user_id', userId).inFilter('question_id', questions.map((q) => q['id']).toList());
+
         for (var pick in userPicks) {
           final question = questions.firstWhere((q) => q['id'] == pick['question_id']);
           // Compare user answer to correct answer (case-insensitive trim just to be safe)
@@ -87,43 +91,43 @@ class _LeagueStandingsScreenState extends State<LeagueStandingsScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.cyanAccent))
           : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(_leagueName.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
-                ),
-                const Divider(color: Colors.white10, height: 1, thickness: 2),
-                Expanded(
-                  child: _standings.isEmpty
-                      ? const Center(child: Text("NO SCORES YET", style: TextStyle(color: Colors.white54, fontSize: 18, fontWeight: FontWeight.bold)))
-                      : ListView.builder(
-                          itemCount: _standings.length,
-                          itemBuilder: (context, index) {
-                            final player = _standings[index];
-                            // Truncate user ID for display
-                            final displayName = "Player ${player['user_id'].toString().substring(0, 6)}...";
-                            final isFirst = index == 0;
-                            return Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1E1E1E),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: isFirst ? Colors.amber : Colors.white10, width: isFirst ? 2 : 1)
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(_leagueName.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+              ),
+              const Divider(color: Colors.white10, height: 1, thickness: 2),
+              Expanded(
+                child: _standings.isEmpty
+                    ? const Center(child: Text("NO SCORES YET", style: TextStyle(color: Colors.white54, fontSize: 18, fontWeight: FontWeight.bold)))
+                    : ListView.builder(
+                        itemCount: _standings.length,
+                        itemBuilder: (context, index) {
+                          final player = _standings[index];
+                          // Truncate user ID for display
+                          final displayName = "Player ${player['user_id'].toString().substring(0, 6)}...";
+                          final isFirst = index == 0;
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1E1E1E),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: isFirst ? Colors.amber : Colors.white10, width: isFirst ? 2 : 1)
+                            ),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: isFirst ? Colors.amber : Colors.white10,
+                                child: Text("${index + 1}", style: TextStyle(color: isFirst ? Colors.black : Colors.white, fontWeight: FontWeight.bold)),
                               ),
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: isFirst ? Colors.amber : Colors.white10,
-                                  child: Text("${index + 1}", style: TextStyle(color: isFirst ? Colors.black : Colors.white, fontWeight: FontWeight.bold)),
-                                ),
-                                title: Text(displayName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                trailing: Text("${player['score']} PTS", style: TextStyle(color: isFirst ? Colors.amber : Colors.cyanAccent, fontSize: 18, fontWeight: FontWeight.w900)),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
+                              title: Text(displayName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              trailing: Text("${player['score']} PTS", style: TextStyle(color: isFirst ? Colors.amber : Colors.cyanAccent, fontSize: 18, fontWeight: FontWeight.w900)),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
     );
   }
 }

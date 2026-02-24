@@ -41,7 +41,6 @@ class HubScreen extends ConsumerWidget {
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 40.0),
-                // 🚀 THE FIX: SingleChildScrollView destroys the Yellow Tape!
                 child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -71,7 +70,7 @@ class HubScreen extends ConsumerWidget {
 
                       // --- MAIN MENU BUTTONS ---
 
-                      // 1. PROMOTER MODE
+                      // 1. PROMOTER MODE (Now with the Auth Gate!)
                       _buildMenuButton(
                         context,
                         icon: Icons.business_center_rounded,
@@ -80,11 +79,20 @@ class HubScreen extends ConsumerWidget {
                             ? "Continue Year ${rosterState.titleHistory.isEmpty ? 1 : 'Current'}"
                             : "Build your empire. Manage your roster.",
                         color: Colors.amber,
-                        onTap: () => _showCareerOptions(context, ref, hasSaveFile),
+                        onTap: () {
+                          final user = Supabase.instance.client.auth.currentUser;
+                          if (user != null) {
+                            // If they are logged in, go straight to career options!
+                            _showCareerOptions(context, ref, hasSaveFile);
+                          } else {
+                            // Not logged in? Show them the Auth Gate!
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const PromoterAuthGateScreen()));
+                          }
+                        },
                       ),
                       const SizedBox(height: 16),
 
-                      // 2. LEAGUE PICK 'EM
+                      // 2. LEAGUE PICK 'EM (Restored to its proper routing)
                       _buildMenuButton(
                         context,
                         icon: Icons.public,
@@ -92,13 +100,14 @@ class HubScreen extends ConsumerWidget {
                         subtitle: "Compete online. Predict winners.",
                         color: Colors.blueAccent,
                         onTap: () {
-        final user = Supabase.instance.client.auth.currentUser;
-        if (user != null) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Routing to Online Promoter Mode... (Coming Soon)"), backgroundColor: Colors.cyan));
-        } else {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const PromoterAuthGateScreen()));
-        }
-      },
+                          final user = Supabase.instance.client.auth.currentUser;
+                          if (user != null) {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerJoinScreen()));
+                          } else {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const GlobalNetworkAuthScreen()));
+                          }
+                        },
+                      ),
                       const SizedBox(height: 16),
 
                       // 3. GLOBAL LEADERBOARDS
@@ -114,7 +123,7 @@ class HubScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 16),
 
-                      // 4. COMMISSIONER TOOLS (Phase 4.2 CSV Import)
+                      // 4. COMMISSIONER TOOLS
                       _buildMenuButton(
                         context,
                         icon: Icons.upload_file,
@@ -126,7 +135,6 @@ class HubScreen extends ConsumerWidget {
                             final supabase = Supabase.instance.client;
                             final user = supabase.auth.currentUser;
 
-                            // 🚀 THE FIX: Red SnackBar for Security Check
                             if (user == null) {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
