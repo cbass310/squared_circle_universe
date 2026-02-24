@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'scoring_rules_screen.dart';
 class CommissionerDashboardScreen extends StatefulWidget {
 final String leagueId;
 const CommissionerDashboardScreen({super.key, required this.leagueId});
@@ -113,7 +114,7 @@ return Scaffold(
             minimumSize: const Size(double.infinity, 50),
           ),
           onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Scoring Rules Editor coming next!")));
+            Navigator.push(context, MaterialPageRoute(builder: (_) => ScoringRulesScreen(leagueId: widget.leagueId)));
           },
         ),
         const SizedBox(height: 24),
