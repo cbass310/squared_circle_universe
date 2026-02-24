@@ -91,8 +91,16 @@ class HubScreen extends ConsumerWidget {
                         subtitle: "Compete online. Predict winners.",
                         color: Colors.blueAccent,
                         onTap: () {
+                        final user = Supabase.instance.client.auth.currentUser;
+
+                        if (user != null) {
+                          // User is logged in, send them to the Join Screen
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerJoinScreen()));
+                        } else {
+                          // User is NOT logged in, send them to Auth Screen
                           Navigator.push(context, MaterialPageRoute(builder: (_) => const GlobalNetworkAuthScreen()));
-                        },
+                        }
+                      },
                       ),
                       const SizedBox(height: 16),
 
