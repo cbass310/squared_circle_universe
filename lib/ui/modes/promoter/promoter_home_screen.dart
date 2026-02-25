@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../logic/game_state_provider.dart';
 import '../../../logic/promoter_provider.dart'; 
+import '../../../logic/cloud_sync_service.dart'; // ☁️ IMPORT THE SYNC ENGINE!
 
 // --- SCREEN IMPORTS ---
 import 'booking_hub_screen.dart';       
@@ -69,8 +70,30 @@ class _PromoterHomeScreenState extends ConsumerState<PromoterHomeScreen> {
   }
 }
 
-class DashboardTab extends ConsumerWidget {
+// 🛠️ CONVERTED TO STATEFUL TO ALLOW AUTO-SYNC ON LOAD
+class DashboardTab extends ConsumerStatefulWidget {
   const DashboardTab({super.key});
+
+  @override
+  ConsumerState<DashboardTab> createState() => _DashboardTabState();
+}
+
+class _DashboardTabState extends ConsumerState<DashboardTab> {
+
+  @override
+  void initState() {
+    super.initState();
+    // ☁️ SILENTLY SYNC TO CLOUD THE SECOND THE DASHBOARD OPENS!
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final gameState = ref.read(gameProvider);
+      CloudSyncService.syncScoreToCloud(
+        promotionName: "SCW", // Default Tycoon name
+        cash: gameState.cash,
+        fans: gameState.fans,
+        rep: gameState.reputation,
+      );
+    });
+  }
 
   // --- FACTORY RESET DIALOG ---
   void _showFactoryResetDialog(BuildContext context, WidgetRef ref) {
@@ -107,7 +130,7 @@ class DashboardTab extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final gameState = ref.watch(gameProvider);
     
     // 🛠️ FIX: Determine if it is currently a PPV Week
