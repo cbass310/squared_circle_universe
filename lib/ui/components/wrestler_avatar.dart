@@ -46,39 +46,51 @@ class WrestlerAvatar extends StatelessWidget {
         styleIcon = Icons.mic;
         defaultImage = 'assets/images/avatar_entertainer.png';
         break;
-      
-      // --- NEW STYLES (Fixed: Now they have images!) ---
       case WrestlingStyle.powerhouse:
         styleColor = Colors.deepPurple;
         styleIcon = Icons.fitness_center;
-        defaultImage = 'assets/images/avatar_powerhouse.png'; // <--- Added
+        defaultImage = 'assets/images/avatar_powerhouse.png'; 
         break;
       case WrestlingStyle.luchador:
         styleColor = Colors.green;
         styleIcon = Icons.masks; 
-        defaultImage = 'assets/images/avatar_luchador.png';   // <--- Added
+        defaultImage = 'assets/images/avatar_luchador.png';   
         break;
       case WrestlingStyle.hardcore:
         styleColor = Colors.deepOrange;
         styleIcon = Icons.dangerous;
-        defaultImage = 'assets/images/avatar_hardcore.png';   // <--- Added
+        defaultImage = 'assets/images/avatar_hardcore.png';   
         break;
     }
 
-    // DETERMINE BORDER COLOR
-    Color borderColor = styleColor;
-    double borderWidth = 2;
+    // 🛠️ AAA CHAMPIONSHIP GLOW LOGIC
+    Color borderColor = styleColor.withOpacity(0.8);
+    double borderWidth = 2.0;
+    List<BoxShadow> glowEffect = [
+      BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 4, offset: const Offset(0, 2))
+    ];
+
     if (wrestler.isChampion) {
-      borderColor = const Color(0xFFFFD700); // GOLD for World
-      borderWidth = 4;
+      borderColor = const Color(0xFFFFD700); // Pure Gold
+      borderWidth = 3.5;
+      glowEffect = [
+        BoxShadow(color: Colors.amberAccent.withOpacity(0.8), blurRadius: 15, spreadRadius: 3),
+        BoxShadow(color: const Color(0xFFFFD700).withOpacity(0.5), blurRadius: 30, spreadRadius: 1),
+      ];
     } else if (wrestler.isTVChampion) {
-      borderColor = const Color(0xFFC0C0C0); // SILVER for TV
-      borderWidth = 4;
+      borderColor = Colors.grey.shade300; // Bright Silver
+      borderWidth = 3.5;
+      glowEffect = [
+        BoxShadow(color: Colors.white.withOpacity(0.6), blurRadius: 15, spreadRadius: 3),
+        BoxShadow(color: Colors.blueAccent.withOpacity(0.2), blurRadius: 30, spreadRadius: 1),
+      ];
     }
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Stack(
+          clipBehavior: Clip.none,
           children: [
             Container(
               width: size,
@@ -90,9 +102,7 @@ class WrestlerAvatar extends StatelessWidget {
                   width: borderWidth,
                 ),
                 color: styleColor.withOpacity(0.2), 
-                boxShadow: (wrestler.isChampion || wrestler.isTVChampion)
-                  ? [BoxShadow(color: borderColor.withOpacity(0.5), blurRadius: 10, spreadRadius: 2)]
-                  : [],
+                boxShadow: glowEffect, // Applies the dynamic aura!
               ),
               child: ClipOval(
                 child: Image.asset(
@@ -105,32 +115,35 @@ class WrestlerAvatar extends StatelessWidget {
               ),
             ),
             
-            // TITLE ICONS
+            // WORLD TITLE ICON
             if (wrestler.isChampion)
               Positioned(
-                right: 0,
-                bottom: 0,
+                right: -4,
+                bottom: -4,
                 child: Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFFD700), // Gold
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFD700),
                     shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 2)]
+                    border: Border.all(color: Colors.black, width: 1.5),
+                    boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 4)]
                   ),
                   child: const Icon(Icons.emoji_events, color: Colors.black, size: 14),
                 ),
               ),
             
+            // TV TITLE ICON
             if (wrestler.isTVChampion)
               Positioned(
-                right: 0,
-                bottom: 0,
+                right: -4,
+                bottom: -4,
                 child: Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFC0C0C0), // Silver
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300, 
                     shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 2)]
+                    border: Border.all(color: Colors.black, width: 1.5),
+                    boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 4)]
                   ),
                   child: const Icon(Icons.tv, color: Colors.black, size: 14),
                 ),
@@ -139,21 +152,28 @@ class WrestlerAvatar extends StatelessWidget {
             // INJURY STATUS
             if (wrestler.condition < 60)
               Positioned(
-                right: 0,
-                top: 0,
+                right: -2,
+                top: -2,
                 child: Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                  decoration: BoxDecoration(
+                    color: Colors.white, 
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.black, width: 1)
+                  ),
                   child: const Icon(Icons.local_hospital, color: Colors.red, size: 12),
                 ),
               ),
           ],
         ),
         if (showLabel) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
-            wrestler.name.split(' ').last,
-            style: const TextStyle(color: Colors.white, fontSize: 10),
+            wrestler.name.split(' ').last.toUpperCase(),
+            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           )
         ]
       ],

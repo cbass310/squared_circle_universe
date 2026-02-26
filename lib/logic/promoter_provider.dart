@@ -11,7 +11,7 @@ import '../data/models/news_item.dart';
 import '../data/models/show_card.dart'; 
 import '../data/models/tv_network_deal.dart'; 
 import '../data/models/sponsorship_deal.dart'; 
-import '../data/models/financial_record.dart'; // <-- NEW: Imported Financial Records
+import '../data/models/financial_record.dart';
 import 'game_state_provider.dart'; 
 import 'rival_provider.dart';      
 
@@ -145,7 +145,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
 
     if (Isar.instanceNames.isEmpty) {
       _isar = await Isar.open(
-        // NEW: Added FinancialRecordSchema to the database map!
         [WrestlerSchema, MatchSchema, ShowHistorySchema, GameSaveSchema, db.RivalrySchema, NewsItemSchema, ShowCardSchema, TvNetworkDealSchema, SponsorshipDealSchema, FinancialRecordSchema], 
         directory: dir.path
       );
@@ -173,6 +172,31 @@ class RosterNotifier extends StateNotifier<RosterState> {
     
     final empireList = await _isar!.wrestlers.filter().companyIdEqualTo(2).findAll();
     
+    // 🛠️ SMART AUTO-CROWNING ENGINE
+    bool hasWorldChamp = rosterList.any((w) => w.isChampion);
+    bool hasTvChamp = rosterList.any((w) => w.isTVChampion);
+
+    if (rosterList.isNotEmpty && (!hasWorldChamp || !hasTvChamp)) {
+      await _isar!.writeTxn(() async {
+        if (!hasWorldChamp) {
+          var mainEventers = rosterList.where((w) => w.cardPosition == "Main Eventer").toList();
+          mainEventers.sort((a, b) => b.pop.compareTo(a.pop));
+          var worldChamp = mainEventers.isNotEmpty ? mainEventers.first : rosterList.first;
+          worldChamp.isChampion = true;
+          await _isar!.wrestlers.put(worldChamp);
+        }
+        if (!hasTvChamp) {
+          var midCarders = rosterList.where((w) => w.cardPosition == "Mid-Carder").toList();
+          midCarders.sort((a, b) => b.pop.compareTo(a.pop));
+          var tvChamp = midCarders.isNotEmpty ? midCarders.first : rosterList.last;
+          tvChamp.isTVChampion = true;
+          await _isar!.wrestlers.put(tvChamp);
+        }
+      });
+      // Titles assigned! Re-run load to grab the updated data.
+      return loadRoster(); 
+    }
+
     final allDbRivalries = await _isar!.rivalrys.where().findAll();
     List<Rivalry> mappedRivalries = [];
 
@@ -206,6 +230,46 @@ class RosterNotifier extends StateNotifier<RosterState> {
       activeRivalries: mappedRivalries, 
       isLoading: false
     );
+  }
+
+  // =========================================================================
+  // 🛠️ THE NEW LINEAGE ENGINE
+  // =========================================================================
+
+  void _initTitles() {
+    if (state.titleHistory.isEmpty && state.roster.isNotEmpty) {
+      var w = state.roster.where((w) => w.isChampion).firstOrNull;
+      var t = state.roster.where((w) => w.isTVChampion).firstOrNull;
+      
+      state = state.copyWith(titleHistory: [
+        if (w != null) TitleInfo(beltName: "World Heavyweight", championName: w.name, reignWeeks: 1),
+        if (t != null) TitleInfo(beltName: "Television Title", championName: t.name, reignWeeks: 1),
+      ]);
+    }
+  }
+
+  // Called by GameStateProvider right after processWeek finishes!
+  void advanceTitleReigns() {
+    List<TitleInfo> updated = List.from(state.titleHistory);
+    if (updated.isNotEmpty) {
+      var wIdx = updated.lastIndexWhere((t) => t.beltName.contains("World"));
+      if (wIdx != -1) {
+        updated[wIdx] = TitleInfo(beltName: updated[wIdx].beltName, championName: updated[wIdx].championName, reignWeeks: updated[wIdx].reignWeeks + 1);
+      }
+
+      var tIdx = updated.lastIndexWhere((t) => t.beltName.contains("Television"));
+      if (tIdx != -1) {
+        updated[tIdx] = TitleInfo(beltName: updated[tIdx].beltName, championName: updated[tIdx].championName, reignWeeks: updated[tIdx].reignWeeks + 1);
+      }
+    }
+    state = state.copyWith(titleHistory: updated);
+  }
+
+  // Called by GameStateProvider when someone actually wins the belt!
+  void recordTitleChange(String belt, String newChamp) {
+    List<TitleInfo> updated = List.from(state.titleHistory);
+    updated.add(TitleInfo(beltName: belt, championName: newChamp, reignWeeks: 1));
+    state = state.copyWith(titleHistory: updated);
   }
 
   // =========================================================================
@@ -383,19 +447,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
     state = state.copyWith(bankAccount: state.bankAccount - amount);
   }
 
-  Future<void> scoutProspect(Wrestler w, int cost) async {
-    if (_isar == null) return;
-    if (state.bankAccount < cost) throw Exception("Not enough cash to scout!");
-    
-    await _isar!.writeTxn(() async {
-      w.isScouted = true;
-      await _isar!.wrestlers.put(w);
-    });
-    
-    deductCash(cost);
-    await loadRoster();
-  }
-
   // =========================================================================
   // --- THE AUTO-DRAFT & SPECIAL ATTRACTIONS ENGINE ---
   // =========================================================================
@@ -511,7 +562,7 @@ class RosterNotifier extends StateNotifier<RosterState> {
       await _isar!.newsItems.clear(); 
       await _isar!.tvNetworkDeals.clear(); 
       await _isar!.sponsorshipDeals.clear(); 
-      await _isar!.financialRecords.clear(); // <-- NEW: Clears Financials on reset!
+      await _isar!.financialRecords.clear(); 
     });
 
     state = RosterState(
@@ -545,15 +596,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
     await _isar!.writeTxn(() async { w.style = newStyle; await _isar!.wrestlers.put(w); });
     await loadRoster();
   }
-  
-  void _initTitles() {
-    if (state.titleHistory.isEmpty) {
-      state = state.copyWith(titleHistory: [
-        TitleInfo(beltName: "World Heavyweight", championName: "Kid Aerial", reignWeeks: 12),
-        TitleInfo(beltName: "Television", championName: "Luther Miller", reignWeeks: 4),
-      ]);
-    }
-  }
 
   AwardResult calculateYearEndAwards() {
       return AwardResult(
@@ -567,21 +609,101 @@ class RosterNotifier extends StateNotifier<RosterState> {
   }
 
   RandomEvent? checkForRandomEvent() { return null; }
-  Future<bool> scoutRegion(String region, int cost) async { return false; }
-  Future<String> runPracticeMatch(Wrestler a, Wrestler b) async { return "Match Complete"; }
+
+  // ===========================================================================
+  // 🚀 RESTORED DEVELOPMENT SCREEN HOOKS 
+  // ===========================================================================
+
+  Future<Wrestler?> scoutRegion(String region, int cost) async { 
+    if (_isar == null) return null;
+    
+    Wrestler? prospect;
+    
+    await _isar!.writeTxn(() async {
+      prospect = await _isar!.wrestlers.filter()
+          .companyIdEqualTo(-1)
+          .and()
+          .isRookieEqualTo(true)
+          .and()
+          .isScoutedEqualTo(false)
+          .findFirst();
+
+      if (prospect != null) {
+        prospect!.isScouted = true;
+        prospect!.isRookie = false; 
+        await _isar!.wrestlers.put(prospect!);
+      }
+    });
+
+    try {
+      dynamic gameNotifier = ref.read(gameProvider.notifier);
+      gameNotifier.spendCash(cost);
+    } catch (e) {
+      deductCash(cost);
+    }
+
+    await loadRoster();
+    return prospect; 
+  }
   
+  Future<void> scoutProspect(Wrestler w, int cost) async {
+    if (_isar == null) return;
+    
+    await _isar!.writeTxn(() async {
+      w.isScouted = true;
+      await _isar!.wrestlers.put(w);
+    });
+
+    try {
+      dynamic gameNotifier = ref.read(gameProvider.notifier);
+      gameNotifier.spendCash(cost);
+    } catch (e) {
+      deductCash(cost);
+    }
+
+    await loadRoster();
+  }
+
   Future<void> trainingAction(Wrestler w, String type, int cost) async {
     if (_isar == null) return;
+    
     await _isar!.writeTxn(() async {
-      if (type == "MIC") w.micSkill = (w.micSkill + 2).clamp(0, w.potentialSkill); 
-      if (type == "POP") w.pop = (w.pop + 1).clamp(0, 100);
-      if (type == "RING") w.ringSkill = (w.ringSkill + 2).clamp(0, w.potentialSkill); 
+      if (type == "MIC" || type == "MIC SKILL") w.micSkill = (w.micSkill + 2).clamp(0, w.potentialSkill); 
+      if (type == "POP" || type == "POPULARITY") w.pop = (w.pop + 1).clamp(0, 100);
+      if (type == "RING" || type == "RING SKILL") w.ringSkill = (w.ringSkill + 2).clamp(0, w.potentialSkill); 
       if (type == "HEAL") { w.stamina = 100; w.condition = 100; } 
       await _isar!.wrestlers.put(w);
     });
+
+    try {
+      dynamic gameNotifier = ref.read(gameProvider.notifier);
+      gameNotifier.spendCash(cost);
+    } catch (e) {
+      deductCash(cost);
+    }
+
     await loadRoster();
   }
+
+  Future<String> runPracticeMatch(Wrestler a, Wrestler b) async { 
+    if (_isar == null) return "Database Error.";
+
+    await _isar!.writeTxn(() async {
+      a.ringSkill = (a.ringSkill + 2).clamp(0, 100);
+      a.stamina = (a.stamina - 25).clamp(0, 100);
+      
+      b.ringSkill = (b.ringSkill + 2).clamp(0, 100);
+      b.stamina = (b.stamina - 25).clamp(0, 100);
+      
+      await _isar!.wrestlers.putAll([a, b]);
+    });
+    
+    await loadRoster();
+    return "${a.name} and ${b.name} completed a grueling sparring session!"; 
+  }
   
+  // ===========================================================================
+
   Future<void> turnHeelFace(Wrestler w) async {
     if (_isar == null) return;
     await _isar!.writeTxn(() async { w.isHeel = !w.isHeel; await _isar!.wrestlers.put(w); });

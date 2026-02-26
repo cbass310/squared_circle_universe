@@ -4,7 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/match.dart';
 import '../../../logic/game_state_provider.dart';
 import 'report_screen.dart';
-import '../../screens/hub_screen.dart'; // <-- Ensure this points to your Hub wrapper
+import 'promoter_home_screen.dart'; // 🚀 IMPORT ADDED FOR ROUTING FIX
+import '../../screens/hub_screen.dart'; 
 
 class PostShowRecapScreen extends ConsumerWidget {
   final List<Match> completedCard;
@@ -122,12 +123,12 @@ class PostShowRecapScreen extends ConsumerWidget {
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
                       onPressed: () {
                         HapticFeedback.heavyImpact();
-                        // 🛠️ FIX: Force the app to rebuild the HubScreen (resetting to Home)
-                        // and push the Finances screen on top.
+                        
+                        // 🛠️ THE FIX: Reset stack to Dashboard, then push Finances!
                         Navigator.pushAndRemoveUntil(
                           context,
-                          MaterialPageRoute(builder: (_) => const HubScreen()),
-                          (route) => false,
+                          MaterialPageRoute(builder: (_) => const PromoterHomeScreen()),
+                          (route) => route.isFirst, 
                         );
                         
                         Navigator.push(

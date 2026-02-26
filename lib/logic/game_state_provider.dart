@@ -10,6 +10,7 @@ import '../data/models/tv_network_deal.dart';
 import '../data/models/sponsorship_deal.dart'; 
 import '../data/models/financial_record.dart'; 
 import 'rival_provider.dart'; 
+import 'promoter_provider.dart'; 
 
 // --- DATA MODELS ---
 
@@ -39,6 +40,7 @@ class GameState {
   final int week;
   final int year;
   final List<Match> currentCard;
+  final List<bool> titleMatchFlags; 
   final List<FinancialEntry> ledger;
   final List<String> ppvNames;
   final List<String> venueCustomNames; 
@@ -67,6 +69,7 @@ class GameState {
     this.week = 1,
     this.year = 1,
     this.currentCard = const [],
+    this.titleMatchFlags = const [], 
     this.ledger = const [],
     this.ppvNames = const [
       "New Year's Revolution", "Valentine's Vengeance", "March Massacre",
@@ -114,7 +117,7 @@ class GameState {
 
   GameState copyWith({
     String? promotionName, String? tvShowName, int? cash, int? fans, int? reputation,
-    int? week, int? year, List<Match>? currentCard, List<FinancialEntry>? ledger,
+    int? week, int? year, List<Match>? currentCard, List<bool>? titleMatchFlags, List<FinancialEntry>? ledger,
     List<String>? ppvNames, List<String>? venueCustomNames, List<SponsorshipDeal>? activeSponsors,
     List<SponsorshipDeal>? availableOffers, TvNetworkDeal? activeTvDeal, bool? isBiddingWarActive, 
     bool? isSandboxMode, int? techBroadcast, int? techPyro, int? techAudio, int? techMedical, 
@@ -129,6 +132,7 @@ class GameState {
       week: week ?? this.week,
       year: year ?? this.year,
       currentCard: currentCard ?? this.currentCard,
+      titleMatchFlags: titleMatchFlags ?? this.titleMatchFlags,
       ledger: ledger ?? this.ledger,
       ppvNames: ppvNames ?? this.ppvNames,
       venueCustomNames: venueCustomNames ?? this.venueCustomNames,
@@ -154,6 +158,8 @@ class GameNotifier extends StateNotifier<GameState> {
   final Ref ref;
   Isar? _isar;
   final Random _rng = Random(); 
+  
+  bool _stagedTitleMatchFlag = false;
 
   GameNotifier(this.ref) : super(GameState()) {
     _initDb();
@@ -174,34 +180,20 @@ class GameNotifier extends StateNotifier<GameState> {
     if (networkCount == 0) await _seedNetworks();
 
     final currentDeal = await _isar!.tvNetworkDeals.filter().promotionIdEqualTo(0).findFirst();
-
     final currentSponsors = await _isar!.sponsorshipDeals.filter().promotionIdEqualTo(0).findAll();
-
     final existingSave = await _isar!.gameSaves.get(1); 
+
     if (existingSave != null) {
       state = state.copyWith(
-        week: existingSave.week,
-        year: existingSave.year,
-        cash: existingSave.cash,
-        fans: existingSave.fans,
-        reputation: existingSave.reputation,
-        promotionName: existingSave.promotionName,
-        tvShowName: existingSave.tvShowName,
-        venueLevel: existingSave.venueLevel,
-        techBroadcast: existingSave.techBroadcast,
-        techPyro: existingSave.techPyro,
-        techAudio: existingSave.techAudio,
-        techMedical: existingSave.techMedical,
-        premierPpvIndex: existingSave.premierPpvIndex, 
-        activeTvDeal: currentDeal,
-        activeSponsors: currentSponsors,
-        isBiddingWarActive: currentDeal == null, 
-        isLoading: false,
+        week: existingSave.week, year: existingSave.year, cash: existingSave.cash, fans: existingSave.fans,
+        reputation: existingSave.reputation, promotionName: existingSave.promotionName, tvShowName: existingSave.tvShowName,
+        venueLevel: existingSave.venueLevel, techBroadcast: existingSave.techBroadcast, techPyro: existingSave.techPyro,
+        techAudio: existingSave.techAudio, techMedical: existingSave.techMedical, premierPpvIndex: existingSave.premierPpvIndex, 
+        activeTvDeal: currentDeal, activeSponsors: currentSponsors, isBiddingWarActive: currentDeal == null, isLoading: false,
       );
     } else {
       state = state.copyWith(isLoading: false, isBiddingWarActive: true, activeTvDeal: null, activeSponsors: []);
     }
-
     _generateInitialSponsors();
   }
 
@@ -222,7 +214,6 @@ class GameNotifier extends StateNotifier<GameState> {
 
   Future<void> resetGame() async {
     if (_isar == null) return;
-    
     await _isar!.writeTxn(() async {
       await _isar!.gameSaves.clear();
       final deals = await _isar!.tvNetworkDeals.where().findAll();
@@ -231,42 +222,26 @@ class GameNotifier extends StateNotifier<GameState> {
       await _isar!.sponsorshipDeals.clear(); 
       await _isar!.financialRecords.clear(); 
     });
-
-    state = GameState(
-      week: 1, year: 1, cash: 50000, fans: 100, reputation: 10, ledger: [], isLoading: false, isBiddingWarActive: true, premierPpvIndex: 11
-    );
+    state = GameState(week: 1, year: 1, cash: 50000, fans: 100, reputation: 10, ledger: [], isLoading: false, isBiddingWarActive: true, premierPpvIndex: 11);
     await _saveGame();
   }
 
-  void startNewSeason() => state = state.copyWith(week: 1, year: state.year + 1, currentCard: []);
+  void startNewSeason() => state = state.copyWith(week: 1, year: state.year + 1, currentCard: [], titleMatchFlags: []);
   void renamePromotion(String name) { state = state.copyWith(promotionName: name); _saveGame(); }
   void renameTVShow(String name) { state = state.copyWith(tvShowName: name); _saveGame(); }
   void setPremierPpv(int index) { state = state.copyWith(premierPpvIndex: index); _saveGame(); }
   void renamePPV(int i, String n) {
-    final list = List<String>.from(state.ppvNames);
-    list[i] = n;
-    state = state.copyWith(ppvNames: list);
-    _saveGame();
+    final list = List<String>.from(state.ppvNames); list[i] = n;
+    state = state.copyWith(ppvNames: list); _saveGame();
   }
 
   Future<void> signSponsor(SponsorshipDeal deal) async {
     if (_isar == null) return;
-    
     bool slotTaken = state.activeSponsors.any((s) => s.slotTarget == deal.slotTarget);
     if (slotTaken) return; 
-
     int newCash = state.cash + deal.upfrontBonus;
-
-    await _isar!.writeTxn(() async {
-      deal.promotionId = 0;
-      await _isar!.sponsorshipDeals.put(deal);
-    });
-
-    state = state.copyWith(
-      cash: newCash,
-      activeSponsors: [...state.activeSponsors, deal],
-      availableOffers: state.availableOffers.where((d) => d.id != deal.id).toList()
-    );
+    await _isar!.writeTxn(() async { deal.promotionId = 0; await _isar!.sponsorshipDeals.put(deal); });
+    state = state.copyWith(cash: newCash, activeSponsors: [...state.activeSponsors, deal], availableOffers: state.availableOffers.where((d) => d.id != deal.id).toList());
     _saveGame();
   }
 
@@ -275,8 +250,7 @@ class GameNotifier extends StateNotifier<GameState> {
     await _isar!.writeTxn(() async {
       final oldDeals = await _isar!.tvNetworkDeals.filter().promotionIdEqualTo(0).findAll();
       for (var d in oldDeals) { d.promotionId = -1; await _isar!.tvNetworkDeals.put(d); }
-      deal.promotionId = 0;
-      await _isar!.tvNetworkDeals.put(deal);
+      deal.promotionId = 0; await _isar!.tvNetworkDeals.put(deal);
     });
     state = state.copyWith(activeTvDeal: deal, isBiddingWarActive: false);
   }
@@ -296,14 +270,26 @@ class GameNotifier extends StateNotifier<GameState> {
     int cost = next == 2 ? 25000 : (next == 3 ? 250000 : 1000000); 
     if (state.cash >= cost && next <= 4) {
       state = state.copyWith(cash: state.cash - cost, venueLevel: next, isBiddingWarActive: true); 
-      _saveGame();
-      return true;
+      _saveGame(); return true;
     }
     return false;
   }
 
-  void addMatchToCard(Match m) => state = state.copyWith(currentCard: [...state.currentCard, m]);
-  void clearCard() => state = state.copyWith(currentCard: []);
+  void spendCash(int amount) { state = state.copyWith(cash: state.cash - amount); _saveGame(); }
+
+  void stageTitleMatch(bool isTitle) {
+    _stagedTitleMatchFlag = isTitle;
+  }
+
+  void addMatchToCard(Match m) {
+    state = state.copyWith(
+      currentCard: [...state.currentCard, m],
+      titleMatchFlags: [...state.titleMatchFlags, _stagedTitleMatchFlag]
+    );
+    _stagedTitleMatchFlag = false; 
+  }
+  
+  void clearCard() => state = state.copyWith(currentCard: [], titleMatchFlags: []);
 
   void _generateInitialSponsors() {
     if (state.availableOffers.isEmpty && state.activeSponsors.isEmpty) {
@@ -315,8 +301,10 @@ class GameNotifier extends StateNotifier<GameState> {
     }
   }
 
+  // =========================================================================
+  // 🚀 PROCESS WEEK ENGINE 
+  // =========================================================================
   Future<void> processWeek(List<Wrestler> roster) async {
-    // 1. EXPENSES
     int sal = roster.fold(0, (sum, w) => sum + w.salary);
     int prod = 0;
     if (state.techBroadcast == 2) prod += 10000;
@@ -324,82 +312,77 @@ class GameNotifier extends StateNotifier<GameState> {
 
     int rent;
     switch(state.venueLevel) {
-      case 2: rent = 5000; break;
-      case 3: rent = 50000; break;
-      case 4: rent = 250000; break;
-      case 1:
-      default: rent = 500; break;
+      case 2: rent = 5000; break; case 3: rent = 50000; break; case 4: rent = 250000; break; case 1: default: rent = 500; break;
     }
     
     int facCosts = state.techMedical * 2500; 
     int totalExpenses = sal + prod + rent + facCosts;
 
-    // 2. RATINGS
-    double rawRating = state.currentCard.isEmpty ? 0 : (state.currentCard.fold(0.0, (s, m) => s + m.rating) / state.currentCard.length);
-    
-    // --- FIX: MUCH MORE FORGIVING PRODUCTION PENALTY ---
-    double rating = rawRating;
-    
-    if (state.techBroadcast == 1 && rawRating > 3.5) {
-      // If you have Level 1 cameras, you max out at 3.5 stars (Local Indie Cap)
-      rating = 3.5; 
-    } else if (state.techBroadcast == 2 && rawRating > 4.2) {
-      // If you have Level 2 cameras, you max out at 4.2 stars (Regional TV Cap)
-      rating = 4.2;
-    } 
-    // If you have Level 3 cameras, there is NO cap. You can hit 5.0!
+    double totalRatingScore = 0.0;
 
+    for (int i = 0; i < state.currentCard.length; i++) {
+      var match = state.currentCard[i];
+      double matchScore = match.rating;
+      
+      bool isTitleMatch = state.titleMatchFlags.length > i ? state.titleMatchFlags[i] : false;
+      
+      if (isTitleMatch) {
+        matchScore += 0.5;
+        if (matchScore > 5.0) matchScore = 5.0;
+        
+        if (match.winnerName.isNotEmpty && match.winnerName != "Draw") {
+          // 🛠️ THE FIX: We must update the exact objects in the 'roster' list so they don't get overwritten at the end of the week!
+          Wrestler? winner = roster.where((w) => w.name == match.winnerName).firstOrNull;
+          Wrestler? loser = roster.where((w) => match.wrestlers.any((mw) => mw.id == w.id) && w.name != match.winnerName).firstOrNull;
+
+          if (winner != null && loser != null) {
+            if (loser.isChampion) {
+              loser.isChampion = false;
+              winner.isChampion = true;
+              ref.read(rosterProvider.notifier).recordTitleChange("World Heavyweight", winner.name);
+            }
+            else if (loser.isTVChampion) {
+              loser.isTVChampion = false;
+              winner.isTVChampion = true;
+              ref.read(rosterProvider.notifier).recordTitleChange("Television Title", winner.name);
+            }
+          }
+        }
+      }
+      totalRatingScore += matchScore;
+    }
+
+    double rawRating = state.currentCard.isEmpty ? 0 : (totalRatingScore / state.currentCard.length);
+    double rating = rawRating;
+    if (state.techBroadcast == 1 && rawRating > 3.5) rating = 3.5; 
+    else if (state.techBroadcast == 2 && rawRating > 4.2) rating = 4.2; 
     rating = double.parse(rating.toStringAsFixed(1));
 
-    // 3. INCOME
-    int tvPayout = 0;
-    int ppvPayout = 0;
-    int gate = (state.fans * 15); 
-    int merch = (state.fans * 8); 
+    int tvPayout = 0; int ppvPayout = 0; int gate = (state.fans * 15); int merch = (state.fans * 8); 
 
     if (state.activeTvDeal != null) {
       tvPayout = state.activeTvDeal!.weeklyPayout;
-      if (!state.isPPV && rating < state.activeTvDeal!.targetMinimumRating) {
-        tvPayout = (tvPayout * 0.5).toInt(); 
-      }
+      if (!state.isPPV && rating < state.activeTvDeal!.targetMinimumRating) tvPayout = (tvPayout * 0.5).toInt(); 
       if (state.isPPV) {
         int currentPpvIndex = ((state.week - 1) ~/ 4) % 12;
         bool isPremier = currentPpvIndex == state.premierPpvIndex;
         double prestigeBonus = isPremier ? 1.5 : 1.0; 
 
-        if (state.activeTvDeal!.cannibalizesPPVs) {
-          tvPayout = (state.activeTvDeal!.weeklyPayout * 2 * prestigeBonus).toInt(); 
-        } else {
-          ppvPayout = (state.fans * 30 * state.activeTvDeal!.ppvBonusMultiplier * prestigeBonus).toInt();
-        }
+        if (state.activeTvDeal!.cannibalizesPPVs) tvPayout = (state.activeTvDeal!.weeklyPayout * 2 * prestigeBonus).toInt(); 
+        else ppvPayout = (state.fans * 30 * state.activeTvDeal!.ppvBonusMultiplier * prestigeBonus).toInt();
       }
-    } else {
-      tvPayout = 1000;
-    }
+    } else tvPayout = 1000;
 
-    // 4. SPONSORS
-    int sponPay = 0;
-    List<SponsorshipDeal> dealsToKeep = [];
+    int sponPay = 0; List<SponsorshipDeal> dealsToKeep = [];
     double mainEventRating = state.currentCard.isNotEmpty ? state.currentCard.last.rating : 0.0;
 
     for (var s in state.activeSponsors) {
       bool voidContract = false;
-      if (s.archetype == SponsorArchetype.consistency) {
-        if (rating < 2.5) voidContract = true;
-        else sponPay += s.weeklyPayout;
-      } 
-      else if (s.archetype == SponsorArchetype.performance) {
-        sponPay += s.weeklyPayout; 
-        if (mainEventRating >= s.performanceBonusThreshold) sponPay += s.performanceBonusAmount;
-      }
-      else if (s.archetype == SponsorArchetype.upfrontCash) {
-        sponPay += s.weeklyPayout; 
-      }
+      if (s.archetype == SponsorArchetype.consistency) { if (rating < 2.5) voidContract = true; else sponPay += s.weeklyPayout; } 
+      else if (s.archetype == SponsorArchetype.performance) { sponPay += s.weeklyPayout; if (mainEventRating >= s.performanceBonusThreshold) sponPay += s.performanceBonusAmount; }
+      else if (s.archetype == SponsorArchetype.upfrontCash) sponPay += s.weeklyPayout; 
 
-      if (!voidContract) {
-        s.weeksLeft -= 1;
-        if (s.weeksLeft > 0) dealsToKeep.add(s);
-      }
+      if (!voidContract) { s.weeksLeft -= 1; if (s.weeksLeft > 0) dealsToKeep.add(s); }
     }
 
     if (_isar != null) {
@@ -413,45 +396,22 @@ class GameNotifier extends StateNotifier<GameState> {
     int prof = (gate + merch + tvPayout + ppvPayout + sponPay) - totalExpenses;
 
     if (_isar != null) {
-      final finRecord = FinancialRecord()
-        ..year = state.year
-        ..week = state.week
-        ..tvRevenue = tvPayout
-        ..ppvRevenue = ppvPayout
-        ..ticketSales = gate
-        ..merchandiseSales = merch
-        ..sponsorshipRevenue = sponPay
-        ..rosterPayroll = sal
-        ..productionCosts = prod
-        ..facilityCosts = facCosts
-        ..logisticsCosts = rent;
-
-      await _isar!.writeTxn(() async {
-        await _isar!.financialRecords.put(finRecord);
-      });
+      final finRecord = FinancialRecord()..year = state.year..week = state.week..tvRevenue = tvPayout..ppvRevenue = ppvPayout..ticketSales = gate..merchandiseSales = merch..sponsorshipRevenue = sponPay..rosterPayroll = sal..productionCosts = prod..facilityCosts = facCosts..logisticsCosts = rent;
+      await _isar!.writeTxn(() async { await _isar!.financialRecords.put(finRecord); });
     }
 
-    // 5. STAMINA & ROSTER
     if (_isar != null) {
       List<int> bookedIds = [];
-      for (var match in state.currentCard) {
-          for (var w in match.wrestlers) { bookedIds.add(w.id); }
-      }
+      for (var match in state.currentCard) { for (var w in match.wrestlers) bookedIds.add(w.id); }
 
       for (var w in roster) {
           if (w.isInjured) {
               w.injuryWeeks -= 1;
-              if (w.injuryWeeks <= 0) {
-                  w.isInjured = false;
-                  w.injuryWeeks = 0;
-                  w.stamina = 50; 
-              } else { w.stamina += 10; }
+              if (w.injuryWeeks <= 0) { w.isInjured = false; w.injuryWeeks = 0; w.stamina = 50; } else w.stamina += 10; 
           } else {
               if (bookedIds.contains(w.id)) {
                   w.stamina -= 15; w.morale += 5;
-                  if (w.stamina < 20 && _rng.nextDouble() < 0.40) { 
-                      w.isInjured = true; w.injuryWeeks = _rng.nextInt(3) + 2; 
-                  }
+                  if (w.stamina < 20 && _rng.nextDouble() < 0.40) { w.isInjured = true; w.injuryWeeks = _rng.nextInt(3) + 2; }
               } else { w.stamina += 15; w.morale -= 2; }
           }
           w.stamina = w.stamina.clamp(0, 100);
@@ -459,104 +419,76 @@ class GameNotifier extends StateNotifier<GameState> {
           w.contractWeeks -= 1;
           if (w.contractWeeks < 0) w.contractWeeks = 0;
       }
+      
+      // 🛠️ Because we updated the exact same 'roster' list during the title logic above, saving it here perfectly preserves both stamina AND the new title changes!
       await _isar!.writeTxn(() async { await _isar!.wrestlers.putAll(roster); });
     }
 
     double rival = 3.0;
     try { rival = ref.read(rivalProvider).rating; } catch(e) {}
-    int fChange = rating > rival ? 15 + ((rating - rival) * 50).toInt() : (state.fans < 1000 ? 5 : -10 - ((rival - rating) * 20).toInt());
     
+    int fChange = 0;
+    int repChange = 0;
+
+    if (rating >= 4.5) { fChange = 500 * state.venueLevel; repChange = 2; }
+    else if (rating >= 3.5) { fChange = 250 * state.venueLevel; repChange = 1; }
+    else if (rating >= 2.5) { fChange = 75 * state.venueLevel; repChange = 0; }
+    else if (rating >= 1.5) { fChange = -25 * state.venueLevel; repChange = -1; }
+    else { fChange = -100 * state.venueLevel; repChange = -2; }
+
+    double diff = rating - rival;
+    if (diff > 0) {
+      fChange += (diff * 200 * state.venueLevel).toInt(); 
+      if (diff >= 1.0) repChange += 1; 
+    } else if (diff < 0) {
+      fChange += (diff * 75 * state.venueLevel).toInt(); 
+    }
+
+    if (state.fans < 500 && rating >= 2.5 && fChange < 25) {
+      fChange = 25;
+    }
+
+    // 🛠️ The absolute floor is now 10 fans, so you don't literally play to an empty gym!
+    int newFans = (state.fans + fChange).clamp(10, 10000000); 
+    int newRep = (state.reputation + repChange).clamp(0, 100);
+
     if (state.currentCard.isNotEmpty && _isar != null) {
       final historyEntry = ShowHistory()..timestamp = DateTime.now()..week = state.week..year = state.year..showName = state.isPPV ? state.nextPPVName : state.tvShowName..avgRating = rating..totalProfit = prof..attendance = gate ~/ 20..highlights = _generateHighlights();
       await _isar!.writeTxn(() async { await _isar!.showHistorys.put(historyEntry); });
     }
 
-    // --- FIX: DETAILED FINANCIAL ENTRY CAPTURES RATINGS ---
     state = state.copyWith(
       cash: state.cash + prof, 
-      fans: (state.fans + fChange).clamp(0, 1000000), 
+      fans: newFans, 
+      reputation: newRep, 
       week: state.week + 1,
-      ledger: [
-        FinancialEntry()
-          ..week = state.week
-          ..year = state.year
-          ..incomeTickets = gate
-          ..incomeMerch = merch 
-          ..incomeSponsors = sponPay
-          ..incomeTvDeal = tvPayout 
-          ..expenseSalaries = sal
-          ..expenseProduction = prod
-          ..expenseRent = rent
-          ..profit = prof
-          ..showRating = rating       // Captures the actual show rating
-          ..rivalRating = rival       // Captures the actual rival rating
-          ..warResult = (rating > rival ? "VICTORY" : (rating < rival ? "DEFEAT" : "DRAW")), 
-        ...state.ledger
-      ],
+      ledger: [ FinancialEntry()..week = state.week..year = state.year..incomeTickets = gate..incomeMerch = merch..incomeSponsors = sponPay..incomeTvDeal = tvPayout..expenseSalaries = sal..expenseProduction = prod..expenseRent = rent..profit = prof..showRating = rating..rivalRating = rival..warResult = (rating > rival ? "VICTORY" : (rating < rival ? "DEFEAT" : "DRAW")), ...state.ledger ],
       currentCard: [], 
+      titleMatchFlags: [], 
       activeSponsors: dealsToKeep,
     );
     _saveGame();
+    
+    ref.read(rosterProvider.notifier).advanceTitleReigns();
+    ref.read(rosterProvider.notifier).loadRoster(); 
   }
   
   Future<void> _saveGame() async {
       if (_isar == null) return;
-      
-      final save = GameSave()
-        ..id = 1 
-        ..week = state.week
-        ..year = state.year
-        ..cash = state.cash
-        ..fans = state.fans
-        ..reputation = state.reputation
-        ..promotionName = state.promotionName
-        ..tvShowName = state.tvShowName
-        ..venueLevel = state.venueLevel
-        ..techBroadcast = state.techBroadcast
-        ..techPyro = state.techPyro
-        ..techAudio = state.techAudio
-        ..techMedical = state.techMedical
-        ..premierPpvIndex = state.premierPpvIndex; 
-
-      await _isar!.writeTxn(() async {
-          await _isar!.gameSaves.put(save);
-      });
+      final save = GameSave()..id = 1..week = state.week..year = state.year..cash = state.cash..fans = state.fans..reputation = state.reputation..promotionName = state.promotionName..tvShowName = state.tvShowName..venueLevel = state.venueLevel..techBroadcast = state.techBroadcast..techPyro = state.techPyro..techAudio = state.techAudio..techMedical = state.techMedical..premierPpvIndex = state.premierPpvIndex; 
+      await _isar!.writeTxn(() async { await _isar!.gameSaves.put(save); });
   }
-
 
   Future<void> processYearEnd() async {
     if (_isar == null) return;
-
-    // Evaluate the 52-week ledger for Event of the Year
-    double highestRating = 0.0;
-    if (state.ledger.isNotEmpty) {
-      highestRating = state.ledger.reduce((a, b) => a.showRating > b.showRating ? a : b).showRating;
-    }
-
-    // Calculate Total Annual Profit
-    int totalProfit = state.ledger.fold(0, (sum, e) => sum + e.profit);
-
-    // Evaluate Roster for Wrestler of the Year
-    final roster = await _isar!.wrestlers.where().findAll();
-    roster.sort((a, b) => b.pop.compareTo(a.pop));
-    Wrestler? woty = roster.isNotEmpty ? roster.first : null;
-
-    // Clear the ledger, reset week to 1, increment year by 1
-    state = state.copyWith(
-      week: 1,
-      year: state.year + 1,
-      ledger: [],
-    );
-
+    state = state.copyWith(week: 1, year: state.year + 1, ledger: []);
     await _saveGame();
   }
 
   List<String> _generateHighlights() {
     List<String> notes = [];
     for (var m in state.currentCard) {
-      if (m.rating >= 4.5) {
-        notes.add("⭐ 5-STAR CLASSIC: ${m.winnerName} put on a masterpiece!");
-      }
+      if (m.rating >= 4.5) notes.add("⭐ 5-STAR CLASSIC: ${m.winnerName} put on a masterpiece!");
     }
     return notes;
   }

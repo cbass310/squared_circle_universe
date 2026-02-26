@@ -342,14 +342,50 @@ class HubScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDialogButton(BuildContext context, String text, IconData icon, Color color, VoidCallback onPressed) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF303030), foregroundColor: color, padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20), alignment: Alignment.centerLeft, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), elevation: 0),
-        icon: Icon(icon, size: 24),
-        label: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1.0)),
-        onPressed: onPressed,
+  // 🛠️ THE NEW PREMIUM DIALOG BUTTON
+  Widget _buildDialogButton(BuildContext context, String text, IconData icon, Color baseColor, VoidCallback onTap) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          colors: [const Color(0xFF1A1A1A), baseColor.withOpacity(0.1)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        border: Border.all(color: baseColor.withOpacity(0.4), width: 1),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 6, offset: const Offset(0, 3))],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          hoverColor: baseColor.withOpacity(0.15),
+          splashColor: baseColor.withOpacity(0.25),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: baseColor.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: baseColor, size: 20),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    text, 
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1.0)
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: baseColor.withOpacity(0.5), size: 18),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -7,8 +7,8 @@ import '../../../logic/promoter_provider.dart';
 import '../../../logic/news_provider.dart';
 import '../../../logic/rival_provider.dart';
 import '../../../logic/sound_manager.dart'; 
-import '../../../logic/inbox_provider.dart';
 import '../../../logic/social_feed_generator.dart';
+import '../../../logic/communications_provider.dart'; 
 import '../../../data/models/match.dart';
 import '../../../data/models/sponsorship_deal.dart';
 import 'booking_screen.dart'; 
@@ -30,20 +30,19 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
   Widget build(BuildContext context) {
     final gameState = ref.watch(gameProvider);
 
-    // 🌟 NEW FLOW: If it's a PPV, and you haven't booked anything yet, show the Hype Matrix!
     if (gameState.isPPV && !_hasPassedPreShow && gameState.currentCard.isEmpty) {
       return _buildPreShowPanel(gameState);
     }
 
-    // Otherwise, show the normal Booking Interface!
     return _buildBookingInterface(gameState);
   }
 
   // ========================================================================
-  // 🎙️ THE PRE-SHOW PANEL (Shows BEFORE Booking!)
+  // 🎙️ THE PRE-SHOW PANEL
   // ========================================================================
   Widget _buildPreShowPanel(dynamic gameState) {
-    final eventSponsor = gameState.activeSponsors.where((s) => s.slotTarget == RealEstateSlot.eventName).firstOrNull;
+    final matchingSponsors = gameState.activeSponsors.where((s) => s.slotTarget == RealEstateSlot.eventName);
+    final eventSponsor = matchingSponsors.isNotEmpty ? matchingSponsors.first : null;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -57,32 +56,43 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("KICKOFF SHOW", style: TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
-                  const SizedBox(height: 5),
-                  Text(gameState.nextPPVName.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
-                  
-                  if (eventSponsor != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
-                      child: Text("Presented by ${eventSponsor.sponsorName}", style: const TextStyle(color: Colors.amber, fontStyle: FontStyle.italic)),
+                  // 🛠️ THE FIX: Wrap the text content in an Expanded ScrollView to prevent Pixel Overflow!
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text("KICKOFF SHOW", style: TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+                          const SizedBox(height: 5),
+                          Text(gameState.nextPPVName.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                          
+                          if (eventSponsor != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Text("Presented by ${eventSponsor.sponsorName}", style: const TextStyle(color: Colors.amber, fontStyle: FontStyle.italic)),
+                            ),
+                          
+                          const Divider(color: Colors.white24, height: 30),
+                          
+                          const Text("THE STAKES TONIGHT:", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 5),
+                          const Text("Premium Live Event", style: TextStyle(color: Colors.amber, fontSize: 20, fontWeight: FontWeight.bold)),
+                          
+                          const SizedBox(height: 30),
+                          const Text("THE EXPERTS PREDICT:", style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                          const SizedBox(height: 15),
+
+                          _buildPredictionQuote("⭐️ Dave Delta", "The build to this event has been solid. Now it's on the promoter to deliver a 5-star main event. No pressure."),
+                          _buildPredictionQuote("🎙️ The NY Smark", "I paid good money to be in the arena tonight. The pacing better be perfect, or we are hijacking this show!"),
+                          _buildPredictionQuote("👑 King T", "SHUCKY DUCKY QUACK QUACK! The electricity in this building is off the charts! It's time to book some magic, boss!"),
+                        ],
+                      ),
                     ),
-                  
-                  const Divider(color: Colors.white24, height: 30),
-                  
-                  const Text("THE STAKES TONIGHT:", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 5),
-                  const Text("Premium Live Event", style: TextStyle(color: Colors.amber, fontSize: 20, fontWeight: FontWeight.bold)),
-                  
-                  const SizedBox(height: 30),
-                  const Text("THE EXPERTS PREDICT:", style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-                  const SizedBox(height: 15),
+                  ),
 
-                  _buildPredictionQuote("⭐️ Dave Delta", "The build to this event has been solid. Now it's on the promoter to deliver a 5-star main event. No pressure."),
-                  _buildPredictionQuote("🎙️ The NY Smark", "I paid good money to be in the arena tonight. The pacing better be perfect, or we are hijacking this show!"),
-                  _buildPredictionQuote("👑 King T", "SHUCKY DUCKY QUACK QUACK! The electricity in this building is off the charts! It's time to book some magic, boss!"),
-
-                  const Spacer(),
-
+                  const SizedBox(height: 16),
+                  
+                  // This button is safely pinned to the bottom now.
                   SizedBox(
                     width: double.infinity,
                     height: 60,
@@ -142,7 +152,6 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
   // ========================================================================
   Widget _buildBookingInterface(dynamic gameState) {
     final rosterState = ref.watch(rosterProvider);
-    final inboxState = ref.watch(inboxProvider);
     final notifier = ref.read(gameProvider.notifier);
     final rosterNotifier = ref.read(rosterProvider.notifier);
 
@@ -201,48 +210,57 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton.icon(
-                                icon: Icon(inboxState.hasActionRequired ? Icons.lock : Icons.videocam, color: Colors.white),
-                                label: Text(inboxState.hasActionRequired ? "INBOX BLOCKED" : "GO LIVE!", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+                                icon: const Icon(Icons.videocam, color: Colors.white),
+                                label: const Text("GO LIVE!", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: inboxState.hasActionRequired ? Colors.grey.shade800 : Colors.red[800], 
+                                  backgroundColor: Colors.red[800], 
                                   padding: const EdgeInsets.symmetric(vertical: 18),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                 ),
-                                onPressed: inboxState.hasActionRequired
-                                  ? () {
-                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("⚠️ ACTION REQUIRED: Check your Front Office Inbox before advancing!"), backgroundColor: Colors.redAccent));
-                                    }
-                                  : () async {
-                                      HapticFeedback.heavyImpact();
-                                      ref.read(soundProvider).playSound("bell.mp3");
+                                onPressed: () async {
+                                  HapticFeedback.heavyImpact();
+                                  ref.read(soundProvider).playSound("bell.mp3");
 
-                                      if (context.mounted) {
-                                        final socialFeed = SocialFeedGenerator.generateLivingFeed(gameState.currentCard, gameState);
-                                        final completedCardToPass = List<Match>.from(gameState.currentCard); 
+                                  if (context.mounted) {
+                                    final socialFeed = SocialFeedGenerator.generateLivingFeed(gameState.currentCard, gameState);
+                                    final completedCardToPass = List<Match>.from(gameState.currentCard); 
 
-                                        await rosterNotifier.decayRivalries();
-                                        await rosterNotifier.processContracts(); 
-                                        await ref.read(rivalProvider.notifier).runAIWeeklyLogic();
-                                        await ref.read(newsProvider.notifier).generateWeeklyNews(gameState.currentCard, rosterState.roster);
-                                        await notifier.processWeek(rosterState.roster);
-                                        
-                                        if (context.mounted) {
-                                          await showDialog(
-                                            context: context,
-                                            barrierDismissible: false,
-                                            builder: (_) => _buildSocialFeedDialog(context, socialFeed),
-                                          );
+                                    // 🛠️ THE FIX: Show the Social Feed Dialog FIRST. 
+                                    // This stops the background from magically transforming into a PPV Kickoff.
+                                    await showDialog(
+                                      context: context,
+                                      barrierDismissible: false,
+                                      builder: (_) => _buildSocialFeedDialog(context, socialFeed),
+                                    );
 
-                                          if (isCareerFinale) {
-                                            Navigator.push(context, MaterialPageRoute(builder: (_) => const EndGameScreen()));
-                                          } else if (isSeasonFinale) {
-                                            Navigator.push(context, MaterialPageRoute(builder: (_) => const SeasonRecapScreen()));
-                                          } else {
-                                            Navigator.push(context, MaterialPageRoute(builder: (_) => PostShowRecapScreen(completedCard: completedCardToPass)));
-                                          }
-                                        }
+                                    // 🛠️ THE FIX: Process the week AFTER they dismiss the dialog.
+                                    await rosterNotifier.decayRivalries();
+                                    await rosterNotifier.processContracts(); 
+                                    await ref.read(rivalProvider.notifier).runAIWeeklyLogic();
+                                    await ref.read(newsProvider.notifier).generateWeeklyNews(gameState.currentCard, rosterState.roster);
+                                    
+                                    await notifier.processWeek(rosterState.roster);
+                                    
+                                    final newWeek = ref.read(gameProvider).week;
+                                    ref.read(communicationsProvider.notifier).generateWeeklyContent(newWeek);
+
+                                    // 🛠️ THE FIX: Navigate to the recap screens immediately so they don't see the Booking Hub reset
+                                    if (context.mounted) {
+                                      if (isCareerFinale) {
+                                        await Navigator.push(context, MaterialPageRoute(builder: (_) => const EndGameScreen()));
+                                      } else if (isSeasonFinale) {
+                                        await Navigator.push(context, MaterialPageRoute(builder: (_) => const SeasonRecapScreen()));
+                                      } else {
+                                        await Navigator.push(context, MaterialPageRoute(builder: (_) => PostShowRecapScreen(completedCard: completedCardToPass)));
                                       }
-                                  },
+
+                                      // 🛠️ THE FIX: Reset the Pre-Show state when they eventually return to the booking hub!
+                                      setState(() {
+                                        _hasPassedPreShow = false;
+                                      });
+                                    }
+                                  }
+                                },
                               ),
                             )
                         ],

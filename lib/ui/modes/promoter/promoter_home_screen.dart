@@ -2,19 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../logic/game_state_provider.dart';
 import '../../../logic/promoter_provider.dart'; 
-import '../../../logic/cloud_sync_service.dart'; // ☁️ IMPORT THE SYNC ENGINE!
+import '../../../logic/cloud_sync_service.dart';
+import '../../../logic/communications_provider.dart'; 
 
 // --- SCREEN IMPORTS ---
 import 'booking_hub_screen.dart';       
 import 'office_screen.dart';            
 import 'development_screen.dart';       
 import 'roster_screen.dart';            
-import 'venue_screen.dart';             
 import 'broadcasting_hub_screen.dart'; 
-import 'news_screen.dart';
+import 'news_screen.dart'; 
 import '../leaderboard/leaderboard_screen.dart';               
 import 'report_screen.dart'; 
 import 'ratings_war_screen.dart'; 
+import '../../screens/settings_screen.dart'; 
 
 class PromoterHomeScreen extends ConsumerStatefulWidget {
   const PromoterHomeScreen({super.key});
@@ -70,7 +71,6 @@ class _PromoterHomeScreenState extends ConsumerState<PromoterHomeScreen> {
   }
 }
 
-// 🛠️ CONVERTED TO STATEFUL TO ALLOW AUTO-SYNC ON LOAD
 class DashboardTab extends ConsumerStatefulWidget {
   const DashboardTab({super.key});
 
@@ -83,304 +83,274 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
   @override
   void initState() {
     super.initState();
-    // ☁️ SILENTLY SYNC TO CLOUD THE SECOND THE DASHBOARD OPENS!
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final gameState = ref.read(gameProvider);
+      
+      // Sync to cloud
       CloudSyncService.syncScoreToCloud(
-        promotionName: "SCW", // Default Tycoon name
+        promotionName: "SCW", 
         cash: gameState.cash,
         fans: gameState.fans,
         rep: gameState.reputation,
       );
-    });
-  }
 
-  // --- FACTORY RESET DIALOG ---
-  void _showFactoryResetDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: const Text("Factory Reset?", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: const Text(
-          "This will delete all data. Are you sure?", 
-          style: TextStyle(color: Colors.white70)
-        ),
-        actions: [
-          TextButton(
-            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
-            onPressed: () => Navigator.pop(ctx),
-          ),
-          TextButton(
-            child: const Text("RESET NOW", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await ref.read(rosterProvider.notifier).factoryReset();
-              
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Universe Reset Complete!"), backgroundColor: Colors.red),
-                );
-              }
-            },
-          ),
-        ],
-      ),
-    );
+      // Auto-generate Week 1 if inbox is empty
+      final currentNews = ref.read(communicationsProvider);
+      if (currentNews.isEmpty) {
+        ref.read(communicationsProvider.notifier).generateWeeklyContent(gameState.week);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final gameState = ref.watch(gameProvider);
-    
-    // 🛠️ FIX: Determine if it is currently a PPV Week
     final bool isPPVWeek = gameState.isPPV; 
+    final bool isDesktop = MediaQuery.of(context).size.width > 800;
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Row(
-        children: [
-          // ------------------------------------------------
-          // LEFT COLUMN: DASHBOARD MENUS (40%)
-          // ------------------------------------------------
-          Expanded(
-            flex: 4,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.black,
-                border: Border(right: BorderSide(color: Colors.white10)),
+      body: isDesktop 
+          ? Row(children: [_buildDashboardColumn(context, gameState, isPPVWeek, true), _buildHeroBackground(true)])
+          : Stack(
+              children: [
+                _buildHeroBackground(false),
+                Container(color: Colors.black.withOpacity(0.85)), 
+                _buildDashboardColumn(context, gameState, isPPVWeek, false),
+              ],
+            ),
+    );
+  }
+
+  // ------------------------------------------------
+  // WIDGET: THE MAIN DASHBOARD COLUMN
+  // ------------------------------------------------
+  Widget _buildDashboardColumn(BuildContext context, dynamic gameState, bool isPPVWeek, bool isDesktop) {
+    return Expanded(
+      flex: isDesktop ? 4 : 1,
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDesktop ? Colors.black : Colors.transparent,
+          border: isDesktop ? const Border(right: BorderSide(color: Colors.white10)) : null,
+        ),
+        child: Column(
+          children: [
+            // TOP APP BAR AREA
+            SafeArea(
+              child: Padding(
+                padding: EdgeInsets.all(isDesktop ? 24.0 : 16.0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.dashboard, color: Colors.amber),
+                    const SizedBox(width: 10),
+                    const Text("DASHBOARD", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5)),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.settings, color: Colors.grey), 
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()))
+                    ),
+                  ],
+                ),
               ),
-              child: Column(
-                children: [
-                  // TOP APP BAR AREA
-                  SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+            ),
+            
+            // SCROLLABLE CONTENT
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(horizontal: isDesktop ? 24.0 : 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 1. TOP METRICS
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E1E1E),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white12),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 10, offset: const Offset(0, 5))],
+                      ),
                       child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Icon(Icons.dashboard, color: Colors.amber),
-                          const SizedBox(width: 10),
-                          const Text("DASHBOARD", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5)),
-                          const Spacer(),
-                          IconButton(
-                            icon: const Icon(Icons.settings, color: Colors.grey), 
-                            onPressed: () => _showFactoryResetDialog(context, ref)
-                          ),
+                          _buildStatItem("CASH", "\$${_formatNumber(gameState.cash)}", Colors.greenAccent),
+                          Container(width: 1, height: 30, color: Colors.white10),
+                          _buildStatItem("FANS", _formatNumber(gameState.fans), Colors.blueAccent),
+                          Container(width: 1, height: 30, color: Colors.white10),
+                          _buildStatItem("REP", "${gameState.reputation}", Colors.amber),
                         ],
                       ),
                     ),
-                  ),
-                  
-                  // SCROLLABLE CONTENT
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 1. TOP METRICS
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1E1E1E),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.white12),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                _buildStatItem("CASH", "\$${_formatNumber(gameState.cash)}", Colors.greenAccent),
-                                Container(width: 1, height: 30, color: Colors.white10),
-                                _buildStatItem("FANS", _formatNumber(gameState.fans), Colors.blueAccent),
-                                Container(width: 1, height: 30, color: Colors.white10),
-                                _buildStatItem("REP", "${gameState.reputation}", Colors.amber),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 20),
+                    const SizedBox(height: 20),
 
-                          // 2. HERO CARD: REACTIVE BANNER
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                // 🛠️ FIX: Turn banner GOLD on PPV weeks, BLUE on TV weeks!
-                                colors: isPPVWeek 
-                                  ? [Colors.amber.shade900, Colors.black] 
-                                  : [Colors.blue.shade900, Colors.black],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: isPPVWeek ? Colors.amber : Colors.blueAccent.withOpacity(0.3)),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text("WEEK ${gameState.week}", style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
-                                    Icon(isPPVWeek ? Icons.bolt : Icons.live_tv, color: Colors.white30, size: 16),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                
-                                // 🛠️ FIX: Show PPV Name if it's PPV Week, otherwise TV Name!
-                                Text(
-                                  isPPVWeek ? gameState.nextPPVName.toUpperCase() : gameState.tvShowName.toUpperCase(), 
-                                  style: TextStyle(
-                                    color: isPPVWeek ? Colors.amberAccent : Colors.white, 
-                                    fontSize: 22, 
-                                    fontWeight: FontWeight.bold, 
-                                    letterSpacing: 1.0
-                                  )
-                                ),
-                                
-                                const SizedBox(height: 2),
-                                Text(
-                                  isPPVWeek ? "PREMIUM LIVE EVENT" : "${gameState.currentVenueDetails['name']}", 
-                                  style: const TextStyle(color: Colors.white70, fontSize: 12)
-                                ),
-                                const SizedBox(height: 12),
-                                
-                                // Warning Text to emphasize PPV Week
-                                if (isPPVWeek)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                                    decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(4)),
-                                    child: const Text("⚠️ EXPECTED BUYRATE: HIGH", style: TextStyle(color: Colors.amber, fontSize: 10, fontWeight: FontWeight.bold)),
-                                  )
-                                else
+                    // 2. INTERACTIVE EVENT BANNER (War Room Embedded)
+                    GestureDetector(
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RatingsWarScreen())),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: isPPVWeek 
+                              ? [Colors.amber.shade900, const Color(0xFF1E1E1E)] 
+                              : [Colors.blue.shade900, const Color(0xFF1E1E1E)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: isPPVWeek ? Colors.amber : Colors.blueAccent.withOpacity(0.5), width: 1.5),
+                          boxShadow: [BoxShadow(color: (isPPVWeek ? Colors.amber : Colors.blueAccent).withOpacity(0.2), blurRadius: 12, offset: const Offset(0, 4))],
+                        ),
+                        child: Row(
+                          children: [
+                            // LEFT SIDE: EVENT INFO
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
                                   Row(
                                     children: [
-                                      const Icon(Icons.event, size: 12, color: Colors.amber),
-                                      const SizedBox(width: 5),
-                                      Text("Next PPV: ${gameState.nextPPVName}", style: const TextStyle(color: Colors.amber, fontSize: 11, fontStyle: FontStyle.italic)),
+                                      Text("WEEK ${gameState.week}", style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+                                      const SizedBox(width: 8),
+                                      Icon(isPPVWeek ? Icons.bolt : Icons.live_tv, color: Colors.white54, size: 14),
                                     ],
                                   ),
-                              ],
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    isPPVWeek ? gameState.nextPPVName.toUpperCase() : gameState.tvShowName.toUpperCase(), 
+                                    style: TextStyle(color: isPPVWeek ? Colors.amberAccent : Colors.white, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 1.0)
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    isPPVWeek ? "PREMIUM LIVE EVENT" : "${gameState.currentVenueDetails['name']}", 
+                                    style: const TextStyle(color: Colors.white70, fontSize: 12)
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 25),
-
-                          // 3. UNIFIED MANAGEMENT LIST
-                          const Padding(
-                            padding: EdgeInsets.only(bottom: 10),
-                            child: Text("MANAGEMENT", style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-                          ),
-                          
-                          _buildMenuButton(
-                            context,
-                            icon: Icons.groups,
-                            title: "ROSTER",
-                            subtitle: "Manage talent, morale, and active rivalries.",
-                            color: Colors.blueAccent,
-                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RosterScreen())),
-                          ),
-                          
-                          _buildMenuButton(
-                            context,
-                            icon: Icons.article_rounded,
-                            title: "NEWS",
-                            subtitle: "Latest dirt sheet rumors and actions.",
-                            color: Colors.orangeAccent,
-                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NewsScreen())),
-                          ),
-                          
-                          _buildMenuButton(
-                            context,
-                            icon: Icons.stadium_rounded,
-                            title: "VENUES",
-                            subtitle: "Upgrade production and capacity.",
-                            color: Colors.greenAccent,
-                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VenueScreen())),
-                          ),
-                          
-                          _buildMenuButton(
-                            context,
-                            icon: Icons.cell_tower,
-                            title: "BROADCASTING",
-                            subtitle: "TV Deals, Production Values, and Show Naming.",
-                            color: Colors.purpleAccent,
-                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BroadcastingHubScreen())),
-                          ),
-                          
-                          _buildMenuButton(
-                            context,
-                            icon: Icons.attach_money_rounded,
-                            title: "FINANCES",
-                            subtitle: "View the financial ledger and profits.",
-                            color: Colors.tealAccent,
-                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen())),
-                          ),
-                          
-                          _buildMenuButton(
-                            context,
-                            icon: Icons.bar_chart_rounded,
-                            title: "RANKINGS",
-                            subtitle: "Check the Ratings War Room.",
-                            color: Colors.redAccent,
-                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RatingsWarScreen())),
-                          ),
-                          
-                          const SizedBox(height: 50),
-                        ],
+                            // RIGHT SIDE: WAR ROOM RANKINGS
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.white10),
+                              ),
+                              child: Column(
+                                children: [
+                                  const Icon(Icons.bar_chart_rounded, color: Colors.redAccent, size: 20),
+                                  const SizedBox(height: 4),
+                                  const Text("WAR ROOM", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 2),
+                                  Text("${gameState.playerWins} - ${gameState.rivalWins}", style: const TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.w900)), 
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 25),
+
+                    // 3. REORDERED MANAGEMENT LIST
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 12),
+                      child: Text("MANAGEMENT", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                    ),
+                    
+                    _buildPremiumMenuButton(
+                      context,
+                      icon: Icons.groups_rounded,
+                      title: "ROSTER",
+                      subtitle: "Manage talent, morale, and active rivalries.",
+                      baseColor: Colors.blueAccent,
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RosterScreen())),
+                    ),
+                    
+                    _buildPremiumMenuButton(
+                      context,
+                      icon: Icons.article_rounded,
+                      title: "COMMUNICATIONS",
+                      subtitle: "Latest dirt sheet rumors and company actions.",
+                      baseColor: Colors.orangeAccent,
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NewsScreen())),
+                    ),
+                    
+                    _buildPremiumMenuButton(
+                      context,
+                      icon: Icons.attach_money_rounded,
+                      title: "FINANCES",
+                      subtitle: "View the financial ledger and profits.",
+                      baseColor: Colors.tealAccent,
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen())),
+                    ),
+
+                    _buildPremiumMenuButton(
+                      context,
+                      icon: Icons.cell_tower_rounded,
+                      title: "BROADCASTING",
+                      subtitle: "TV Deals, Production Values, and Show Naming.",
+                      baseColor: Colors.purpleAccent,
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BroadcastingHubScreen())),
+                    ),
+                    
+                    const SizedBox(height: 40),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ------------------------------------------------
+  // WIDGET: RESPONSIVE HERO BACKGROUND
+  // ------------------------------------------------
+  Widget _buildHeroBackground(bool isDesktop) {
+    return Expanded(
+      flex: isDesktop ? 6 : 1,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            "assets/images/crowd_background.png", 
+            fit: BoxFit.cover,
+            errorBuilder: (c, e, s) => Container(color: const Color(0xFF151515)),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: isDesktop ? Alignment.centerLeft : Alignment.topCenter,
+                end: isDesktop ? Alignment.centerRight : Alignment.bottomCenter,
+                colors: [Colors.black, Colors.black.withOpacity(0.5), Colors.transparent],
+                stops: const [0.0, 0.3, 1.0],
+              ),
+            ),
+          ),
+          if (isDesktop)
+            Positioned(
+              bottom: 40,
+              right: 40,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Image.asset("assets/images/logo_scw.png", width: 150, errorBuilder: (c, e, s) => const Icon(Icons.sports_mma, size: 80, color: Colors.white10)),
+                  const SizedBox(height: 20),
+                  Text("SQUARED CIRCLE", style: TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: Colors.white.withOpacity(0.95), letterSpacing: 2, shadows: [Shadow(color: Colors.black.withOpacity(0.8), blurRadius: 10, offset: const Offset(0, 4))])),
+                  Text("TYCOON", style: TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: const Color(0xFFFFD740).withOpacity(0.95), letterSpacing: 2, shadows: [Shadow(color: Colors.black.withOpacity(0.8), blurRadius: 10, offset: const Offset(0, 4))])),
                 ],
               ),
             ),
-          ),
-
-          // ------------------------------------------------
-          // RIGHT COLUMN: HERO BACKGROUND (60%)
-          // ------------------------------------------------
-          Expanded(
-            flex: 6,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Image.asset(
-                  "assets/images/crowd_background.png", 
-                  fit: BoxFit.cover,
-                  errorBuilder: (c, e, s) => Container(color: const Color(0xFF151515)),
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [Colors.black, Colors.black.withOpacity(0.6), Colors.transparent],
-                      stops: const [0.0, 0.2, 1.0],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: 40,
-                  right: 40,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Image.asset("assets/images/logo_scw.png", width: 150, errorBuilder: (c, e, s) => const Icon(Icons.sports_mma, size: 80, color: Colors.white10)),
-                      const SizedBox(height: 20),
-                      Text("SQUARED CIRCLE", style: TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: Colors.white.withOpacity(0.9), letterSpacing: 2)),
-                      Text("TYCOON", style: TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: const Color(0xFFFFD740).withOpacity(0.9), letterSpacing: 2)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
   }
 
-  // --- HELPER FORMATTING ---
-
+  // ------------------------------------------------
+  // HELPER FORMATTING & WIDGETS
+  // ------------------------------------------------
   String _formatNumber(int number) {
     return number.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
   }
@@ -388,46 +358,68 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
   Widget _buildStatItem(String label, String value, Color color) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 2),
-        Text(value, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.bold, fontFamily: "Monospace")),
+        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+        const SizedBox(height: 4),
+        Text(value, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.w900, fontFamily: "Monospace")),
       ],
     );
   }
 
-  Widget _buildMenuButton(
+  Widget _buildPremiumMenuButton(
     BuildContext context, {
     required IconData icon,
     required String title,
     required String subtitle,
-    required Color color,
+    required Color baseColor,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8), 
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1E1E1E),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Colors.white10),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          colors: [const Color(0xFF1A1A1A), baseColor.withOpacity(0.05)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
         ),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                  Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 10), overflow: TextOverflow.ellipsis),
-                ],
-              ),
+        border: Border.all(color: baseColor.withOpacity(0.3), width: 1),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 6, offset: const Offset(0, 3))],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          hoverColor: baseColor.withOpacity(0.1),
+          splashColor: baseColor.withOpacity(0.2),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: baseColor.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                    boxShadow: [BoxShadow(color: baseColor.withOpacity(0.2), blurRadius: 8)],
+                  ),
+                  child: Icon(icon, color: baseColor, size: 22),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                      const SizedBox(height: 4),
+                      Text(subtitle, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11, fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: baseColor.withOpacity(0.5), size: 20),
+              ],
             ),
-            const Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 12),
-          ],
+          ),
         ),
       ),
     );

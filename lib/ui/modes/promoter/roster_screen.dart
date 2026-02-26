@@ -4,404 +4,513 @@ import '../../../logic/promoter_provider.dart';
 import '../../../data/models/wrestler.dart';
 import '../../components/wrestler_avatar.dart';
 import 'contract_negotiation_dialog.dart';
+import '../../../logic/game_state_provider.dart';
 
-class RosterScreen extends ConsumerWidget {
+class RosterScreen extends ConsumerStatefulWidget {
   const RosterScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final rosterState = ref.watch(rosterProvider);
-    final notifier = ref.read(rosterProvider.notifier);
+  ConsumerState<RosterScreen> createState() => _RosterScreenState();
+}
 
-    return DefaultTabController(
-      length: 3, 
-      child: Scaffold(
-        backgroundColor: const Color(0xFF121212),
-        appBar: AppBar(
-          title: const Text("ROSTER MANAGEMENT", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-          backgroundColor: Colors.transparent,
-          bottom: TabBar(
-            indicatorColor: Colors.amber,
-            labelColor: Colors.amber,
-            unselectedLabelColor: Colors.grey,
-            labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-            tabs: [
-              Tab(text: "ACTIVE (${rosterState.roster.length}/12)"), 
-              Tab(text: "REHAB (${rosterState.injuredReserve.length}/3)"), 
-              const Tab(text: "FREE AGENTS"),
-            ],
-          ),
-        ),
-        body: TabBarView(
-          children: [
-            // TAB 1: ACTIVE ROSTER
-            rosterState.isLoading 
-              ? const Center(child: CircularProgressIndicator())
-              : ListView.builder(
-                padding: const EdgeInsets.all(10),
-                itemCount: rosterState.roster.length,
-                itemBuilder: (context, index) {
-                  final w = rosterState.roster[index];
-                  // FIX: Passed rosterState down to the card
-                  return _buildRosterCard(context, w, notifier, rosterState, isMyRoster: true, isIR: false);
-                },
-              ),
+class _RosterScreenState extends ConsumerState<RosterScreen> {
+  Wrestler? _selectedWrestler;
+  bool _isMyRosterSelected = true; 
+  bool _isIRSelected = false;
+  
+  // 🚀 THE FIX: Custom Tab Index just like Communications!
+  int _selectedTabIndex = 0; 
 
-            // TAB 2: INJURED RESERVE (THE REHAB CENTER)
-            rosterState.isLoading 
-              ? const Center(child: CircularProgressIndicator())
-              : rosterState.injuredReserve.isEmpty 
-                  ? const Center(child: Text("Rehab Center is empty.", style: TextStyle(color: Colors.grey)))
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(10),
-                      itemCount: rosterState.injuredReserve.length,
-                      itemBuilder: (context, index) {
-                        final w = rosterState.injuredReserve[index];
-                        // FIX: Passed rosterState down to the card
-                        return _buildRosterCard(context, w, notifier, rosterState, isMyRoster: false, isIR: true);
-                      },
-                    ),
-              
-            // TAB 3: FREE AGENTS
-            rosterState.isLoading 
-              ? const Center(child: CircularProgressIndicator())
-              : ListView.builder(
-                padding: const EdgeInsets.all(10),
-                itemCount: rosterState.freeAgents.length,
-                itemBuilder: (context, index) {
-                  final w = rosterState.freeAgents[index];
-                  // FIX: Passed rosterState down to the card
-                  return _buildRosterCard(context, w, notifier, rosterState, isMyRoster: false, isIR: false);
-                },
-              ),
-          ],
-        ),
-      ),
-    );
-  }
+  void _selectWrestler(Wrestler w, bool isMyRoster, bool isIR, bool isDesktop) {
+    setState(() {
+      _selectedWrestler = w;
+      _isMyRosterSelected = isMyRoster;
+      _isIRSelected = isIR;
+    });
 
-  // FIX: Added 'RosterState state' to the parameters so we can check the hard cap!
-  Widget _buildRosterCard(BuildContext context, Wrestler w, RosterNotifier notifier, RosterState state, {required bool isMyRoster, required bool isIR}) {
-    IconData moraleIcon = Icons.sentiment_satisfied_alt;
-    Color moraleColor = Colors.green;
-    if (w.morale < 40) { moraleIcon = Icons.sentiment_very_dissatisfied; moraleColor = Colors.red; } 
-    else if (w.morale < 75) { moraleIcon = Icons.sentiment_neutral; moraleColor = Colors.amber; }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: w.isHoldingOut ? Colors.redAccent : w.isInjured ? Colors.orangeAccent : Colors.white10,
-          width: w.isHoldingOut || w.isInjured ? 2.0 : 1.0
-        ),
-      ),
-      child: Row(
-        children: [
-          WrestlerAvatar(wrestler: w, size: 60),
-          const SizedBox(width: 15),
-          Expanded(
+    if (!isDesktop) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true, 
+        backgroundColor: Colors.transparent, 
+        builder: (context) => DraggableScrollableSheet(
+          initialChildSize: 0.9, 
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          builder: (_, controller) => Container(
+            decoration: const BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              border: Border(top: BorderSide(color: Colors.white24, width: 2)),
+            ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(w.name, style: TextStyle(color: (w.isChampion || w.isTVChampion) ? Colors.amber : Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                Text("${w.style.name.toUpperCase()} • ${w.cardPosition.toUpperCase()}", style: const TextStyle(color: Colors.white70, fontSize: 10)),
-                const SizedBox(height: 5),
-                
-                if (isMyRoster || isIR)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(2),
-                          child: LinearProgressIndicator(value: w.stamina / 100, backgroundColor: Colors.grey[800], color: Colors.greenAccent, minHeight: 4),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(moraleIcon, color: moraleColor, size: 18),
-                    ],
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 12),
+                  height: 4, width: 40,
+                  decoration: BoxDecoration(color: Colors.white30, borderRadius: BorderRadius.circular(2)),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: controller,
+                    child: _buildRightDetailPanelContent(), 
                   ),
-                const SizedBox(height: 5),
-                
-                // Status Indicators
-                if (w.isHoldingOut)
-                  const Text("⚠ HOLDOUT: RENEGOTIATE NOW", style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold))
-                else if (w.isInjured)
-                  Text("🚑 INJURED: ${w.injuryWeeks} WEEKS LEFT", style: const TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold))
-                else if (isMyRoster)
-                  Row(
-                    children: [
-                       Icon(Icons.timer, size: 12, color: w.contractWeeks < 4 ? Colors.red : Colors.grey),
-                       Text(" ${w.contractWeeks} wks left • \$${w.salary}/wk", style: TextStyle(color: w.contractWeeks < 4 ? Colors.red : Colors.grey, fontSize: 10)),
-                    ],
-                  ),
+                ),
               ],
             ),
           ),
-          
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: const Color(0xFF6200EE), borderRadius: BorderRadius.circular(4)),
-                child: Text("POP ${w.pop}", style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(height: 8),
-              
-              // --- DYNAMIC ACTION BUTTONS ---
-              if (isIR)
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0), minimumSize: const Size(0, 30)),
-                  onPressed: () async {
-                    // FIX: Blocks activating if roster is 12/12
-                    if (state.roster.length >= 12) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Roster Full! Free up a slot first."), backgroundColor: Colors.red));
-                      return;
-                    }
-                    try {
-                      await notifier.removeFromIR(w);
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Activated to Main Roster!"), backgroundColor: Colors.green));
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
-                      }
-                    }
-                  },
-                  child: const Text("ACTIVATE", style: TextStyle(fontSize: 10)),
-                )
-              else if (!isMyRoster)
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0), minimumSize: const Size(0, 30)),
-                  onPressed: () {
-                    // FIX: Blocks opening the Negotiation Dialog if roster is 12/12
-                    if (state.roster.length >= 12) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Roster Full! Release someone or move them to IR first.", style: TextStyle(fontWeight: FontWeight.bold)), 
-                          backgroundColor: Colors.red
-                        )
-                      );
-                    } else {
-                      showDialog(context: context, builder: (_) => ContractNegotiationDialog(wrestler: w));
-                    }
-                  },
-                  child: const Text("NEGOTIATE", style: TextStyle(fontSize: 10)),
-                )
-              else 
-                Row(
-                  children: [
-                    InkWell(
-                      onTap: () => _showManagementMenu(context, w, notifier),
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(color: Colors.blue.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
-                        child: const Icon(Icons.settings, color: Colors.blueAccent, size: 20),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    InkWell(
-                      onTap: () {
-                        showDialog(context: context, builder: (_) => ContractNegotiationDialog(wrestler: w));
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(color: Colors.amber.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
-                        child: const Icon(Icons.monetization_on, color: Colors.amber, size: 20),
-                      ),
-                    )
-                  ],
-                )
-            ],
+        ),
+      ).whenComplete(() {
+        _clearSelection();
+      });
+    }
+  }
+
+  void _clearSelection() {
+    setState(() {
+      _selectedWrestler = null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isDesktop = MediaQuery.of(context).size.width > 800;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF121212),
+      appBar: AppBar(
+        title: const Text("ROSTER MANAGEMENT", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.white)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: isDesktop
+          ? Row(
+              children: [
+                Expanded(flex: 4, child: _buildLeftListPanel(isDesktop)),
+                Expanded(flex: 6, child: _buildRightDetailPanelContent()), 
+              ],
+            )
+          : _buildLeftListPanel(isDesktop), 
+    );
+  }
+
+  // ----------------------------------------------------------------
+  // LEFT PANEL (40%): THE LIST & TABS
+  // ----------------------------------------------------------------
+  Widget _buildLeftListPanel(bool isDesktop) {
+    final rosterState = ref.watch(rosterProvider);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF121212),
+        border: isDesktop ? const Border(right: BorderSide(color: Colors.white10, width: 2)) : null,
+      ),
+      child: Column(
+        children: [
+          // 🚀 THE FIX: Exact same custom tab structure as Communications
+          Container(
+            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.white10))),
+            child: Row(
+              children: [
+                _buildTab(0, "ACTIVE (${rosterState.roster.length}/12)"),
+                _buildTab(1, "REHAB (${rosterState.injuredReserve.length}/3)"),
+                _buildTab(2, "FREE AGENTS"),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _selectedTabIndex == 0 
+                ? _buildListView(rosterState.roster, rosterState.isLoading, isMyRoster: true, isIR: false, isDesktop: isDesktop)
+                : _selectedTabIndex == 1 
+                    ? _buildListView(rosterState.injuredReserve, rosterState.isLoading, isMyRoster: false, isIR: true, isDesktop: isDesktop)
+                    : _buildListView(rosterState.freeAgents, rosterState.isLoading, isMyRoster: false, isIR: false, isDesktop: isDesktop),
           ),
         ],
       ),
     );
   }
 
-  void _showManagementMenu(BuildContext context, Wrestler w, RosterNotifier notifier) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true, 
-      backgroundColor: const Color(0xFF1E1E1E),
-      builder: (sheetContext) {
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text("MANAGE: ${w.name.toUpperCase()}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-              const Divider(color: Colors.grey),
-              const SizedBox(height: 10),
-              
-              ListTile(
-                leading: const Icon(Icons.local_hospital, color: Colors.orangeAccent),
-                title: const Text("MOVE TO INJURED RESERVE", style: TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.bold)),
-                subtitle: const Text("Frees up 1 active roster slot. (Requires active injury)", style: TextStyle(color: Colors.white70, fontSize: 10)),
-                trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 14),
-                onTap: () {
-                  Navigator.pop(sheetContext); 
-                  if (w.isInjured) {
-                    notifier.moveToIR(w);
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("You cannot place a healthy wrestler on IR!"), backgroundColor: Colors.red));
-                  }
-                },
-              ),
-              const Divider(color: Colors.white10),
-
-              const Text("TRAINING & BONUSES", style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 5),
-              _buildManageOption(sheetContext, "💊 MEDICAL REHAB", "Heals Fatigue/Injury", 5000, () => notifier.trainingAction(w, "HEAL", 5000)),
-              _buildManageOption(sheetContext, "💰 CASH BONUS", "Morale +15", 2000, () => notifier.trainingAction(w, "BONUS", 2000)),
-              _buildManageOption(sheetContext, "🏋️ RING TRAINING", "Ring Skill +1 (Permanent)", 10000, () => notifier.trainingAction(w, "RING", 10000)),
-              _buildManageOption(sheetContext, "🎤 PROMO CLASS", "Mic Skill +1 (Permanent)", 10000, () => notifier.trainingAction(w, "MIC", 10000)),
-              
-              const SizedBox(height: 20),
-              
-              const Text("CREATIVE CONTROL", style: TextStyle(color: Colors.blueAccent, fontSize: 10, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 5),
-              
-              ListTile(
-                leading: const Icon(Icons.edit, color: Colors.blue),
-                title: const Text("RENAME WRESTLER", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                subtitle: const Text("Change name instantly", style: TextStyle(color: Colors.white70, fontSize: 10)),
-                trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 14),
-                onTap: () {
-                  Navigator.pop(sheetContext); 
-                  _showRenameDialog(context, w, notifier); 
-                },
-              ),
-
-              ListTile(
-                leading: const Icon(Icons.compare_arrows, color: Colors.purple),
-                title: Text("TURN ${w.isHeel ? 'FACE (GOOD)' : 'HEEL (BAD)'}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                subtitle: const Text("Switch alignment (Free)", style: TextStyle(color: Colors.white70, fontSize: 10)),
-                trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 14),
-                onTap: () {
-                  notifier.turnHeelFace(w);
-                  Navigator.pop(sheetContext); 
-                },
-              ),
-
-              ListTile(
-                leading: const Icon(Icons.accessibility_new, color: Colors.orange),
-                title: const Text("REPACKAGE (CHANGE STYLE)", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                subtitle: Text("Current: ${w.style.name.toUpperCase()}", style: const TextStyle(color: Colors.white70, fontSize: 10)),
-                trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 14),
-                onTap: () {
-                  Navigator.pop(sheetContext); 
-                  _showStyleDialog(context, w, notifier); 
-                },
-              ),
-
-              ListTile(
-                leading: const Icon(Icons.person_remove, color: Colors.red),
-                title: const Text("RELEASE CONTRACT", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
-                subtitle: const Text("Drop to Free Agency (Lose upfront bonus)", style: TextStyle(color: Colors.white70, fontSize: 10)),
-                trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 14),
-                onTap: () {
-                  Navigator.pop(sheetContext); 
-                  notifier.releaseWrestler(w);
-                },
-              ),
-
-              const SizedBox(height: 30),
-            ],
+  // 🚀 THE FIX: Custom instant-click tab widget
+  Widget _buildTab(int index, String title) {
+    bool isSelected = _selectedTabIndex == index;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _selectedTabIndex = index;
+            _clearSelection(); 
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: isSelected ? Colors.amber : Colors.transparent, width: 3)),
           ),
-        );
-      }
+          child: Center(
+            child: Text(
+              title,
+              style: TextStyle(
+                color: isSelected ? Colors.amber : Colors.grey,
+                fontWeight: isSelected ? FontWeight.w900 : FontWeight.bold,
+                fontSize: 11,
+                letterSpacing: 1.0,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildManageOption(BuildContext context, String title, String sub, int cost, Future<void> Function() action) {
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: Colors.grey[900], borderRadius: BorderRadius.circular(8)),
-        child: Text("\$$cost", style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold)),
-      ),
-      title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-      subtitle: Text(sub, style: const TextStyle(color: Colors.white70, fontSize: 10)),
-      trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 14),
-      onTap: () async {
-        await action();
-        
-        if (context.mounted) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Action Complete!"), backgroundColor: Colors.green)
-          );
-        }
+  Widget _buildListView(List<Wrestler> wrestlers, bool isLoading, {required bool isMyRoster, required bool isIR, required bool isDesktop}) {
+    if (isLoading) return const Center(child: CircularProgressIndicator(color: Colors.amber));
+    if (wrestlers.isEmpty) return const Center(child: Text("No wrestlers found in this section.", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold)));
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: wrestlers.length,
+      itemBuilder: (context, index) {
+        final w = wrestlers[index];
+        final isSelected = _selectedWrestler?.id == w.id;
+
+        return GestureDetector(
+          onTap: () => _selectWrestler(w, isMyRoster, isIR, isDesktop),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isSelected ? Colors.amber.withOpacity(0.05) : const Color(0xFF1A1A1A),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected ? Colors.amber : (w.isHoldingOut ? Colors.redAccent : (w.isInjured ? Colors.orangeAccent : Colors.white10)),
+                width: isSelected || w.isHoldingOut || w.isInjured ? 2.0 : 1.0,
+              ),
+            ),
+            child: Row(
+              children: [
+                WrestlerAvatar(wrestler: w, size: 50),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(w.name, style: TextStyle(color: (w.isChampion || w.isTVChampion) ? Colors.amber : Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                      const SizedBox(height: 4),
+                      Text("${w.style.name.toUpperCase()} • ${w.cardPosition.toUpperCase()}", style: const TextStyle(color: Colors.white54, fontSize: 10)),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(color: const Color(0xFF6200EE).withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                  child: Text("POP ${w.pop}", style: const TextStyle(color: Colors.purpleAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ),
+        );
       },
+    );
+  }
+
+  // ----------------------------------------------------------------
+  // RIGHT PANEL (60%): THE LOCKER ROOM DETAILS & ATTRIBUTES
+  // ----------------------------------------------------------------
+  Widget _buildRightDetailPanelContent() {
+    if (_selectedWrestler == null) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.groups_rounded, size: 80, color: Colors.white10),
+            SizedBox(height: 16),
+            Text("SELECT A WRESTLER", style: TextStyle(color: Colors.white30, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+          ],
+        ),
+      );
+    }
+
+    final w = _selectedWrestler!;
+    final notifier = ref.read(rosterProvider.notifier);
+    final rosterState = ref.watch(rosterProvider);
+
+    IconData moraleIcon = Icons.sentiment_satisfied_alt;
+    Color moraleColor = Colors.greenAccent;
+    if (w.morale < 40) { moraleIcon = Icons.sentiment_very_dissatisfied; moraleColor = Colors.redAccent; } 
+    else if (w.morale < 75) { moraleIcon = Icons.sentiment_neutral; moraleColor = Colors.amber; }
+
+    return Container(
+      color: Colors.black,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // --- 1. HERO PROFILE CARD ---
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.amber, width: 2)),
+                  child: WrestlerAvatar(wrestler: w, size: 100),
+                ),
+                const SizedBox(width: 24),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(w.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                      const SizedBox(height: 4),
+                      Text("${w.style.name.toUpperCase()} • ${w.isHeel ? 'HEEL' : 'FACE'} • ${w.cardPosition.toUpperCase()}", style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 12),
+                      if (w.isHoldingOut) const Text("⚠ HOLDING OUT", style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                      if (w.isInjured) Text("🚑 INJURED: ${w.injuryWeeks} WEEKS", style: const TextStyle(color: Colors.orangeAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+
+            // --- 2. KEY ATTRIBUTES GRID ---
+            const Text("ATTRIBUTES", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(child: _buildAttributeBox("POPULARITY", w.pop.toString(), Colors.purpleAccent)),
+                const SizedBox(width: 12),
+                Expanded(child: _buildAttributeBox("STAMINA", "${w.stamina}%", w.stamina < 50 ? Colors.redAccent : Colors.greenAccent)),
+                const SizedBox(width: 12),
+                Expanded(child: _buildAttributeBox("MORALE", "${w.morale}%", moraleColor, icon: moraleIcon)),
+              ],
+            ),
+            const SizedBox(height: 32),
+
+            // --- 3. CONTRACT & RELEASE SECTION (THE BUYOUT MECHANIC) ---
+            const Text("CONTRACT STATUS", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_isMyRosterSelected || _isIRSelected) ...[
+                    Text("Wrestler is currently under a ${w.contractWeeks} week contract.", style: const TextStyle(color: Colors.white, fontSize: 14)),
+                    const SizedBox(height: 4),
+                    Text("Salary: \$${w.salary} / week", style: const TextStyle(color: Colors.greenAccent, fontSize: 14, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 16)),
+                            icon: const Icon(Icons.monetization_on),
+                            label: const Text("RENEGOTIATE", style: TextStyle(fontWeight: FontWeight.bold)),
+                            onPressed: () => showDialog(context: context, builder: (_) => ContractNegotiationDialog(wrestler: w)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // 🔴 THE 50% BUYOUT RELEASE BUTTON 🔴
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(foregroundColor: Colors.redAccent, side: const BorderSide(color: Colors.redAccent), padding: const EdgeInsets.symmetric(vertical: 16)),
+                            icon: const Icon(Icons.person_remove),
+                            label: const Text("RELEASE", style: TextStyle(fontWeight: FontWeight.bold)),
+                            onPressed: () => _confirmRelease(context, w, notifier),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    // Free Agent View
+                    const Text("Wrestler is currently a Free Agent.", style: TextStyle(color: Colors.white, fontSize: 14)),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.greenAccent, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 16)),
+                        icon: const Icon(Icons.edit_document),
+                        label: const Text("SIGN FREE AGENT", style: TextStyle(fontWeight: FontWeight.bold)),
+                        onPressed: () {
+                          if (rosterState.roster.length >= 12) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Roster Full! Release someone first."), backgroundColor: Colors.red));
+                          } else {
+                            showDialog(context: context, builder: (_) => ContractNegotiationDialog(wrestler: w));
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // --- 4. MANAGEMENT & CREATIVE CONTROL ---
+            if (_isMyRosterSelected || _isIRSelected) ...[
+              const Text("MANAGEMENT & CREATIVE", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+              const SizedBox(height: 12),
+              
+              if (_isIRSelected)
+                _buildActionTile("ACTIVATE TO ROSTER", "Move back to active competition.", Icons.local_hospital, Colors.blueAccent, () async {
+                  if (rosterState.roster.length >= 12) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Roster Full! Free up a slot first."), backgroundColor: Colors.red));
+                    return;
+                  }
+                  await notifier.removeFromIR(w);
+                  _clearSelection();
+                  if (mounted) Navigator.pop(context); // Close mobile sheet if open
+                }),
+
+              if (_isMyRosterSelected && w.isInjured)
+                _buildActionTile("MOVE TO REHAB (IR)", "Frees up an active slot.", Icons.warning, Colors.orangeAccent, () {
+                  notifier.moveToIR(w);
+                  _clearSelection();
+                  if (mounted) Navigator.pop(context); // Close mobile sheet if open
+                }),
+
+              _buildActionTile("💊 MEDICAL REHAB (\$5,000)", "Heals Fatigue/Injury.", Icons.healing, Colors.greenAccent, () => notifier.trainingAction(w, "HEAL", 5000)),
+              _buildActionTile("💰 CASH BONUS (\$2,000)", "Morale +15.", Icons.attach_money, Colors.amber, () => notifier.trainingAction(w, "BONUS", 2000)),
+              _buildActionTile("🏋️ RING TRAINING (\$10,000)", "Ring Skill +1.", Icons.fitness_center, Colors.blue, () => notifier.trainingAction(w, "RING", 10000)),
+              _buildActionTile("🎤 PROMO CLASS (\$10,000)", "Mic Skill +1.", Icons.mic, Colors.purple, () => notifier.trainingAction(w, "MIC", 10000)),
+              _buildActionTile("TURN ${w.isHeel ? 'FACE' : 'HEEL'}", "Switch alignment instantly.", Icons.compare_arrows, Colors.white, () {
+                notifier.turnHeelFace(w);
+                setState(() {}); 
+              }),
+              _buildActionTile("REPACKAGE STYLE", "Change wrestling style.", Icons.accessibility_new, Colors.cyan, () => _showStyleDialog(context, w, notifier)),
+              _buildActionTile("RENAME WRESTLER", "Change their ring name.", Icons.edit, Colors.grey, () => _showRenameDialog(context, w, notifier)),
+            ],
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ----------------------------------------------------------------
+  // HELPER WIDGETS & DIALOGS
+  // ----------------------------------------------------------------
+
+  Widget _buildAttributeBox(String label, String value, Color color, {IconData? icon}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withOpacity(0.3))),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (icon != null) ...[Icon(icon, color: color, size: 14), const SizedBox(width: 4)],
+              Text(label, style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(value, style: TextStyle(color: color, fontSize: 24, fontWeight: FontWeight.w900)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionTile(String title, String subtitle, IconData icon, Color iconColor, VoidCallback onTap) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.white10)),
+      child: ListTile(
+        leading: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: iconColor.withOpacity(0.1), shape: BoxShape.circle), child: Icon(icon, color: iconColor, size: 20)),
+        title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+        subtitle: Text(subtitle, style: const TextStyle(color: Colors.white54, fontSize: 10)),
+        trailing: const Icon(Icons.chevron_right, color: Colors.white24),
+        onTap: () {
+          onTap();
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$title applied."), backgroundColor: Colors.green));
+        },
+      ),
+    );
+  }
+
+  void _confirmRelease(BuildContext context, Wrestler w, RosterNotifier notifier) {
+    final int buyoutCost = (w.contractWeeks * w.salary) ~/ 2;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text("RELEASE WRESTLER?", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Text(
+          "Are you sure you want to release ${w.name}?\n\nTo break the contract early, you must buy out 50% of their remaining balance.\n\nBuyout Cost: \$${buyoutCost.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}", 
+          style: const TextStyle(color: Colors.white70)
+        ),
+        actions: [
+          TextButton(child: const Text("Cancel", style: TextStyle(color: Colors.grey)), onPressed: () => Navigator.pop(ctx)),
+          TextButton(
+            child: const Text("PAY BUYOUT & RELEASE", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+            onPressed: () {
+              Navigator.pop(ctx); 
+              notifier.releaseWrestler(w);
+              _clearSelection();
+              if (mounted) {
+                Navigator.pop(context); // Close mobile sheet if open
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${w.name} released. \$$buyoutCost buyout paid."), backgroundColor: Colors.red));
+              }
+            },
+          ),
+        ],
+      ),
     );
   }
 
   void _showRenameDialog(BuildContext context, Wrestler w, RosterNotifier notifier) {
     final txtController = TextEditingController(text: w.name);
-    showDialog(
-      context: context, 
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text("RENAME WRESTLER", style: TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: txtController,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.blue))),
+    showDialog(context: context, builder: (dialogContext) => AlertDialog(
+      backgroundColor: const Color(0xFF1E1E1E),
+      title: const Text("RENAME WRESTLER", style: TextStyle(color: Colors.white)),
+      content: TextField(controller: txtController, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.amber)))),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("CANCEL", style: TextStyle(color: Colors.amber))),
+        TextButton(
+          onPressed: () {
+            if (txtController.text.isNotEmpty) {
+              notifier.renameWrestler(w, txtController.text);
+              setState(() {}); 
+            }
+            Navigator.pop(dialogContext); 
+          }, 
+          child: const Text("SAVE", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold))
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("CANCEL")),
-          TextButton(
-            onPressed: () {
-              if (txtController.text.isNotEmpty) {
-                notifier.renameWrestler(w, txtController.text);
-              }
-              Navigator.pop(dialogContext); 
-            }, 
-            child: const Text("SAVE")
-          ),
-        ],
-      )
-    );
+      ],
+    ));
   }
 
   void _showStyleDialog(BuildContext context, Wrestler w, RosterNotifier notifier) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1E1E1E),
-      builder: (sheetContext) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text("SELECT NEW FIGHTING STYLE", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
-            
-            Column(
-              children: [
-                _buildStyleOption(context, "BRAWLER (Puncher)", WrestlingStyle.brawler, notifier, w),
-                _buildStyleOption(context, "TECHNICIAN (Grappler)", WrestlingStyle.technician, notifier, w),
-                _buildStyleOption(context, "HIGH FLYER (Speed)", WrestlingStyle.highFlyer, notifier, w),
-                _buildStyleOption(context, "GIANT (Power)", WrestlingStyle.giant, notifier, w),
-                _buildStyleOption(context, "ENTERTAINER (Charisma)", WrestlingStyle.entertainer, notifier, w),
-              ],
-            )
-          ],
-        ),
-      )
-    );
+    showModalBottomSheet(context: context, backgroundColor: const Color(0xFF1E1E1E), builder: (sheetContext) => Container(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text("SELECT NEW FIGHTING STYLE", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 20),
+          _buildStyleOption(context, "BRAWLER (Puncher)", WrestlingStyle.brawler, notifier, w),
+          _buildStyleOption(context, "TECHNICIAN (Grappler)", WrestlingStyle.technician, notifier, w),
+          _buildStyleOption(context, "HIGH FLYER (Speed)", WrestlingStyle.highFlyer, notifier, w),
+          _buildStyleOption(context, "GIANT (Power)", WrestlingStyle.giant, notifier, w),
+          _buildStyleOption(context, "ENTERTAINER (Charisma)", WrestlingStyle.entertainer, notifier, w),
+        ],
+      ),
+    ));
   }
 
   Widget _buildStyleOption(BuildContext context, String label, WrestlingStyle style, RosterNotifier notifier, Wrestler w) {
     return ListTile(
       title: Text(label, style: const TextStyle(color: Colors.white)),
-      leading: Icon(Icons.circle, color: style == w.style ? Colors.green : Colors.grey, size: 10),
+      leading: Icon(Icons.circle, color: style == w.style ? Colors.amber : Colors.grey, size: 10),
       onTap: () {
         notifier.repackageWrestler(w, style);
+        setState(() {}); 
         Navigator.pop(context); 
       },
     );
