@@ -2,6 +2,8 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; 
+
 import '../data/models/wrestler.dart';
 import '../data/models/match.dart';
 import '../data/models/show_history.dart';
@@ -9,10 +11,11 @@ import '../data/models/game_save.dart';
 import '../data/models/tv_network_deal.dart'; 
 import '../data/models/sponsorship_deal.dart'; 
 import '../data/models/financial_record.dart'; 
+import '../data/models/news_item.dart'; // 🚨 NEW IMPORT!
+
 import 'rival_provider.dart'; 
 import 'promoter_provider.dart'; 
-
-// --- DATA MODELS ---
+import 'settings_provider.dart'; 
 
 @Embedded()
 class FinancialEntry {
@@ -152,8 +155,6 @@ class GameState {
   }
 }
 
-// --- NOTIFIER ---
-
 class GameNotifier extends StateNotifier<GameState> {
   final Ref ref;
   Isar? _isar;
@@ -169,7 +170,7 @@ class GameNotifier extends StateNotifier<GameState> {
     final dir = await getApplicationDocumentsDirectory();
     if (Isar.instanceNames.isEmpty) {
       _isar = await Isar.open(
-        [WrestlerSchema, MatchSchema, ShowHistorySchema, GameSaveSchema, TvNetworkDealSchema, SponsorshipDealSchema, FinancialRecordSchema], 
+        [WrestlerSchema, MatchSchema, ShowHistorySchema, GameSaveSchema, TvNetworkDealSchema, SponsorshipDealSchema, FinancialRecordSchema, NewsItemSchema], 
         directory: dir.path
       );
     } else {
@@ -214,15 +215,28 @@ class GameNotifier extends StateNotifier<GameState> {
 
   Future<void> resetGame() async {
     if (_isar == null) return;
+    
     await _isar!.writeTxn(() async {
       await _isar!.gameSaves.clear();
+      await _isar!.sponsorshipDeals.clear(); 
+      await _isar!.financialRecords.clear(); 
+      await _isar!.newsItems.clear(); // Clear old news!
+      
       final deals = await _isar!.tvNetworkDeals.where().findAll();
       for (var d in deals) { d.promotionId = -1; }
       await _isar!.tvNetworkDeals.putAll(deals);
-      await _isar!.sponsorshipDeals.clear(); 
-      await _isar!.financialRecords.clear(); 
     });
-    state = GameState(week: 1, year: 1, cash: 50000, fans: 100, reputation: 10, ledger: [], isLoading: false, isBiddingWarActive: true, premierPpvIndex: 11);
+
+    state = GameState(
+      week: 1, year: 1, cash: 50000, fans: 100, reputation: 10, 
+      ledger: [], isLoading: false, isBiddingWarActive: true, premierPpvIndex: 11,
+      activeSponsors: [], availableOffers: []
+    );
+
+    final networkCount = await _isar!.tvNetworkDeals.count();
+    if (networkCount == 0) await _seedNetworks();
+
+    _generateInitialSponsors();
     await _saveGame();
   }
 
@@ -319,10 +333,25 @@ class GameNotifier extends StateNotifier<GameState> {
     int totalExpenses = sal + prod + rent + facCosts;
 
     double totalRatingScore = 0.0;
+    List<String> weeklyHighlights = []; 
 
     for (int i = 0; i < state.currentCard.length; i++) {
       var match = state.currentCard[i];
       double matchScore = match.rating;
+      
+      String matchPosition = "MATCH";
+      if (i == 0) matchPosition = "OPENER";
+      else if (i == state.currentCard.length - 1) matchPosition = "MAIN EVENT";
+      else matchPosition = "MID-CARD";
+
+      String winnerName = match.winnerName;
+      String loserName = match.loserName;
+
+      if (winnerName == "Draw" || winnerName.isEmpty) {
+        weeklyHighlights.add("$matchPosition: Match ended in a Draw (${matchScore} ⭐)");
+      } else {
+        weeklyHighlights.add("$matchPosition: $winnerName defeated $loserName (${matchScore} ⭐)");
+      }
       
       bool isTitleMatch = state.titleMatchFlags.length > i ? state.titleMatchFlags[i] : false;
       
@@ -331,9 +360,8 @@ class GameNotifier extends StateNotifier<GameState> {
         if (matchScore > 5.0) matchScore = 5.0;
         
         if (match.winnerName.isNotEmpty && match.winnerName != "Draw") {
-          // 🛠️ THE FIX: We must update the exact objects in the 'roster' list so they don't get overwritten at the end of the week!
           Wrestler? winner = roster.where((w) => w.name == match.winnerName).firstOrNull;
-          Wrestler? loser = roster.where((w) => match.wrestlers.any((mw) => mw.id == w.id) && w.name != match.winnerName).firstOrNull;
+          Wrestler? loser = roster.where((w) => w.name == match.loserName).firstOrNull;
 
           if (winner != null && loser != null) {
             if (loser.isChampion) {
@@ -401,32 +429,147 @@ class GameNotifier extends StateNotifier<GameState> {
     }
 
     if (_isar != null) {
-      List<int> bookedIds = [];
-      for (var match in state.currentCard) { for (var w in match.wrestlers) bookedIds.add(w.id); }
+      List<String> bookedNames = [];
+      for (var match in state.currentCard) { 
+        if (match.winnerName.isNotEmpty) bookedNames.add(match.winnerName);
+        if (match.loserName.isNotEmpty && match.loserName != "Unknown") bookedNames.add(match.loserName);
+      }
 
       for (var w in roster) {
           if (w.isInjured) {
               w.injuryWeeks -= 1;
               if (w.injuryWeeks <= 0) { w.isInjured = false; w.injuryWeeks = 0; w.stamina = 50; } else w.stamina += 10; 
           } else {
-              if (bookedIds.contains(w.id)) {
+              if (bookedNames.contains(w.name)) {
                   w.stamina -= 15; w.morale += 5;
                   if (w.stamina < 20 && _rng.nextDouble() < 0.40) { w.isInjured = true; w.injuryWeeks = _rng.nextInt(3) + 2; }
               } else { w.stamina += 15; w.morale -= 2; }
           }
-          w.stamina = w.stamina.clamp(0, 100);
-          w.morale = w.morale.clamp(0, 100);
+
           w.contractWeeks -= 1;
           if (w.contractWeeks < 0) w.contractWeeks = 0;
+
+          if (w.companyId == 0) { 
+            if (w.activePromise.isNotEmpty) {
+              bool isFulfilled = false;
+              if (w.activePromise == "TITLE_RUN" && (w.isChampion || w.isTVChampion)) {
+                isFulfilled = true;
+              }
+
+              if (isFulfilled) {
+                w.activePromise = "";
+                w.promiseDeadline = 0;
+                w.morale += 30; 
+                w.isHoldingOut = false;
+              } else {
+                w.promiseDeadline -= 1;
+                
+                if (w.promiseDeadline <= 0) {
+                  w.activePromise = "";
+                  w.morale -= 50; 
+                  
+                  if (w.morale < 30) {
+                    w.isHoldingOut = true; 
+                  }
+                }
+              }
+            } else {
+              if (w.pop > 75 && !w.isChampion && !w.isInjured && !w.isHoldingOut) {
+                if (_rng.nextDouble() < 0.05) {
+                  w.activePromise = "TITLE_RUN";
+                  w.promiseDeadline = 4; 
+                }
+              }
+            }
+          }
+
+          w.stamina = w.stamina.clamp(0, 100);
+          w.morale = w.morale.clamp(0, 100);
       }
+
+      final currentDifficultyForAI = ref.read(settingsProvider).difficulty;
       
-      // 🛠️ Because we updated the exact same 'roster' list during the title logic above, saving it here perfectly preserves both stamina AND the new title changes!
+      double signChance = 0.10; 
+      int releasePopThreshold = 20;
+      int maxRivalRosterSize = 15;
+
+      switch (currentDifficultyForAI) {
+        case "EASY":
+          signChance = 0.02; 
+          releasePopThreshold = 10; 
+          break;
+        case "HARD":
+          signChance = 0.25; 
+          releasePopThreshold = 35; 
+          maxRivalRosterSize = 18;
+          break;
+        case "TYCOON":
+          signChance = 0.50; 
+          releasePopThreshold = 50; 
+          maxRivalRosterSize = 20;
+          break;
+        case "NORMAL":
+        default:
+          break;
+      }
+
+      List<Wrestler> rivalRoster = roster.where((w) => w.companyId == 1).toList();
+      List<Wrestler> freeAgents = roster.where((w) => w.companyId == -1).toList();
+
+      for (var w in rivalRoster.toList()) {
+        if (w.pop < releasePopThreshold && rivalRoster.length > 10) {
+          w.companyId = -1; 
+          w.morale = 50; 
+          rivalRoster.remove(w);
+        }
+      }
+
+      if (rivalRoster.length < maxRivalRosterSize) {
+        freeAgents.sort((a, b) => b.pop.compareTo(a.pop));
+        
+        for (var fa in freeAgents) {
+          if (fa.pop > 65) {
+            if (_rng.nextDouble() < signChance) {
+              fa.companyId = 1; 
+              fa.contractWeeks = 48;
+              fa.morale = 100;
+              rivalRoster.add(fa);
+              break; 
+            }
+          }
+        }
+      }
+
       await _isar!.writeTxn(() async { await _isar!.wrestlers.putAll(roster); });
     }
 
+    final currentDifficulty = ref.read(settingsProvider).difficulty;
+    
     double rival = 3.0;
     try { rival = ref.read(rivalProvider).rating; } catch(e) {}
     
+    double fanGrowthMultiplier = 1.0;
+
+    switch (currentDifficulty) {
+      case "EASY":
+        rival -= 0.5; 
+        rating += 0.5; 
+        fanGrowthMultiplier = 1.5; 
+        break;
+      case "HARD":
+        rival += 0.5; 
+        fanGrowthMultiplier = 0.8; 
+        break;
+      case "TYCOON":
+        rival += 1.0; 
+        fanGrowthMultiplier = 0.5; 
+        totalExpenses = (totalExpenses * 1.2).toInt(); 
+        break;
+      case "NORMAL":
+      default:
+        break;
+    }
+
     int fChange = 0;
     int repChange = 0;
 
@@ -448,14 +591,25 @@ class GameNotifier extends StateNotifier<GameState> {
       fChange = 25;
     }
 
-    // 🛠️ The absolute floor is now 10 fans, so you don't literally play to an empty gym!
+    fChange = (fChange * fanGrowthMultiplier).toInt();
     int newFans = (state.fans + fChange).clamp(10, 10000000); 
     int newRep = (state.reputation + repChange).clamp(0, 100);
 
     if (state.currentCard.isNotEmpty && _isar != null) {
-      final historyEntry = ShowHistory()..timestamp = DateTime.now()..week = state.week..year = state.year..showName = state.isPPV ? state.nextPPVName : state.tvShowName..avgRating = rating..totalProfit = prof..attendance = gate ~/ 20..highlights = _generateHighlights();
+      final historyEntry = ShowHistory()
+        ..timestamp = DateTime.now()
+        ..week = state.week
+        ..year = state.year
+        ..showName = state.isPPV ? state.nextPPVName : state.tvShowName
+        ..avgRating = rating
+        ..totalProfit = prof
+        ..attendance = gate ~/ 20
+        ..highlights = weeklyHighlights; 
       await _isar!.writeTxn(() async { await _isar!.showHistorys.put(historyEntry); });
     }
+
+    // 🚨 NEW: Trigger the Smart Communications Engine!
+    await _generateWeeklyCommunications(rating, rival, roster, state.currentCard);
 
     state = state.copyWith(
       cash: state.cash + prof, 
@@ -481,16 +635,128 @@ class GameNotifier extends StateNotifier<GameState> {
 
   Future<void> processYearEnd() async {
     if (_isar == null) return;
+    
+    try {
+      final supabase = Supabase.instance.client;
+      final user = supabase.auth.currentUser;
+      
+      if (user != null) {
+        final int legacyScore = (state.cash ~/ 1000) + state.fans + (state.reputation * 100);
+        await supabase.from('tycoon_scores').insert({
+          'user_id': user.id,
+          'promotion_name': state.promotionName,
+          'score': legacyScore,
+        });
+      }
+    } catch (e) {
+      print("Cloud Sync Failed: $e"); 
+    }
+
     state = state.copyWith(week: 1, year: state.year + 1, ledger: []);
     await _saveGame();
   }
 
-  List<String> _generateHighlights() {
-    List<String> notes = [];
-    for (var m in state.currentCard) {
-      if (m.rating >= 4.5) notes.add("⭐ 5-STAR CLASSIC: ${m.winnerName} put on a masterpiece!");
+  // =========================================================================
+  // 📧 SMART COMMUNICATIONS ENGINE
+  // =========================================================================
+  Future<void> _generateWeeklyCommunications(double showRating, double rivalRating, List<Wrestler> roster, List<Match> card) async {
+    if (_isar == null) return;
+    List<NewsItem> newMessages = [];
+
+    // --- 1. MILESTONE ONBOARDING ---
+    if (state.week == 1) {
+      newMessages.add(NewsItem()
+        ..sender = "Assistant GM"
+        ..subject = "Welcome to the Office!"
+        ..body = "Boss, welcome to the big leagues! Before you book a show, check the Broadcasting tab to secure a TV deal, and visit the Sponsors tab to get some upfront cash. We need that money to pay the talent!"
+        ..timestamp = DateTime.now()
+        ..isRead = false
+        ..actionRequired = false
+        ..type = "EMAIL"
+      );
+    } else if (state.week == 3) {
+      newMessages.add(NewsItem()
+        ..sender = "Assistant GM"
+        ..subject = "PPV Approaching!"
+        ..body = "Just a heads up—our first Pay-Per-View is next week! PPVs generate massive revenue, but only if the matches are hot. Use the Creative Hub to build up Rivalry Heat before the big show!"
+        ..timestamp = DateTime.now()
+        ..isRead = false
+        ..actionRequired = false
+        ..type = "EMAIL"
+      );
+    } else if (state.week == 10) {
+      newMessages.add(NewsItem()
+        ..sender = "HR Department"
+        ..subject = "Contract Expirations"
+        ..body = "Keep an eye on the Roster screen. Some of our talent's contracts are expiring soon. If they hit Free Agency, the Rival AI might snatch them up!"
+        ..timestamp = DateTime.now()
+        ..isRead = false
+        ..actionRequired = false
+        ..type = "EMAIL"
+      );
     }
-    return notes;
+
+    // --- 2. REACTIVE TRIGGERS ---
+    
+    // Financial Warning
+    if (state.cash < 15000 && state.week > 2) {
+      newMessages.add(NewsItem()
+        ..sender = "Accounting"
+        ..subject = "URGENT: Financial Warning"
+        ..body = "We are bleeding cash! You need to put on better shows to boost ticket sales, or release some expensive dead-weight from the roster. If we hit \$0, it's game over."
+        ..timestamp = DateTime.now()
+        ..isRead = false
+        ..actionRequired = false
+        ..type = "EMAIL"
+      );
+    }
+
+    // Low Morale Threat (30% chance to trigger)
+    var angryWrestler = roster.where((w) => w.companyId == 0 && w.morale <= 30).firstOrNull;
+    if (angryWrestler != null && _rng.nextDouble() < 0.3) { 
+      newMessages.add(NewsItem()
+        ..sender = angryWrestler.name
+        ..subject = "My Booking..."
+        ..body = "I'm sick of sitting in the back or losing matches. Use me better, put me in a real storyline, or I'm walking out."
+        ..timestamp = DateTime.now()
+        ..isRead = false
+        ..actionRequired = false
+        ..type = "EMAIL"
+      );
+    }
+
+    // 5-Star Match Praise (Dirt Sheet)
+    var banger = card.where((m) => m.rating >= 4.5).firstOrNull;
+    if (banger != null && banger.winnerName.isNotEmpty && banger.winnerName != "Draw") {
+      newMessages.add(NewsItem()
+        ..sender = "Wrestling Observer"
+        ..subject = "Match of the Year Contender?"
+        ..body = "Fans are absolutely buzzing about the ${banger.winnerName} vs ${banger.loserName} match this week. An absolute masterclass in ring psychology. Ratings gold!"
+        ..timestamp = DateTime.now()
+        ..isRead = false
+        ..actionRequired = false
+        ..type = "DIRT_SHEET"
+      );
+    }
+
+    // Rival Ratings War Update (Dirt Sheet)
+    if (rivalRating > showRating && state.week > 1 && _rng.nextDouble() < 0.4) {
+      newMessages.add(NewsItem()
+        ..sender = "Wrestling Observer"
+        ..subject = "Rival Promotion Wins The Week"
+        ..body = "The Rival Promotion crushed it in the TV ratings this week. Sources say their Main Event drew massive numbers. Your promotion needs a hotter Main Event next week!"
+        ..timestamp = DateTime.now()
+        ..isRead = false
+        ..actionRequired = false
+        ..type = "DIRT_SHEET"
+      );
+    }
+
+    if (newMessages.isNotEmpty) {
+      await _isar!.writeTxn(() async {
+        await _isar!.newsItems.putAll(newMessages);
+      });
+    }
   }
 }
 

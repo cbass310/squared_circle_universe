@@ -35,18 +35,20 @@ class Wrestler {
   bool isChampion = false;
   bool isTVChampion = false;
   String cardPosition = "Opener"; 
-  int companyId = -1; // -1 = Free Agent, 0 = Player, 2 = Empire
-  String? imagePath;
+  int companyId = -1; // -1 = Free Agent, 0 = Player, 1 = Rival
+  
+  String? imagePath; // Kept for local generic default assets
+  String? imageUrl;  // 🖼️ NEW: Stores the web link from the JSON mod!
 
   // --- INJURY & REHAB SYSTEM ---
   bool isInjured = false;
   int injuryWeeks = 0;
-  bool isOnIR = false; // <-- The query builder needs this!
+  bool isOnIR = false; 
 
   // --- SCOUTING & DEVELOPMENT ---
   int potentialSkill = 80;   
   bool isScouted = true;     
-  bool isRookie = false;     // <-- The query builder needs this!
+  bool isRookie = false;     
 
   // =========================================================
   // --- NEW UNIVERSAL CONTRACT ENGINE ---
@@ -62,5 +64,9 @@ class Wrestler {
 
   int greed = 50;         
   int loyalty = 50;       
-  int desireToWin = 50;   
+  int desireToWin = 50;
+
+    // --- THE PROMISES SYSTEM ---
+  String activePromise = ""; // e.g., "TITLE_RUN", "PAY_RAISE"
+  int promiseDeadline = 0;   // Weeks left to fulfill it
 }

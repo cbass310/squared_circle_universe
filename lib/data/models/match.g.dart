@@ -38,19 +38,24 @@ const MatchSchema = CollectionSchema(
       name: r'heat',
       type: IsarType.long,
     ),
-    r'rating': PropertySchema(
+    r'loserName': PropertySchema(
       id: 4,
+      name: r'loserName',
+      type: IsarType.string,
+    ),
+    r'rating': PropertySchema(
+      id: 5,
       name: r'rating',
       type: IsarType.double,
     ),
     r'type': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'type',
       type: IsarType.string,
       enumMap: _MatchtypeEnumValueMap,
     ),
     r'winnerName': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'winnerName',
       type: IsarType.string,
     )
@@ -84,6 +89,7 @@ int _matchEstimateSize(
   var bytesCount = offsets.last;
   bytesCount += 3 + object.agentNote.name.length * 3;
   bytesCount += 3 + object.finishType.length * 3;
+  bytesCount += 3 + object.loserName.length * 3;
   bytesCount += 3 + object.type.name.length * 3;
   bytesCount += 3 + object.winnerName.length * 3;
   return bytesCount;
@@ -99,9 +105,10 @@ void _matchSerialize(
   writer.writeLong(offsets[1], object.duration);
   writer.writeString(offsets[2], object.finishType);
   writer.writeLong(offsets[3], object.heat);
-  writer.writeDouble(offsets[4], object.rating);
-  writer.writeString(offsets[5], object.type.name);
-  writer.writeString(offsets[6], object.winnerName);
+  writer.writeString(offsets[4], object.loserName);
+  writer.writeDouble(offsets[5], object.rating);
+  writer.writeString(offsets[6], object.type.name);
+  writer.writeString(offsets[7], object.winnerName);
 }
 
 Match _matchDeserialize(
@@ -117,10 +124,11 @@ Match _matchDeserialize(
     duration: reader.readLongOrNull(offsets[1]) ?? 10,
     finishType: reader.readStringOrNull(offsets[2]) ?? "Pinfall",
     heat: reader.readLongOrNull(offsets[3]) ?? 0,
-    rating: reader.readDoubleOrNull(offsets[4]) ?? 0.0,
-    type: _MatchtypeValueEnumMap[reader.readStringOrNull(offsets[5])] ??
+    loserName: reader.readStringOrNull(offsets[4]) ?? "Unknown",
+    rating: reader.readDoubleOrNull(offsets[5]) ?? 0.0,
+    type: _MatchtypeValueEnumMap[reader.readStringOrNull(offsets[6])] ??
         MatchType.standard,
-    winnerName: reader.readStringOrNull(offsets[6]) ?? "",
+    winnerName: reader.readStringOrNull(offsets[7]) ?? "",
   );
   object.id = id;
   return object;
@@ -143,11 +151,13 @@ P _matchDeserializeProp<P>(
     case 3:
       return (reader.readLongOrNull(offset) ?? 0) as P;
     case 4:
-      return (reader.readDoubleOrNull(offset) ?? 0.0) as P;
+      return (reader.readStringOrNull(offset) ?? "Unknown") as P;
     case 5:
+      return (reader.readDoubleOrNull(offset) ?? 0.0) as P;
+    case 6:
       return (_MatchtypeValueEnumMap[reader.readStringOrNull(offset)] ??
           MatchType.standard) as P;
-    case 6:
+    case 7:
       return (reader.readStringOrNull(offset) ?? "") as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -689,6 +699,136 @@ extension MatchQueryFilter on QueryBuilder<Match, Match, QFilterCondition> {
     });
   }
 
+  QueryBuilder<Match, Match, QAfterFilterCondition> loserNameEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'loserName',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Match, Match, QAfterFilterCondition> loserNameGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'loserName',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Match, Match, QAfterFilterCondition> loserNameLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'loserName',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Match, Match, QAfterFilterCondition> loserNameBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'loserName',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Match, Match, QAfterFilterCondition> loserNameStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'loserName',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Match, Match, QAfterFilterCondition> loserNameEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'loserName',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Match, Match, QAfterFilterCondition> loserNameContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'loserName',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Match, Match, QAfterFilterCondition> loserNameMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'loserName',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Match, Match, QAfterFilterCondition> loserNameIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'loserName',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Match, Match, QAfterFilterCondition> loserNameIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'loserName',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<Match, Match, QAfterFilterCondition> ratingEqualTo(
     double value, {
     double epsilon = Query.epsilon,
@@ -1119,6 +1259,18 @@ extension MatchQuerySortBy on QueryBuilder<Match, Match, QSortBy> {
     });
   }
 
+  QueryBuilder<Match, Match, QAfterSortBy> sortByLoserName() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'loserName', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Match, Match, QAfterSortBy> sortByLoserNameDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'loserName', Sort.desc);
+    });
+  }
+
   QueryBuilder<Match, Match, QAfterSortBy> sortByRating() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'rating', Sort.asc);
@@ -1217,6 +1369,18 @@ extension MatchQuerySortThenBy on QueryBuilder<Match, Match, QSortThenBy> {
     });
   }
 
+  QueryBuilder<Match, Match, QAfterSortBy> thenByLoserName() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'loserName', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Match, Match, QAfterSortBy> thenByLoserNameDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'loserName', Sort.desc);
+    });
+  }
+
   QueryBuilder<Match, Match, QAfterSortBy> thenByRating() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'rating', Sort.asc);
@@ -1281,6 +1445,13 @@ extension MatchQueryWhereDistinct on QueryBuilder<Match, Match, QDistinct> {
     });
   }
 
+  QueryBuilder<Match, Match, QDistinct> distinctByLoserName(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'loserName', caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<Match, Match, QDistinct> distinctByRating() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'rating');
@@ -1330,6 +1501,12 @@ extension MatchQueryProperty on QueryBuilder<Match, Match, QQueryProperty> {
   QueryBuilder<Match, int, QQueryOperations> heatProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'heat');
+    });
+  }
+
+  QueryBuilder<Match, String, QQueryOperations> loserNameProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'loserName');
     });
   }
 

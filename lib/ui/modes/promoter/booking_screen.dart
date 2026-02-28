@@ -23,7 +23,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   
   int _activeDraftSlot = 1;
   
-  // 🛠️ THE FIX: Player controls the Title Match toggle!
   bool _isTitleMatchToggled = false;
 
   @override
@@ -136,6 +135,11 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                                   children: [
                                     Text(w.name.toUpperCase(), style: TextStyle(color: isSelected ? Colors.amber : Colors.white, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1.0)),
                                     const SizedBox(height: 4),
+                                    
+                                    // 🛠️ FIX: Added Heel/Face and Style to the List View
+                                    Text("${w.isHeel ? 'HEEL' : 'FACE'} • ${w.style.name.toUpperCase()}", style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 4),
+                                    
                                     Row(
                                       children: [
                                         Text("POP ${w.pop.toInt()}", style: const TextStyle(color: Colors.purpleAccent, fontSize: 10, fontWeight: FontWeight.bold)),
@@ -338,7 +342,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                     ),
                     const SizedBox(height: 30),
 
-                    // 🛠️ THE FIX: DYNAMIC TITLE TOGGLE SWITCH
                     if (hasChampion)
                       Container(
                         margin: const EdgeInsets.only(bottom: 20),
@@ -366,7 +369,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
               ),
             ),
 
-            // 🛠️ DYNAMIC TITLE MATCH BANNER 🏆
             if (hasChampion && _isTitleMatchToggled)
               Container(
                 width: double.infinity,
@@ -407,7 +409,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                     Wrestler w1 = roster.firstWhere((w) => w.id == selectedWrestler1Id);
                     Wrestler w2 = roster.firstWhere((w) => w.id == selectedWrestler2Id);
                     
-                    // 🛠️ Hand the toggle over to the game engine silently!
                     ref.read(gameProvider.notifier).stageTitleMatch(hasChampion && _isTitleMatchToggled);
                     
                     notifier.setWinner(null); 
@@ -456,14 +457,19 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  WrestlerAvatar(wrestler: w!, size: 70),
+                  WrestlerAvatar(wrestler: w!, size: 60), // Slightly reduced size to fit text
                   const SizedBox(height: 12),
                   Text(w.name.toUpperCase(), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
                   const SizedBox(height: 4),
+                  
+                  // 🛠️ FIX: Added Heel/Face and Style to the Contender Card!
+                  Text("${w.isHeel ? 'HEEL' : 'FACE'} • ${w.style.name.toUpperCase()}", style: const TextStyle(color: Colors.cyanAccent, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                  const SizedBox(height: 8),
+                  
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(4)),
-                    child: Text("POP ${w.pop.toInt()}", style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
+                    child: Text("POP ${w.pop.toInt()} • STA ${w.stamina.toInt()}%", style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),

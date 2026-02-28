@@ -17,149 +17,164 @@ const WrestlerSchema = CollectionSchema(
   name: r'Wrestler',
   id: -6551481669569375151,
   properties: {
-    r'cardPosition': PropertySchema(
+    r'activePromise': PropertySchema(
       id: 0,
+      name: r'activePromise',
+      type: IsarType.string,
+    ),
+    r'cardPosition': PropertySchema(
+      id: 1,
       name: r'cardPosition',
       type: IsarType.string,
     ),
     r'companyId': PropertySchema(
-      id: 1,
+      id: 2,
       name: r'companyId',
       type: IsarType.long,
     ),
     r'condition': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'condition',
       type: IsarType.long,
     ),
     r'contractWeeks': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'contractWeeks',
       type: IsarType.long,
     ),
     r'contractedPop': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'contractedPop',
       type: IsarType.long,
     ),
     r'desireToWin': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'desireToWin',
       type: IsarType.long,
     ),
     r'greed': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'greed',
       type: IsarType.long,
     ),
     r'hasCreativeControl': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'hasCreativeControl',
       type: IsarType.bool,
     ),
     r'imagePath': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'imagePath',
       type: IsarType.string,
     ),
+    r'imageUrl': PropertySchema(
+      id: 10,
+      name: r'imageUrl',
+      type: IsarType.string,
+    ),
     r'injuryWeeks': PropertySchema(
-      id: 9,
+      id: 11,
       name: r'injuryWeeks',
       type: IsarType.long,
     ),
     r'isChampion': PropertySchema(
-      id: 10,
+      id: 12,
       name: r'isChampion',
       type: IsarType.bool,
     ),
     r'isHeel': PropertySchema(
-      id: 11,
+      id: 13,
       name: r'isHeel',
       type: IsarType.bool,
     ),
     r'isHoldingOut': PropertySchema(
-      id: 12,
+      id: 14,
       name: r'isHoldingOut',
       type: IsarType.bool,
     ),
     r'isInjured': PropertySchema(
-      id: 13,
+      id: 15,
       name: r'isInjured',
       type: IsarType.bool,
     ),
     r'isOnIR': PropertySchema(
-      id: 14,
+      id: 16,
       name: r'isOnIR',
       type: IsarType.bool,
     ),
     r'isRookie': PropertySchema(
-      id: 15,
+      id: 17,
       name: r'isRookie',
       type: IsarType.bool,
     ),
     r'isScouted': PropertySchema(
-      id: 16,
+      id: 18,
       name: r'isScouted',
       type: IsarType.bool,
     ),
     r'isTVChampion': PropertySchema(
-      id: 17,
+      id: 19,
       name: r'isTVChampion',
       type: IsarType.bool,
     ),
     r'loyalty': PropertySchema(
-      id: 18,
+      id: 20,
       name: r'loyalty',
       type: IsarType.long,
     ),
     r'micSkill': PropertySchema(
-      id: 19,
+      id: 21,
       name: r'micSkill',
       type: IsarType.long,
     ),
     r'morale': PropertySchema(
-      id: 20,
+      id: 22,
       name: r'morale',
       type: IsarType.long,
     ),
     r'name': PropertySchema(
-      id: 21,
+      id: 23,
       name: r'name',
       type: IsarType.string,
     ),
     r'pop': PropertySchema(
-      id: 22,
+      id: 24,
       name: r'pop',
       type: IsarType.long,
     ),
     r'potentialSkill': PropertySchema(
-      id: 23,
+      id: 25,
       name: r'potentialSkill',
       type: IsarType.long,
     ),
+    r'promiseDeadline': PropertySchema(
+      id: 26,
+      name: r'promiseDeadline',
+      type: IsarType.long,
+    ),
     r'ringSkill': PropertySchema(
-      id: 24,
+      id: 27,
       name: r'ringSkill',
       type: IsarType.long,
     ),
     r'salary': PropertySchema(
-      id: 25,
+      id: 28,
       name: r'salary',
       type: IsarType.long,
     ),
     r'stamina': PropertySchema(
-      id: 26,
+      id: 29,
       name: r'stamina',
       type: IsarType.long,
     ),
     r'style': PropertySchema(
-      id: 27,
+      id: 30,
       name: r'style',
       type: IsarType.byte,
       enumMap: _WrestlerstyleEnumValueMap,
     ),
     r'upfrontBonus': PropertySchema(
-      id: 28,
+      id: 31,
       name: r'upfrontBonus',
       type: IsarType.long,
     )
@@ -184,9 +199,16 @@ int _wrestlerEstimateSize(
   Map<Type, List<int>> allOffsets,
 ) {
   var bytesCount = offsets.last;
+  bytesCount += 3 + object.activePromise.length * 3;
   bytesCount += 3 + object.cardPosition.length * 3;
   {
     final value = object.imagePath;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
+    final value = object.imageUrl;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
     }
@@ -201,35 +223,38 @@ void _wrestlerSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeString(offsets[0], object.cardPosition);
-  writer.writeLong(offsets[1], object.companyId);
-  writer.writeLong(offsets[2], object.condition);
-  writer.writeLong(offsets[3], object.contractWeeks);
-  writer.writeLong(offsets[4], object.contractedPop);
-  writer.writeLong(offsets[5], object.desireToWin);
-  writer.writeLong(offsets[6], object.greed);
-  writer.writeBool(offsets[7], object.hasCreativeControl);
-  writer.writeString(offsets[8], object.imagePath);
-  writer.writeLong(offsets[9], object.injuryWeeks);
-  writer.writeBool(offsets[10], object.isChampion);
-  writer.writeBool(offsets[11], object.isHeel);
-  writer.writeBool(offsets[12], object.isHoldingOut);
-  writer.writeBool(offsets[13], object.isInjured);
-  writer.writeBool(offsets[14], object.isOnIR);
-  writer.writeBool(offsets[15], object.isRookie);
-  writer.writeBool(offsets[16], object.isScouted);
-  writer.writeBool(offsets[17], object.isTVChampion);
-  writer.writeLong(offsets[18], object.loyalty);
-  writer.writeLong(offsets[19], object.micSkill);
-  writer.writeLong(offsets[20], object.morale);
-  writer.writeString(offsets[21], object.name);
-  writer.writeLong(offsets[22], object.pop);
-  writer.writeLong(offsets[23], object.potentialSkill);
-  writer.writeLong(offsets[24], object.ringSkill);
-  writer.writeLong(offsets[25], object.salary);
-  writer.writeLong(offsets[26], object.stamina);
-  writer.writeByte(offsets[27], object.style.index);
-  writer.writeLong(offsets[28], object.upfrontBonus);
+  writer.writeString(offsets[0], object.activePromise);
+  writer.writeString(offsets[1], object.cardPosition);
+  writer.writeLong(offsets[2], object.companyId);
+  writer.writeLong(offsets[3], object.condition);
+  writer.writeLong(offsets[4], object.contractWeeks);
+  writer.writeLong(offsets[5], object.contractedPop);
+  writer.writeLong(offsets[6], object.desireToWin);
+  writer.writeLong(offsets[7], object.greed);
+  writer.writeBool(offsets[8], object.hasCreativeControl);
+  writer.writeString(offsets[9], object.imagePath);
+  writer.writeString(offsets[10], object.imageUrl);
+  writer.writeLong(offsets[11], object.injuryWeeks);
+  writer.writeBool(offsets[12], object.isChampion);
+  writer.writeBool(offsets[13], object.isHeel);
+  writer.writeBool(offsets[14], object.isHoldingOut);
+  writer.writeBool(offsets[15], object.isInjured);
+  writer.writeBool(offsets[16], object.isOnIR);
+  writer.writeBool(offsets[17], object.isRookie);
+  writer.writeBool(offsets[18], object.isScouted);
+  writer.writeBool(offsets[19], object.isTVChampion);
+  writer.writeLong(offsets[20], object.loyalty);
+  writer.writeLong(offsets[21], object.micSkill);
+  writer.writeLong(offsets[22], object.morale);
+  writer.writeString(offsets[23], object.name);
+  writer.writeLong(offsets[24], object.pop);
+  writer.writeLong(offsets[25], object.potentialSkill);
+  writer.writeLong(offsets[26], object.promiseDeadline);
+  writer.writeLong(offsets[27], object.ringSkill);
+  writer.writeLong(offsets[28], object.salary);
+  writer.writeLong(offsets[29], object.stamina);
+  writer.writeByte(offsets[30], object.style.index);
+  writer.writeLong(offsets[31], object.upfrontBonus);
 }
 
 Wrestler _wrestlerDeserialize(
@@ -239,38 +264,41 @@ Wrestler _wrestlerDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = Wrestler();
-  object.cardPosition = reader.readString(offsets[0]);
-  object.companyId = reader.readLong(offsets[1]);
-  object.condition = reader.readLong(offsets[2]);
-  object.contractWeeks = reader.readLong(offsets[3]);
-  object.contractedPop = reader.readLong(offsets[4]);
-  object.desireToWin = reader.readLong(offsets[5]);
-  object.greed = reader.readLong(offsets[6]);
-  object.hasCreativeControl = reader.readBool(offsets[7]);
+  object.activePromise = reader.readString(offsets[0]);
+  object.cardPosition = reader.readString(offsets[1]);
+  object.companyId = reader.readLong(offsets[2]);
+  object.condition = reader.readLong(offsets[3]);
+  object.contractWeeks = reader.readLong(offsets[4]);
+  object.contractedPop = reader.readLong(offsets[5]);
+  object.desireToWin = reader.readLong(offsets[6]);
+  object.greed = reader.readLong(offsets[7]);
+  object.hasCreativeControl = reader.readBool(offsets[8]);
   object.id = id;
-  object.imagePath = reader.readStringOrNull(offsets[8]);
-  object.injuryWeeks = reader.readLong(offsets[9]);
-  object.isChampion = reader.readBool(offsets[10]);
-  object.isHeel = reader.readBool(offsets[11]);
-  object.isHoldingOut = reader.readBool(offsets[12]);
-  object.isInjured = reader.readBool(offsets[13]);
-  object.isOnIR = reader.readBool(offsets[14]);
-  object.isRookie = reader.readBool(offsets[15]);
-  object.isScouted = reader.readBool(offsets[16]);
-  object.isTVChampion = reader.readBool(offsets[17]);
-  object.loyalty = reader.readLong(offsets[18]);
-  object.micSkill = reader.readLong(offsets[19]);
-  object.morale = reader.readLong(offsets[20]);
-  object.name = reader.readString(offsets[21]);
-  object.pop = reader.readLong(offsets[22]);
-  object.potentialSkill = reader.readLong(offsets[23]);
-  object.ringSkill = reader.readLong(offsets[24]);
-  object.salary = reader.readLong(offsets[25]);
-  object.stamina = reader.readLong(offsets[26]);
+  object.imagePath = reader.readStringOrNull(offsets[9]);
+  object.imageUrl = reader.readStringOrNull(offsets[10]);
+  object.injuryWeeks = reader.readLong(offsets[11]);
+  object.isChampion = reader.readBool(offsets[12]);
+  object.isHeel = reader.readBool(offsets[13]);
+  object.isHoldingOut = reader.readBool(offsets[14]);
+  object.isInjured = reader.readBool(offsets[15]);
+  object.isOnIR = reader.readBool(offsets[16]);
+  object.isRookie = reader.readBool(offsets[17]);
+  object.isScouted = reader.readBool(offsets[18]);
+  object.isTVChampion = reader.readBool(offsets[19]);
+  object.loyalty = reader.readLong(offsets[20]);
+  object.micSkill = reader.readLong(offsets[21]);
+  object.morale = reader.readLong(offsets[22]);
+  object.name = reader.readString(offsets[23]);
+  object.pop = reader.readLong(offsets[24]);
+  object.potentialSkill = reader.readLong(offsets[25]);
+  object.promiseDeadline = reader.readLong(offsets[26]);
+  object.ringSkill = reader.readLong(offsets[27]);
+  object.salary = reader.readLong(offsets[28]);
+  object.stamina = reader.readLong(offsets[29]);
   object.style =
-      _WrestlerstyleValueEnumMap[reader.readByteOrNull(offsets[27])] ??
+      _WrestlerstyleValueEnumMap[reader.readByteOrNull(offsets[30])] ??
           WrestlingStyle.brawler;
-  object.upfrontBonus = reader.readLong(offsets[28]);
+  object.upfrontBonus = reader.readLong(offsets[31]);
   return object;
 }
 
@@ -284,7 +312,7 @@ P _wrestlerDeserializeProp<P>(
     case 0:
       return (reader.readString(offset)) as P;
     case 1:
-      return (reader.readLong(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 2:
       return (reader.readLong(offset)) as P;
     case 3:
@@ -296,15 +324,15 @@ P _wrestlerDeserializeProp<P>(
     case 6:
       return (reader.readLong(offset)) as P;
     case 7:
-      return (reader.readBool(offset)) as P;
-    case 8:
-      return (reader.readStringOrNull(offset)) as P;
-    case 9:
       return (reader.readLong(offset)) as P;
+    case 8:
+      return (reader.readBool(offset)) as P;
+    case 9:
+      return (reader.readStringOrNull(offset)) as P;
     case 10:
-      return (reader.readBool(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 11:
-      return (reader.readBool(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 12:
       return (reader.readBool(offset)) as P;
     case 13:
@@ -318,17 +346,17 @@ P _wrestlerDeserializeProp<P>(
     case 17:
       return (reader.readBool(offset)) as P;
     case 18:
-      return (reader.readLong(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 19:
-      return (reader.readLong(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 20:
       return (reader.readLong(offset)) as P;
     case 21:
-      return (reader.readString(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 22:
       return (reader.readLong(offset)) as P;
     case 23:
-      return (reader.readLong(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 24:
       return (reader.readLong(offset)) as P;
     case 25:
@@ -336,9 +364,15 @@ P _wrestlerDeserializeProp<P>(
     case 26:
       return (reader.readLong(offset)) as P;
     case 27:
+      return (reader.readLong(offset)) as P;
+    case 28:
+      return (reader.readLong(offset)) as P;
+    case 29:
+      return (reader.readLong(offset)) as P;
+    case 30:
       return (_WrestlerstyleValueEnumMap[reader.readByteOrNull(offset)] ??
           WrestlingStyle.brawler) as P;
-    case 28:
+    case 31:
       return (reader.readLong(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -455,6 +489,140 @@ extension WrestlerQueryWhere on QueryBuilder<Wrestler, Wrestler, QWhereClause> {
 
 extension WrestlerQueryFilter
     on QueryBuilder<Wrestler, Wrestler, QFilterCondition> {
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> activePromiseEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'activePromise',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition>
+      activePromiseGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'activePromise',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> activePromiseLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'activePromise',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> activePromiseBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'activePromise',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition>
+      activePromiseStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'activePromise',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> activePromiseEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'activePromise',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> activePromiseContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'activePromise',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> activePromiseMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'activePromise',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition>
+      activePromiseIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'activePromise',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition>
+      activePromiseIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'activePromise',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> cardPositionEqualTo(
     String value, {
     bool caseSensitive = true,
@@ -1119,6 +1287,152 @@ extension WrestlerQueryFilter
     });
   }
 
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> imageUrlIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'imageUrl',
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> imageUrlIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'imageUrl',
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> imageUrlEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'imageUrl',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> imageUrlGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'imageUrl',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> imageUrlLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'imageUrl',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> imageUrlBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'imageUrl',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> imageUrlStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'imageUrl',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> imageUrlEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'imageUrl',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> imageUrlContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'imageUrl',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> imageUrlMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'imageUrl',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> imageUrlIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'imageUrl',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> imageUrlIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'imageUrl',
+        value: '',
+      ));
+    });
+  }
+
   QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> injuryWeeksEqualTo(
       int value) {
     return QueryBuilder.apply(this, (query) {
@@ -1650,6 +1964,62 @@ extension WrestlerQueryFilter
     });
   }
 
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition>
+      promiseDeadlineEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'promiseDeadline',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition>
+      promiseDeadlineGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'promiseDeadline',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition>
+      promiseDeadlineLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'promiseDeadline',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition>
+      promiseDeadlineBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'promiseDeadline',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
   QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> ringSkillEqualTo(
       int value) {
     return QueryBuilder.apply(this, (query) {
@@ -1924,6 +2294,18 @@ extension WrestlerQueryLinks
     on QueryBuilder<Wrestler, Wrestler, QFilterCondition> {}
 
 extension WrestlerQuerySortBy on QueryBuilder<Wrestler, Wrestler, QSortBy> {
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByActivePromise() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'activePromise', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByActivePromiseDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'activePromise', Sort.desc);
+    });
+  }
+
   QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByCardPosition() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'cardPosition', Sort.asc);
@@ -2030,6 +2412,18 @@ extension WrestlerQuerySortBy on QueryBuilder<Wrestler, Wrestler, QSortBy> {
   QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByImagePathDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'imagePath', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByImageUrl() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'imageUrl', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByImageUrlDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'imageUrl', Sort.desc);
     });
   }
 
@@ -2213,6 +2607,18 @@ extension WrestlerQuerySortBy on QueryBuilder<Wrestler, Wrestler, QSortBy> {
     });
   }
 
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByPromiseDeadline() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'promiseDeadline', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByPromiseDeadlineDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'promiseDeadline', Sort.desc);
+    });
+  }
+
   QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByRingSkill() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'ringSkill', Sort.asc);
@@ -2276,6 +2682,18 @@ extension WrestlerQuerySortBy on QueryBuilder<Wrestler, Wrestler, QSortBy> {
 
 extension WrestlerQuerySortThenBy
     on QueryBuilder<Wrestler, Wrestler, QSortThenBy> {
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByActivePromise() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'activePromise', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByActivePromiseDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'activePromise', Sort.desc);
+    });
+  }
+
   QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByCardPosition() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'cardPosition', Sort.asc);
@@ -2394,6 +2812,18 @@ extension WrestlerQuerySortThenBy
   QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByImagePathDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'imagePath', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByImageUrl() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'imageUrl', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByImageUrlDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'imageUrl', Sort.desc);
     });
   }
 
@@ -2577,6 +3007,18 @@ extension WrestlerQuerySortThenBy
     });
   }
 
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByPromiseDeadline() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'promiseDeadline', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByPromiseDeadlineDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'promiseDeadline', Sort.desc);
+    });
+  }
+
   QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByRingSkill() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'ringSkill', Sort.asc);
@@ -2640,6 +3082,14 @@ extension WrestlerQuerySortThenBy
 
 extension WrestlerQueryWhereDistinct
     on QueryBuilder<Wrestler, Wrestler, QDistinct> {
+  QueryBuilder<Wrestler, Wrestler, QDistinct> distinctByActivePromise(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'activePromise',
+          caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<Wrestler, Wrestler, QDistinct> distinctByCardPosition(
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
@@ -2693,6 +3143,13 @@ extension WrestlerQueryWhereDistinct
       {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'imagePath', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QDistinct> distinctByImageUrl(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'imageUrl', caseSensitive: caseSensitive);
     });
   }
 
@@ -2787,6 +3244,12 @@ extension WrestlerQueryWhereDistinct
     });
   }
 
+  QueryBuilder<Wrestler, Wrestler, QDistinct> distinctByPromiseDeadline() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'promiseDeadline');
+    });
+  }
+
   QueryBuilder<Wrestler, Wrestler, QDistinct> distinctByRingSkill() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'ringSkill');
@@ -2823,6 +3286,12 @@ extension WrestlerQueryProperty
   QueryBuilder<Wrestler, int, QQueryOperations> idProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'id');
+    });
+  }
+
+  QueryBuilder<Wrestler, String, QQueryOperations> activePromiseProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'activePromise');
     });
   }
 
@@ -2877,6 +3346,12 @@ extension WrestlerQueryProperty
   QueryBuilder<Wrestler, String?, QQueryOperations> imagePathProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'imagePath');
+    });
+  }
+
+  QueryBuilder<Wrestler, String?, QQueryOperations> imageUrlProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'imageUrl');
     });
   }
 
@@ -2967,6 +3442,12 @@ extension WrestlerQueryProperty
   QueryBuilder<Wrestler, int, QQueryOperations> potentialSkillProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'potentialSkill');
+    });
+  }
+
+  QueryBuilder<Wrestler, int, QQueryOperations> promiseDeadlineProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'promiseDeadline');
     });
   }
 

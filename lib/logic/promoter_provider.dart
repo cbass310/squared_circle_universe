@@ -170,7 +170,8 @@ class RosterNotifier extends StateNotifier<RosterState> {
     final freeAgentList = await _isar!.wrestlers.filter().companyIdEqualTo(-1).and().isRookieEqualTo(false).findAll();
     final prospectList = await _isar!.wrestlers.filter().companyIdEqualTo(-1).and().isRookieEqualTo(true).findAll();
     
-    final empireList = await _isar!.wrestlers.filter().companyIdEqualTo(2).findAll();
+    // 🚨 THE RIVAL AI TAB NOW PULLS FROM ID 1!
+    final empireList = await _isar!.wrestlers.filter().companyIdEqualTo(1).findAll();
     
     // 🛠️ SMART AUTO-CROWNING ENGINE
     bool hasWorldChamp = rosterList.any((w) => w.isChampion);
@@ -248,7 +249,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
     }
   }
 
-  // Called by GameStateProvider right after processWeek finishes!
   void advanceTitleReigns() {
     List<TitleInfo> updated = List.from(state.titleHistory);
     if (updated.isNotEmpty) {
@@ -265,7 +265,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
     state = state.copyWith(titleHistory: updated);
   }
 
-  // Called by GameStateProvider when someone actually wins the belt!
   void recordTitleChange(String belt, String newChamp) {
     List<TitleInfo> updated = List.from(state.titleHistory);
     updated.add(TitleInfo(beltName: belt, championName: newChamp, reignWeeks: 1));
@@ -460,15 +459,19 @@ class RosterNotifier extends StateNotifier<RosterState> {
 
     // 2. GENERATE RANDOM POOL
     List<Wrestler> generatedPool = _generateRandomRoster(60);
-    generatedPool.shuffle(_rng);
+    
+    // Sort pool by POPULARITY so we can draft evenly!
+    generatedPool.sort((a, b) => b.pop.compareTo(a.pop));
 
-    // 3. AUTO-DRAFT
+    // 3. 🚨 THE FIX: AUTO-DRAFT PROPERLY FOR BOTH COMPANIES
     for (int i = 0; i < 12; i++) {
-      generatedPool[i].companyId = 0;
-      generatedPool[i].cardPosition = i < 3 ? "Main Eventer" : i < 8 ? "Mid-Carder" : "Opener"; 
+      // Draft a guy for the player
+      generatedPool[i * 2].companyId = 0;
+      generatedPool[i * 2].cardPosition = i < 3 ? "Main Eventer" : i < 8 ? "Mid-Carder" : "Opener"; 
       
-      generatedPool[i + 12].companyId = 2;
-      generatedPool[i + 12].cardPosition = i < 3 ? "Main Eventer" : i < 8 ? "Mid-Carder" : "Opener";
+      // Draft a similar guy for the CPU AI (Company 1!)
+      generatedPool[(i * 2) + 1].companyId = 1;
+      generatedPool[(i * 2) + 1].cardPosition = i < 3 ? "Main Eventer" : i < 8 ? "Mid-Carder" : "Opener";
     }
 
     // 4. GENERATE 20 ROOKIE PROSPECTS FOR SCOUTING REGIONS

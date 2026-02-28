@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:isar/isar.dart'; 
 import '../../../logic/game_state_provider.dart';
 import '../../../logic/promoter_provider.dart';
 import '../../../data/models/wrestler.dart';
+import '../../../data/models/show_history.dart'; 
 import '../../components/wrestler_avatar.dart';
 
 class RivalryScreen extends ConsumerWidget {
@@ -17,16 +19,14 @@ class RivalryScreen extends ConsumerWidget {
     final bool isDesktop = MediaQuery.of(context).size.width > 800;
 
     return DefaultTabController(
-      length: 3, // 3 Tabs: Rivalries, History, Assistant GM
+      length: 3, 
       child: Scaffold(
         backgroundColor: Colors.black,
         body: SafeArea(
           child: isDesktop
               ? Row(
                   children: [
-                    // LEFT COLUMN: Creative Dashboard (40%)
                     Expanded(flex: 4, child: _buildLeftDashboard(context, gameState, rosterState, isDesktop)),
-                    // RIGHT COLUMN: Gorilla Position Artwork (60%)
                     Expanded(flex: 6, child: _buildRightArtworkPane(gameState)),
                   ],
                 )
@@ -56,9 +56,6 @@ class RivalryScreen extends ConsumerWidget {
     );
   }
 
-  // =====================================================================
-  // --- LEFT PANE: THE 3-TAB CREATIVE DASHBOARD
-  // =====================================================================
   Widget _buildLeftDashboard(BuildContext context, dynamic gameState, dynamic rosterState, bool isDesktop) {
     return Container(
       decoration: BoxDecoration(
@@ -67,7 +64,6 @@ class RivalryScreen extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          // HEADER (Desktop only, mobile has it stacked above)
           if (isDesktop)
             Padding(
               padding: const EdgeInsets.all(16.0),
@@ -80,13 +76,11 @@ class RivalryScreen extends ConsumerWidget {
               ),
             ),
           
-          // 🛠️ THE TAB BAR
+          // 🚨 FIXED: Removed the border and added transparent dividerColor!
           Container(
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Colors.white10, width: 2)),
-              color: Colors.black,
-            ),
+            color: Colors.black,
             child: const TabBar(
+              dividerColor: Colors.transparent, // Kills the Material 3 gray line
               indicatorColor: Colors.amber,
               indicatorWeight: 3,
               labelColor: Colors.amber,
@@ -100,13 +94,12 @@ class RivalryScreen extends ConsumerWidget {
             ),
           ),
 
-          // 🛠️ THE TAB CONTENT
           Expanded(
             child: TabBarView(
               children: [
                 _buildRivalriesTab(rosterState),
                 _buildHistoryTab(gameState),
-                _buildAssistantGMTab(rosterState),
+                _buildAssistantGMTab(context, rosterState),
               ],
             ),
           ),
@@ -115,9 +108,6 @@ class RivalryScreen extends ConsumerWidget {
     );
   }
 
-  // ---------------------------------------------------------------------
-  // TAB 1: RIVALRIES (The Whiteboard)
-  // ---------------------------------------------------------------------
   Widget _buildRivalriesTab(dynamic rosterState) {
     if (rosterState.activeRivalries.isEmpty) {
       return Center(
@@ -226,70 +216,84 @@ class RivalryScreen extends ConsumerWidget {
     );
   }
 
-  // ---------------------------------------------------------------------
-  // TAB 2: HISTORY LOG (The Archive)
-  // ---------------------------------------------------------------------
   Widget _buildHistoryTab(dynamic gameState) {
-    // Grab the last 4 shows from the ledger
-    final history = gameState.ledger.take(4).toList();
+    final isar = Isar.getInstance();
+    if (isar == null) return const Center(child: Text("Archive Database Offline."));
 
-    if (history.isEmpty) {
-      return const Center(child: Text("No booking history available.", style: TextStyle(color: Colors.white54)));
-    }
+    return FutureBuilder<List<ShowHistory>>(
+      future: isar.showHistorys.where().findAll().then((list) {
+        list.sort((a, b) => b.week.compareTo(a.week)); 
+        return list.take(4).toList(); 
+      }),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: Colors.amber));
+        
+        final history = snapshot.data!;
+        if (history.isEmpty) {
+          return const Center(child: Text("No booking history available.", style: TextStyle(color: Colors.white54)));
+        }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: history.length,
-      itemBuilder: (context, index) {
-        final entry = history[index];
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A1A1A),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.white12),
-          ),
-          child: Theme(
-            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-            child: ExpansionTile(
-              iconColor: Colors.amber,
-              collapsedIconColor: Colors.white54,
-              title: Row(
-                children: [
-                  const Icon(Icons.live_tv, color: Colors.white54, size: 18),
-                  const SizedBox(width: 10),
-                  Text("WEEK ${entry.week}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                  const Spacer(),
-                  const Icon(Icons.star, color: Colors.amber, size: 14),
-                  const SizedBox(width: 4),
-                  Text("${entry.showRating}", style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.w900, fontSize: 14)),
-                ],
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: history.length,
+          itemBuilder: (context, index) {
+            final entry = history[index];
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A1A1A),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.white12),
               ),
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: const BoxDecoration(
-                    color: Colors.black26,
-                    border: Border(top: BorderSide(color: Colors.white10))
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              child: Theme(
+                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  iconColor: Colors.amber,
+                  collapsedIconColor: Colors.white54,
+                  title: Row(
                     children: [
-                      const Text("SHOW ARCHIVE DATA", style: TextStyle(color: Colors.white30, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-                      const SizedBox(height: 12),
-                      // 🛠️ UI Shell: This is ready for real match data when your backend saves card arrays to the ledger!
-                      _buildArchivedMatchRow("Opener", "Segment Data Locked in Archives"),
-                      _buildArchivedMatchRow("Mid-Card", "Segment Data Locked in Archives"),
-                      _buildArchivedMatchRow("Main Event", "Segment Data Locked in Archives"),
+                      const Icon(Icons.live_tv, color: Colors.white54, size: 18),
+                      const SizedBox(width: 10),
+                      Text("WEEK ${entry.week}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                      const Spacer(),
+                      const Icon(Icons.star, color: Colors.amber, size: 14),
+                      const SizedBox(width: 4),
+                      Text("${entry.avgRating}", style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.w900, fontSize: 14)),
                     ],
                   ),
-                )
-              ],
-            ),
-          ),
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: const BoxDecoration(
+                        color: Colors.black26,
+                        border: Border(top: BorderSide(color: Colors.white10))
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text("SHOW ARCHIVE DATA", style: TextStyle(color: Colors.white30, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                          const SizedBox(height: 12),
+                          
+                          if (entry.highlights.isEmpty)
+                            _buildArchivedMatchRow("N/A", "No segment data found for this week."),
+                          
+                          ...entry.highlights.map((highlightStr) {
+                            List<String> parts = highlightStr.split(':');
+                            String slot = parts.length > 1 ? parts[0].trim() : "MATCH";
+                            String desc = parts.length > 1 ? parts.sublist(1).join(':').trim() : highlightStr;
+                            return _buildArchivedMatchRow(slot, desc);
+                          }).toList(),
+                        ],
+                      ),
+                    )
+                  ],
+                ),
+              ),
+            );
+          },
         );
-      },
+      }
     );
   }
 
@@ -300,7 +304,7 @@ class RivalryScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 70, 
+            width: 75, 
             child: Text(slot.toUpperCase(), style: const TextStyle(color: Colors.amber, fontSize: 9, fontWeight: FontWeight.bold))
           ),
           Expanded(
@@ -311,16 +315,38 @@ class RivalryScreen extends ConsumerWidget {
     );
   }
 
-  // ---------------------------------------------------------------------
-  // TAB 3: ASSISTANT GM (PPV Build Suggestions)
-  // ---------------------------------------------------------------------
-  Widget _buildAssistantGMTab(dynamic rosterState) {
-    // 🛠️ Logic Shell: Grab the top feud if it exists to suggest as a main event
+  Widget _buildAssistantGMTab(BuildContext context, dynamic rosterState) {
     dynamic topFeud;
     if (rosterState.activeRivalries.isNotEmpty) {
-      // Sort to find hottest feud
-      final sortedFeuds = List.from(rosterState.activeRivalries)..sort((a, b) => b.heat.compareTo(a.heat));
+      final sortedFeuds = List<dynamic>.from(rosterState.activeRivalries);
+      sortedFeuds.sort((dynamic a, dynamic b) => (b.heat as num).compareTo(a.heat as num));
       topFeud = sortedFeuds.first;
+    }
+
+    final List<Wrestler> activeRoster = List<Wrestler>.from(
+      rosterState.roster.where((w) => w.companyId == 0 && w.isInjured == false)
+    );
+    
+    activeRoster.sort((Wrestler a, Wrestler b) => b.pop.compareTo(a.pop));
+
+    String mainEventText = topFeud != null ? "${topFeud.wrestlerA.name} vs ${topFeud.wrestlerB.name}" : "N/A - Start a Feud First!";
+    String midCardText = "Need more active wrestlers.";
+    String openerText = "Need more active wrestlers.";
+
+    if (activeRoster.length >= 4) {
+      var champ = activeRoster.firstWhere((w) => w.isTVChampion, orElse: () => activeRoster[1]);
+      var challenger = activeRoster.firstWhere((w) => 
+        w.id != champ.id && 
+        (topFeud == null || (w.id != topFeud.wrestlerA.id && w.id != topFeud.wrestlerB.id)), 
+        orElse: () => activeRoster[2]
+      );
+      midCardText = "${champ.name} vs ${challenger.name}";
+    }
+
+    if (activeRoster.length >= 6) {
+      var opener1 = activeRoster[activeRoster.length - 3];
+      var opener2 = activeRoster[activeRoster.length - 2];
+      openerText = "${opener1.name} vs ${opener2.name}";
     }
 
     return SingleChildScrollView(
@@ -346,7 +372,7 @@ class RivalryScreen extends ConsumerWidget {
                     children: const [
                       Text("ASSISTANT GM PROJECTION", style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
                       SizedBox(height: 4),
-                      Text("Based on active heat and roster usage, here is the mathematically optimal PPV card.", style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.4)),
+                      Text("Based on your active roster and active heat, here is the optimal 3-match card.", style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.4)),
                     ],
                   ),
                 ),
@@ -355,29 +381,22 @@ class RivalryScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
 
-          // THE DRAFT BOARD
           _buildDraftBoardSlot(
             slotName: "MAIN EVENT", 
             logicReason: "Climax of hottest active rivalry.",
-            matchText: topFeud != null ? "${topFeud.wrestlerA.name} vs ${topFeud.wrestlerB.name}" : "N/A - Start a Feud First!",
+            matchText: mainEventText,
             color: Colors.amber,
           ),
           _buildDraftBoardSlot(
-            slotName: "COOLDOWN (SQUASH)", 
-            logicReason: "Palate cleanser before Main Event.",
-            matchText: "Monster Heel vs Local Jobber",
-            color: Colors.purpleAccent,
-          ),
-          _buildDraftBoardSlot(
             slotName: "MID-CARD SHOWCASE", 
-            logicReason: "Secondary Title Defense.",
-            matchText: "Mid-Card Champion vs #1 Contender",
+            logicReason: "Secondary Title Defense or Top Contender Match.",
+            matchText: midCardText,
             color: Colors.greenAccent,
           ),
           _buildDraftBoardSlot(
             slotName: "HOT OPENER", 
-            logicReason: "Fast-paced match to pop the crowd.",
-            matchText: "High Flyer vs Cruiserweight",
+            logicReason: "Fast-paced match between mid-card talent to pop the crowd.",
+            matchText: openerText,
             color: Colors.redAccent,
           ),
 
@@ -392,10 +411,10 @@ class RivalryScreen extends ConsumerWidget {
                 foregroundColor: Colors.black, 
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
               ),
-              label: const Text("ACCEPT SUGGESTION & BOOK", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+              label: const Text("CLOSE & GO BOOK", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0)),
               onPressed: () {
                 HapticFeedback.selectionClick();
-                // 🚀 Future Backend Hook: Pre-load the currentCard array with these suggestions!
+                Navigator.pop(context);
               },
             ),
           )
@@ -411,7 +430,7 @@ class RivalryScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1A),
         borderRadius: BorderRadius.circular(8),
-        border: const Border(left: BorderSide(color: Colors.white10, width: 4)),
+        border: Border(left: BorderSide(color: color.withOpacity(0.8), width: 4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,7 +439,7 @@ class RivalryScreen extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(slotName, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
-              Icon(Icons.auto_awesome, color: Colors.white24, size: 14),
+              Icon(Icons.auto_awesome, color: color.withOpacity(0.3), size: 14),
             ],
           ),
           const SizedBox(height: 8),
@@ -432,22 +451,16 @@ class RivalryScreen extends ConsumerWidget {
     );
   }
 
-  // =====================================================================
-  // --- RIGHT PANE: GORILLA POSITION ARTWORK
-  // =====================================================================
   Widget _buildRightArtworkPane(dynamic gameState, {bool isMobile = false}) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // 1. IMMERSIVE GORILLA POSITION ARTWORK
         Image.asset(
-          "assets/images/gorilla_position.png", // 🚀 Create this moody backstage asset!
+          "assets/images/gorilla_position.png", 
           fit: BoxFit.cover,
           alignment: Alignment.centerRight,
           errorBuilder: (c, e, s) => Image.asset("assets/images/crowd_background.png", fit: BoxFit.cover, errorBuilder: (c,e,s) => Container(color: const Color(0xFF0A0A0A))),
         ),
-
-        // 2. MOODY VIGNETTE OVERLAY
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -458,8 +471,6 @@ class RivalryScreen extends ConsumerWidget {
             ),
           ),
         ),
-
-        // 3. WATERMARK
         Positioned(
           bottom: 40, right: 40,
           child: Column(

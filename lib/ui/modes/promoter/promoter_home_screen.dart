@@ -17,6 +17,9 @@ import 'report_screen.dart';
 import 'ratings_war_screen.dart'; 
 import '../../screens/settings_screen.dart'; 
 
+// --- WIDGET IMPORTS ---
+import '../../components/global_network_button.dart'; 
+
 class PromoterHomeScreen extends ConsumerStatefulWidget {
   const PromoterHomeScreen({super.key});
 
@@ -42,11 +45,24 @@ class _PromoterHomeScreenState extends ConsumerState<PromoterHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDesktop = MediaQuery.of(context).size.width > 800;
+
     return Scaffold(
       backgroundColor: Colors.black,
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _mainTabs,
+      body: Stack(
+        children: [
+          IndexedStack(
+            index: _selectedIndex,
+            children: _mainTabs,
+          ),
+          
+          // THE UNIVERSAL GLOBAL COMPONENT!
+          Positioned(
+            top: isDesktop ? 40 : 50, 
+            right: isDesktop ? 40 : 20,
+            child: const GlobalNetworkButton(),
+          ),
+        ],
       ),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
@@ -86,7 +102,6 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final gameState = ref.read(gameProvider);
       
-      // Sync to cloud
       CloudSyncService.syncScoreToCloud(
         promotionName: "SCW", 
         cash: gameState.cash,
@@ -94,7 +109,6 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
         rep: gameState.reputation,
       );
 
-      // Auto-generate Week 1 if inbox is empty
       final currentNews = ref.read(communicationsProvider);
       if (currentNews.isEmpty) {
         ref.read(communicationsProvider.notifier).generateWeeklyContent(gameState.week);
@@ -109,7 +123,7 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
     final bool isDesktop = MediaQuery.of(context).size.width > 800;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.transparent, 
       body: isDesktop 
           ? Row(children: [_buildDashboardColumn(context, gameState, isPPVWeek, true), _buildHeroBackground(true)])
           : Stack(
@@ -138,17 +152,27 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
             // TOP APP BAR AREA
             SafeArea(
               child: Padding(
-                padding: EdgeInsets.all(isDesktop ? 24.0 : 16.0),
+                padding: EdgeInsets.only(
+                  left: isDesktop ? 24.0 : 16.0,
+                  right: isDesktop ? 24.0 : 16.0,
+                  top: isDesktop ? 24.0 : 36.0, 
+                  bottom: 16.0
+                ),
                 child: Row(
                   children: [
                     const Icon(Icons.dashboard, color: Colors.amber),
                     const SizedBox(width: 10),
                     const Text("DASHBOARD", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5)),
                     const Spacer(),
+                    
+                    // 🚨 RESTORED: The Settings Icon is back at the top!
                     IconButton(
                       icon: const Icon(Icons.settings, color: Colors.grey), 
                       onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()))
                     ),
+                    
+                    // 🚨 THE FIX: An invisible buffer box for Mobile so it doesn't hide behind the profile badge!
+                    if (!isDesktop) const SizedBox(width: 140),
                   ],
                 ),
               ),
@@ -183,7 +207,7 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                     ),
                     const SizedBox(height: 20),
 
-                    // 2. INTERACTIVE EVENT BANNER (War Room Embedded)
+                    // 2. INTERACTIVE EVENT BANNER
                     GestureDetector(
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RatingsWarScreen())),
                       child: Container(
@@ -203,7 +227,6 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                         ),
                         child: Row(
                           children: [
-                            // LEFT SIDE: EVENT INFO
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -228,7 +251,6 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                                 ],
                               ),
                             ),
-                            // RIGHT SIDE: WAR ROOM RANKINGS
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
@@ -252,7 +274,7 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                     ),
                     const SizedBox(height: 25),
 
-                    // 3. REORDERED MANAGEMENT LIST
+                    // 3. MANAGEMENT LIST (Settings Removed from bottom)
                     const Padding(
                       padding: EdgeInsets.only(bottom: 12),
                       child: Text("MANAGEMENT", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
@@ -293,7 +315,7 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                       baseColor: Colors.purpleAccent,
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BroadcastingHubScreen())),
                     ),
-                    
+
                     const SizedBox(height: 40),
                   ],
                 ),

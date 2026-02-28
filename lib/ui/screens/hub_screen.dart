@@ -1,60 +1,87 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // --- LOGIC IMPORTS ---
 import '../../logic/promoter_provider.dart';
 import '../../logic/roster_importer.dart';
-import '../../logic/csv_import_service.dart';
+import '../../logic/game_state_provider.dart'; 
 
 // --- SCREEN IMPORTS ---
 import '../modes/promoter/promoter_home_screen.dart';
 import 'show_history_screen.dart';
 import '../modes/leaderboard/leaderboard_screen.dart';
-import '../modes/network/global_network_auth_screen.dart';
-import '../modes/network/player_join_screen.dart';
-import 'promoter_auth_gate_screen.dart';
+import '../modes/network/player_pick_sheet_screen.dart'; 
 import '../modes/network/commissioner_dashboard_screen.dart';
+import 'community_rosters_screen.dart';
 
-class HubScreen extends ConsumerWidget {
+// 🚨 NEW WIDGET IMPORT!
+import '../components/global_network_button.dart'; 
+
+class HubScreen extends ConsumerStatefulWidget {
   const HubScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HubScreen> createState() => _HubScreenState();
+}
+
+class _HubScreenState extends ConsumerState<HubScreen> {
+  // 🚨 YOUR SECRET ADMIN LIST 🚨
+  final List<String> adminEmails = const [
+    'test@test.com', 
+    'your_real_email@gmail.com', 
+  ];
+
+  @override
+  Widget build(BuildContext context) {
     final rosterState = ref.watch(rosterProvider);
-    bool hasSaveFile = rosterState.roster.isNotEmpty;
-    
-    // 📱 RESPONSIVE CHECK: Is this a narrow phone screen or a wide tablet/desktop?
+    final bool hasSaveFile = rosterState.roster.isNotEmpty;
     final bool isDesktop = MediaQuery.of(context).size.width > 800;
+    
+    final session = Supabase.instance.client.auth.currentSession;
+    final user = session?.user;
+    final bool isLoggedIn = user != null;
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: isDesktop 
-          ? Row(children: [_buildMenuColumn(context, ref, hasSaveFile, true), _buildHeroImage(true)])
-          : Stack(
-              children: [
-                _buildHeroImage(false),
-                Container(color: Colors.black.withOpacity(0.7)), // Darken background for readability on mobile
-                _buildMenuColumn(context, ref, hasSaveFile, false),
-              ],
-            ),
+      body: Stack(
+        children: [
+          // 1. THE MAIN LAYOUT
+          isDesktop 
+            ? Row(children: [_buildMenuColumn(hasSaveFile, isDesktop, isLoggedIn, user), _buildHeroImage(true)])
+            : Stack(
+                children: [
+                  _buildHeroImage(false),
+                  Container(color: Colors.black.withOpacity(0.7)), 
+                  _buildMenuColumn(hasSaveFile, false, isLoggedIn, user),
+                ],
+              ),
+              
+          // 2. 🚨 THE NEW UNIVERSAL GLOBAL COMPONENT!
+          Positioned(
+            top: isDesktop ? 40 : 50, 
+            right: isDesktop ? 40 : 20,
+            child: const GlobalNetworkButton(), // It is now just one line of code!
+          ),
+        ],
+      ),
     );
   }
 
-  // ------------------------------------------------
+  // ====================================================================
   // WIDGET: THE MAIN MENU
-  // ------------------------------------------------
-  Widget _buildMenuColumn(BuildContext context, WidgetRef ref, bool hasSaveFile, bool isDesktop) {
+  // ====================================================================
+  Widget _buildMenuColumn(bool hasSaveFile, bool isDesktop, bool isLoggedIn, User? user) {
     final rosterState = ref.watch(rosterProvider);
 
     return Expanded(
-      flex: isDesktop ? 4 : 1, // Take up 40% on desktop, 100% on mobile
+      flex: isDesktop ? 4 : 1, 
       child: Container(
         decoration: BoxDecoration(
           color: isDesktop ? Colors.black : Colors.transparent,
           border: isDesktop ? const Border(right: BorderSide(color: Colors.white10)) : null,
         ),
-        // 🛠️ THE PIXEL OVERFLOW FIX: Center + SingleChildScrollView
         child: Center(
           child: SingleChildScrollView(
             padding: EdgeInsets.symmetric(horizontal: isDesktop ? 32.0 : 24.0, vertical: 40.0),
@@ -62,7 +89,6 @@ class HubScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // GAME LOGO
                 SafeArea(
                   child: Center(
                     child: Image.asset(
@@ -75,43 +101,37 @@ class HubScreen extends ConsumerWidget {
                 ),
                 SizedBox(height: isDesktop ? 50 : 30),
 
-                const Text(
-                  "SELECT MODE",
-                  style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0),
-                ),
+                const Text("SELECT MODE", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
                 const SizedBox(height: 20),
 
                 // 1. PROMOTER MODE
                 _buildMenuButton(
-                  context,
                   icon: Icons.business_center_rounded,
                   title: "PROMOTER MODE",
                   subtitle: hasSaveFile ? "Continue Year ${rosterState.titleHistory.isEmpty ? 1 : 'Current'}" : "Build your empire. Manage your roster.",
                   baseColor: Colors.amber,
                   onTap: () {
-                    final user = Supabase.instance.client.auth.currentUser;
-                    if (user != null) {
-                      _showCareerOptions(context, ref, hasSaveFile);
-                    } else {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const PromoterAuthGateScreen()));
-                    }
+                    _showCareerOptions(hasSaveFile);
                   },
                 ),
                 const SizedBox(height: 16),
 
-                // 2. ONLINE FANTASY LEAGUES (Combined Pick 'Em & Commissioner!)
+                // 2. GLOBAL NETWORK
                 _buildMenuButton(
-                  context,
                   icon: Icons.public,
-                  title: "ONLINE FANTASY LEAGUES",
-                  subtitle: "Host or join competitive Pick 'Em leagues.",
-                  baseColor: Colors.blueAccent,
+                  title: "GLOBAL NETWORK",
+                  subtitle: "Predict real-world PPVs & earn rewards.",
+                  baseColor: Colors.cyanAccent,
                   onTap: () {
-                    final user = Supabase.instance.client.auth.currentUser;
-                    if (user != null) {
-                      _showFantasyOptions(context); 
+                    if (isLoggedIn) {
+                      if (adminEmails.contains(user!.email)) {
+                        _showNetworkOptions(); 
+                      } else {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerPickSheetScreen(leagueId: 'global')));
+                      }
                     } else {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const GlobalNetworkAuthScreen()));
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Connect your profile in the top right to access the network!", style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.cyanAccent));
+                      // Note: They have to click the top right button to auth now!
                     }
                   },
                 ),
@@ -119,9 +139,8 @@ class HubScreen extends ConsumerWidget {
 
                 // 3. GLOBAL LEADERBOARDS
                 _buildMenuButton(
-                  context,
                   icon: Icons.leaderboard_rounded,
-                  title: "GLOBAL LEADERBOARDS",
+                  title: "HALL OF FAME",
                   subtitle: "See where you rank in the world.",
                   baseColor: Colors.purpleAccent,
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LeaderboardScreen())),
@@ -138,9 +157,6 @@ class HubScreen extends ConsumerWidget {
     );
   }
 
-  // ------------------------------------------------
-  // WIDGET: THE HERO IMAGE
-  // ------------------------------------------------
   Widget _buildHeroImage(bool isDesktop) {
     return Expanded(
       flex: isDesktop ? 6 : 1,
@@ -179,17 +195,7 @@ class HubScreen extends ConsumerWidget {
     );
   }
 
-  // ------------------------------------------------
-  // WIDGET: POLISHED PREMIUM BUTTON
-  // ------------------------------------------------
-  Widget _buildMenuButton(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color baseColor,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildMenuButton({required IconData icon, required String title, required String subtitle, required Color baseColor, required VoidCallback onTap}) {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
@@ -241,31 +247,30 @@ class HubScreen extends ConsumerWidget {
     );
   }
 
-  // ------------------------------------------------
-  // DIALOGS & LOGIC
-  // ------------------------------------------------
+  // ====================================================================
+  // DIALOGS
+  // ====================================================================
 
-  // --- NEW FANTASY OPTIONS DIALOG ---
-  void _showFantasyOptions(BuildContext context) {
+  void _showNetworkOptions() {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF202020),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("FANTASY LEAGUES", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+        title: const Text("ADMIN CONTROL", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
               padding: const EdgeInsets.only(bottom: 12.0),
-              child: _buildDialogButton(context, "JOIN A LEAGUE", Icons.login_rounded, Colors.blueAccent, () {
+              child: _buildDialogButton("PLAY AS USER", Icons.sports_esports, Colors.cyanAccent, () {
                 Navigator.pop(ctx);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerJoinScreen()));
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerPickSheetScreen(leagueId: 'global')));
               }),
             ),
-            _buildDialogButton(context, "HOST A LEAGUE", Icons.gavel_rounded, Colors.greenAccent, () async {
+            _buildDialogButton("COMMISSIONER DESK", Icons.admin_panel_settings, Colors.purpleAccent, () {
               Navigator.pop(ctx);
-              _createNewLeague(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const CommissionerDashboardScreen(leagueId: 'global')));
             }),
           ],
         ),
@@ -274,39 +279,7 @@ class HubScreen extends ConsumerWidget {
     );
   }
 
-  // --- EXTRACTED COMMISSIONER LOGIC ---
-  Future<void> _createNewLeague(BuildContext context) async {
-    try {
-      final supabase = Supabase.instance.client;
-      final user = supabase.auth.currentUser;
-
-      if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("🚨 Access Denied: Please sign in!"), backgroundColor: Colors.red));
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Building League Room... Please wait."), backgroundColor: Colors.blue));
-
-      final leagueResponse = await supabase.from('leagues').insert({
-        'commissioner_id': user.id,
-        'name': 'Squared Circle League',
-        'invite_code': 'SCL_${DateTime.now().millisecondsSinceEpoch}',
-        'max_players': 12
-      }).select('id').single();
-
-      final newLeagueId = leagueResponse['id'];
-      await CsvImportService.importRosterCSV(newLeagueId);
-
-      if (context.mounted) {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => CommissionerDashboardScreen(leagueId: newLeagueId)));
-      }
-    } catch (e) {
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("🚨 Error: $e"), backgroundColor: Colors.red));
-    }
-  }
-
-  // --- CAREER OPTIONS & CONFIRM RESET DIALOGS ---
-  void _showCareerOptions(BuildContext context, WidgetRef ref, bool hasSaveFile) {
+  void _showCareerOptions(bool hasSaveFile) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -316,10 +289,15 @@ class HubScreen extends ConsumerWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (hasSaveFile) Padding(padding: const EdgeInsets.only(bottom: 12.0), child: _buildDialogButton(context, "CONTINUE CAREER", Icons.play_arrow_rounded, Colors.greenAccent, () { Navigator.pop(ctx); Navigator.push(context, MaterialPageRoute(builder: (_) => const PromoterHomeScreen())); })),
-            if (hasSaveFile) Padding(padding: const EdgeInsets.only(bottom: 12.0), child: _buildDialogButton(context, "VIEW ARCHIVES", Icons.history_rounded, Colors.amberAccent, () { Navigator.pop(ctx); Navigator.push(context, MaterialPageRoute(builder: (_) => const ShowHistoryScreen())); })),
-            Padding(padding: const EdgeInsets.only(bottom: 12.0), child: _buildDialogButton(context, "NEW CAREER", Icons.add_circle_outline_rounded, Colors.blueAccent, () { Navigator.pop(ctx); _confirmNewGame(context, ref); })),
-            _buildDialogButton(context, "IMPORT ROSTER", Icons.file_upload_rounded, Colors.purpleAccent, () async { Navigator.pop(ctx); final importer = RosterImporter(ref, context); await importer.pickAndImport(); }),
+            if (hasSaveFile) Padding(padding: const EdgeInsets.only(bottom: 12.0), child: _buildDialogButton("CONTINUE CAREER", Icons.play_arrow_rounded, Colors.greenAccent, () { Navigator.pop(ctx); Navigator.push(context, MaterialPageRoute(builder: (_) => const PromoterHomeScreen())); })),
+            if (hasSaveFile) Padding(padding: const EdgeInsets.only(bottom: 12.0), child: _buildDialogButton("VIEW ARCHIVES", Icons.history_rounded, Colors.amberAccent, () { Navigator.pop(ctx); Navigator.push(context, MaterialPageRoute(builder: (_) => const ShowHistoryScreen())); })),
+            Padding(padding: const EdgeInsets.only(bottom: 12.0), child: _buildDialogButton("NEW CAREER", Icons.add_circle_outline_rounded, Colors.blueAccent, () { Navigator.pop(ctx); _confirmNewGame(); })),
+            
+            // ☁️ NEW: THE COMMUNITY CLOUD MOD HUB
+            Padding(padding: const EdgeInsets.only(bottom: 12.0), child: _buildDialogButton("COMMUNITY MODS", Icons.cloud_download, Colors.cyanAccent, () { Navigator.pop(ctx); Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunityRostersScreen())); })),
+            
+            // 📂 ORIGINAL: LOCAL FILE IMPORT
+            _buildDialogButton("IMPORT LOCAL FILE", Icons.folder, Colors.purpleAccent, () async { Navigator.pop(ctx); final importer = RosterImporter(ref, context); await importer.pickAndImport(); }),
           ],
         ),
         actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text("CANCEL", style: TextStyle(color: Colors.white.withOpacity(0.5))))],
@@ -327,7 +305,7 @@ class HubScreen extends ConsumerWidget {
     );
   }
 
-  void _confirmNewGame(BuildContext context, WidgetRef ref) {
+  void _confirmNewGame() {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -336,51 +314,42 @@ class HubScreen extends ConsumerWidget {
         content: const Text("This will delete your current progress and generate a new roster.\n\nAre you sure?", style: TextStyle(color: Colors.white70)),
         actions: [
           TextButton(child: const Text("Cancel"), onPressed: () => Navigator.pop(ctx)),
-          TextButton(child: const Text("START NEW GAME", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)), onPressed: () async { Navigator.pop(ctx); await ref.read(rosterProvider.notifier).factoryReset(); if (context.mounted) { Navigator.push(context, MaterialPageRoute(builder: (_) => const PromoterHomeScreen())); } }),
+          TextButton(
+            child: const Text("START NEW GAME", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)), 
+            onPressed: () async { 
+              Navigator.pop(ctx); 
+              await ref.read(rosterProvider.notifier).factoryReset(); 
+              await ref.read(gameProvider.notifier).resetGame(); 
+              
+              if (context.mounted) { 
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const PromoterHomeScreen())); 
+              } 
+            }
+          ),
         ],
       ),
     );
   }
 
-  // 🛠️ THE NEW PREMIUM DIALOG BUTTON
-  Widget _buildDialogButton(BuildContext context, String text, IconData icon, Color baseColor, VoidCallback onTap) {
+  Widget _buildDialogButton(String text, IconData icon, Color baseColor, VoidCallback onTap) {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        gradient: LinearGradient(
-          colors: [const Color(0xFF1A1A1A), baseColor.withOpacity(0.1)],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
+        gradient: LinearGradient(colors: [const Color(0xFF1A1A1A), baseColor.withOpacity(0.1)], begin: Alignment.centerLeft, end: Alignment.centerRight),
         border: Border.all(color: baseColor.withOpacity(0.4), width: 1),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 6, offset: const Offset(0, 3))],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
-          hoverColor: baseColor.withOpacity(0.15),
-          splashColor: baseColor.withOpacity(0.25),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: baseColor.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, color: baseColor, size: 20),
-                ),
+                Icon(icon, color: baseColor, size: 20),
                 const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    text, 
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1.0)
-                  ),
-                ),
+                Expanded(child: Text(text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.0))),
                 Icon(Icons.chevron_right_rounded, color: baseColor.withOpacity(0.5), size: 18),
               ],
             ),

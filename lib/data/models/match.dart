@@ -33,6 +33,7 @@ class Match {
   AgentNote agentNote = AgentNote.standard;
 
   late String winnerName;
+  late String loserName; // 🚨 THE FIX: We now permanently store the loser's name!
   late String finishType; // "Pinfall", "Submission", "KO", "Escaped Cage"
   
   double rating = 0.0;
@@ -45,6 +46,7 @@ class Match {
     this.type = MatchType.standard,
     this.agentNote = AgentNote.standard,
     this.winnerName = "",
+    this.loserName = "Unknown", // 🚨 Added to the constructor
     this.finishType = "Pinfall",
     this.rating = 0.0,
     this.duration = 10,
