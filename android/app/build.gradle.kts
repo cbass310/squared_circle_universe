@@ -10,7 +10,7 @@ plugins {
 
 android {
     namespace = "com.example.squared_circle_universe"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36 // 🚨 BUMPED TO 36 FOR THE UPDATED PLUGINS 🚨
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -23,10 +23,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.squared_circle_universe"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -35,8 +32,6 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
