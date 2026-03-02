@@ -5,6 +5,9 @@ import '../../../logic/promoter_provider.dart';
 import '../../../logic/game_state_provider.dart'; 
 import '../../../data/models/wrestler.dart';
 
+// --- IMPORT FOR THE WATERMARK ---
+import '../../components/tv_watermark.dart';
+
 class DevelopmentScreen extends ConsumerStatefulWidget {
   const DevelopmentScreen({super.key});
 
@@ -91,12 +94,9 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
           
           // --- TABS ---
           Container(
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Colors.black, width: 3)), 
-              color: Color(0xFF121212),
-            ),
+            color: Colors.black, // 🚨 Ensures the background blends perfectly
             child: TabBar(
-              dividerColor: Colors.transparent, 
+              dividerColor: Colors.transparent, // 🚨 REMOVES THE UGLY GRAY LINE!
               controller: _tabController,
               indicatorColor: Colors.amber,
               indicatorWeight: 3,
@@ -128,7 +128,7 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
   }
 
   // =====================================================================
-  // --- RIGHT PANE: ARTWORK
+  // --- RIGHT PANE: ARTWORK ONLY + WATERMARK
   // =====================================================================
   Widget _buildRightArtworkPane({bool isMobile = false}) {
     return Stack(
@@ -150,18 +150,11 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
             ),
           ),
         ),
-        Positioned(
-          bottom: 40, right: 40,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const Icon(Icons.fitness_center, size: 50, color: Colors.white10),
-              const SizedBox(height: 10),
-              Text("FUTURE STARS", style: TextStyle(fontSize: isMobile ? 20 : 32, fontWeight: FontWeight.bold, color: Colors.white24, letterSpacing: 4.0)),
-              Text("DEVELOPMENT CENTER", style: TextStyle(fontSize: isMobile ? 10 : 14, color: Colors.amber.withOpacity(0.5), letterSpacing: 2.0, fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ),
+        
+        // --- TEXT AND LOGO BLOCKS REMOVED HERE --- //
+
+        // --- THE GLOBAL WATERMARK ---
+        TVWatermark(isMobile: isMobile),
       ],
     );
   }

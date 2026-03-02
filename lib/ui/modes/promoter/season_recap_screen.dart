@@ -6,6 +6,9 @@ import '../../../logic/game_state_provider.dart';
 import '../../../data/models/wrestler.dart';
 import '../../screens/hub_screen.dart';
 
+// --- IMPORT FOR THE WATERMARK ---
+import '../../components/tv_watermark.dart';
+
 class SeasonRecapScreen extends ConsumerStatefulWidget {
   const SeasonRecapScreen({Key? key}) : super(key: key);
 
@@ -43,6 +46,8 @@ class _SeasonRecapScreenState extends ConsumerState<SeasonRecapScreen> {
   Widget build(BuildContext context) {
     final gameState = ref.watch(gameProvider);
     final ledger = gameState.ledger;
+    
+    final bool isDesktop = MediaQuery.of(context).size.width > 800;
 
     double highestRating = 0.0;
     if (ledger.isNotEmpty) {
@@ -142,6 +147,9 @@ class _SeasonRecapScreenState extends ConsumerState<SeasonRecapScreen> {
                     ),
                   ),
                 ),
+                
+                // --- THE GLOBAL WATERMARK ---
+                TVWatermark(isMobile: !isDesktop),
               ],
             ),
           ),

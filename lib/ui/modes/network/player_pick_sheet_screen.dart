@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../leaderboard/leaderboard_screen.dart'; 
 
+// --- IMPORT FOR THE WATERMARK ---
+import '../../components/tv_watermark.dart';
+
 class PlayerPickSheetScreen extends StatefulWidget {
   final String leagueId;
   const PlayerPickSheetScreen({super.key, required this.leagueId});
@@ -369,18 +372,9 @@ class _PlayerPickSheetScreenState extends State<PlayerPickSheetScreen> {
             ),
           ),
         ),
-        Positioned(
-          bottom: 40, right: 40,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const Icon(Icons.online_prediction, size: 50, color: Colors.white10),
-              const SizedBox(height: 10),
-              Text("PREDICTION ENGINE", style: TextStyle(fontSize: isMobile ? 20 : 32, fontWeight: FontWeight.w900, color: Colors.white24, letterSpacing: 4.0)),
-              Text("GLOBAL PICK 'EM NETWORK", style: TextStyle(fontSize: isMobile ? 10 : 14, color: Colors.cyanAccent.withOpacity(0.5), letterSpacing: 2.0, fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ),
+
+        // --- THE GLOBAL WATERMARK ---
+        TVWatermark(isMobile: isMobile),
       ],
     );
   }

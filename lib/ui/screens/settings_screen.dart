@@ -113,8 +113,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             // --- AUDIO SECTION ---
             const Text("AUDIO", style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 2.0)),
             const SizedBox(height: 16),
-            _buildSliderRow("Music Volume", settings.musicVolume, Icons.music_note_rounded, (val) => settingsNotifier.setMusicVolume(val)),
-            const SizedBox(height: 16),
             _buildSliderRow("Sound Effects", settings.sfxVolume, Icons.volume_up_rounded, (val) => settingsNotifier.setSfxVolume(val)),
             
             const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Divider(color: Colors.white10, thickness: 2)),

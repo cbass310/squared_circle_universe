@@ -7,6 +7,9 @@ import 'report_screen.dart';
 import 'promoter_home_screen.dart'; // 🚀 IMPORT ADDED FOR ROUTING FIX
 import '../../screens/hub_screen.dart'; 
 
+// --- IMPORT FOR THE WATERMARK ---
+import '../../components/tv_watermark.dart';
+
 class PostShowRecapScreen extends ConsumerWidget {
   final List<Match> completedCard;
 
@@ -167,6 +170,9 @@ class PostShowRecapScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+                
+                // --- THE GLOBAL WATERMARK ---
+                const TVWatermark(),
               ],
             ),
           ),

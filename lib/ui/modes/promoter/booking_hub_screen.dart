@@ -38,111 +38,277 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
   }
 
   // ========================================================================
-  // 🎙️ THE PRE-SHOW PANEL
+  // 🎙️ THE DYNAMIC PRE-SHOW DESK PANEL
   // ========================================================================
   Widget _buildPreShowPanel(dynamic gameState) {
-    final matchingSponsors = gameState.activeSponsors.where((s) => s.slotTarget == RealEstateSlot.eventName);
-    final eventSponsor = matchingSponsors.isNotEmpty ? matchingSponsors.first : null;
+    
+    // Safety check for sponsors
+    SponsorshipDeal? eventSponsor;
+    try {
+      final matchingSponsors = gameState.activeSponsors.where((s) => s.slotTarget == RealEstateSlot.eventName);
+      if (matchingSponsors.isNotEmpty) {
+        eventSponsor = matchingSponsors.first;
+      }
+    } catch (_) {}
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Row(
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          Expanded(
-            flex: 4,
-            child: Container(
-              color: const Color(0xFF121212),
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 🛠️ THE FIX: Wrap the text content in an Expanded ScrollView to prevent Pixel Overflow!
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text("KICKOFF SHOW", style: TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
-                          const SizedBox(height: 5),
-                          Text(gameState.nextPPVName.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
-                          
-                          if (eventSponsor != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4.0),
-                              child: Text("Presented by ${eventSponsor.sponsorName}", style: const TextStyle(color: Colors.amber, fontStyle: FontStyle.italic)),
-                            ),
-                          
-                          const Divider(color: Colors.white24, height: 30),
-                          
-                          const Text("THE STAKES TONIGHT:", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 5),
-                          const Text("Premium Live Event", style: TextStyle(color: Colors.amber, fontSize: 20, fontWeight: FontWeight.bold)),
-                          
-                          const SizedBox(height: 30),
-                          const Text("THE EXPERTS PREDICT:", style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-                          const SizedBox(height: 15),
-
-                          _buildPredictionQuote("⭐️ Dave Delta", "The build to this event has been solid. Now it's on the promoter to deliver a 5-star main event. No pressure."),
-                          _buildPredictionQuote("🎙️ The NY Smark", "I paid good money to be in the arena tonight. The pacing better be perfect, or we are hijacking this show!"),
-                          _buildPredictionQuote("👑 King T", "SHUCKY DUCKY QUACK QUACK! The electricity in this building is off the charts! It's time to book some magic, boss!"),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-                  
-                  // This button is safely pinned to the bottom now.
-                  SizedBox(
-                    width: double.infinity,
-                    height: 60,
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.edit_document, color: Colors.black),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
-                      label: const Text("ENTER BOOKING HUB", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0)),
-                      onPressed: () {
-                        HapticFeedback.heavyImpact();
-                        setState(() {
-                          _hasPassedPreShow = true;
-                        });
-                      },
-                    ),
-                  ),
-                ],
+          // 1. The Arena / Desk Background
+          Image.asset(
+            "assets/images/preshow_desk.png", 
+            fit: BoxFit.cover, 
+            errorBuilder: (c, e, s) => Container(color: const Color(0xFF121212))
+          ),
+          
+          // 2. Broadcast Gradients (Dark on the left for text readability)
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft, 
+                end: Alignment.centerRight, 
+                colors: [Colors.black.withOpacity(0.95), Colors.black.withOpacity(0.8), Colors.transparent], 
+                stops: const [0.0, 0.4, 1.0]
               ),
             ),
           ),
-          Expanded(
-            flex: 6,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Image.asset("assets/images/preshow_desk.png", fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: Colors.grey[900])),
-                Container(
-                  decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.centerLeft, end: Alignment.centerRight, colors: [const Color(0xFF121212), Colors.transparent], stops: const [0.0, 0.3])),
+          
+          // 3. The Content Overlay
+          Row(
+            children: [
+              // LEFT COLUMN: Show Details & Button
+              Expanded(
+                flex: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(32.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("KICKOFF SHOW", style: TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 3.0)),
+                      const SizedBox(height: 8),
+                      Text(gameState.nextPPVName.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                      
+                      if (eventSponsor != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text("Presented by ${eventSponsor.sponsorName}", style: const TextStyle(color: Colors.amber, fontSize: 16, fontStyle: FontStyle.italic)),
+                        ),
+                      
+                      const SizedBox(height: 40),
+                      
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.05),
+                          border: const Border(left: BorderSide(color: Colors.amber, width: 4))
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text("THE STAKES TONIGHT:", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+                            SizedBox(height: 8),
+                            Text("Premium Live Event", style: TextStyle(color: Colors.amber, fontSize: 20, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+
+                      const Spacer(),
+                      
+                      SizedBox(
+                        width: double.infinity,
+                        height: 65,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.edit_document, color: Colors.black, size: 24),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.amber, 
+                            foregroundColor: Colors.black, 
+                            elevation: 10,
+                            shadowColor: Colors.amber.withOpacity(0.5),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
+                          ),
+                          label: const Text("ENTER BOOKING HUB", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 1.5)),
+                          onPressed: () {
+                            HapticFeedback.heavyImpact();
+                            
+                            // 🚨 TIER 2 IDIOT CHECK: Safely verify TV & Sponsors before letting them pass
+                            bool missingTv = false;
+                            bool missingSponsors = false;
+
+                            try {
+                              if (!gameState.isPPV) {
+                                try { missingTv = gameState.activeTvDeals.isEmpty; } 
+                                catch (_) {
+                                  try { missingTv = gameState.tvDeals.isEmpty; } 
+                                  catch (_) {
+                                    try { missingTv = gameState.activeTvDeal == null; } 
+                                    catch (_) { missingTv = false; }
+                                  }
+                                }
+                              }
+                            } catch (_) {}
+
+                            try {
+                              missingSponsors = gameState.activeSponsors.isEmpty;
+                            } catch (_) {}
+
+                            if (missingTv || missingSponsors) {
+                              _showMissingInfrastructureWarning(context, missingTv, missingSponsors);
+                            } else {
+                              setState(() {
+                                _hasPassedPreShow = true;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              ),
+              
+              // RIGHT COLUMN: The Expert Panel
+              Expanded(
+                flex: 6,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(right: 32.0, top: 40.0, bottom: 32.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
+                        child: const Text("THE EXPERTS PREDICT:", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 2.0)),
+                      ),
+                      const SizedBox(height: 24),
+                      
+                      // 🎙️ Host
+                      _buildExpertAvatarQuote("assets/images/host.png", "Sarah Styles", "Host", "Welcome to the Kickoff! The crowd is filling in, and anticipation is at an all-time high. Let's get right to our panel—gentlemen, what are we expecting tonight?", Colors.blueAccent),
+                      
+                      // 📊 Dave Delta
+                      _buildExpertAvatarQuote("assets/images/delta.png", "Dave Delta", "Analyst", "The build to this event has been mechanically sound. Now it's on the promoter to execute. If the Main Event psychology holds up, we are looking at 5 stars.", Colors.greenAccent),
+                      
+                      // 🕶️ NY Smirk
+                      _buildExpertAvatarQuote("assets/images/smirk.png", "The NY Smark", "Superfan", "Look, I paid good money for these seats. If they don't deliver a clean finish tonight, me and the boys in section 104 are hijacking this show!", Colors.redAccent),
+                      
+                      // 👑 King T
+                      _buildExpertAvatarQuote("assets/images/king_t.png", "King T", "Legend", "SHUCKY DUCKY QUACK QUACK! The electricity in this building is off the charts! It's time to book some magic, boss!", Colors.amber),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPredictionQuote(String author, String quote) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: const Color(0xFF1A1A1A), borderRadius: BorderRadius.circular(8), border: const Border(left: BorderSide(color: Colors.amber, width: 3))),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(author, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-            const SizedBox(height: 4),
-            Text('"$quote"', style: const TextStyle(color: Colors.white70, fontStyle: FontStyle.italic, height: 1.4)),
+  // 🚨 THE NEW TIER 2 WARNING POPUP
+  void _showMissingInfrastructureWarning(BuildContext context, bool missingTv, bool missingSponsors) {
+    String warningMessage = "You are about to run a show with massive infrastructure gaps. This will result in heavy financial losses!\n\n";
+    if (missingTv) warningMessage += "• NO ACTIVE TV DEAL: You will not receive any broadcast revenue.\n";
+    if (missingSponsors) warningMessage += "• NO ACTIVE SPONSORS: You are leaving thousands of dollars in ad revenue on the table.";
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Colors.redAccent, width: 2)),
+        title: Row(
+          children: const [
+            Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 28),
+            SizedBox(width: 10),
+            Text("WARNING: REVENUE LOSS", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
           ],
         ),
+        content: Text(warningMessage, style: const TextStyle(color: Colors.white70, height: 1.5)),
+        actions: [
+          TextButton(
+            child: const Text("GO FIX IT", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            onPressed: () => Navigator.pop(ctx),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent.withOpacity(0.2), foregroundColor: Colors.redAccent, elevation: 0),
+            child: const Text("PROCEED ANYWAY", style: TextStyle(fontWeight: FontWeight.bold)),
+            onPressed: () {
+              Navigator.pop(ctx);
+              setState(() {
+                _hasPassedPreShow = true;
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🛠️ The New Avatar + Text Bubble Layout for the Experts
+  Widget _buildExpertAvatarQuote(String imagePath, String name, String role, String quote, Color brandColor) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // The Text Bubble
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(role.toUpperCase(), style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                    const SizedBox(width: 8),
+                    Text(name.toUpperCase(), style: TextStyle(color: brandColor, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1.0)),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.85),
+                    border: Border.all(color: brandColor.withOpacity(0.3), width: 1.5),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      bottomLeft: Radius.circular(16),
+                      bottomRight: Radius.circular(16),
+                    ),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 10, offset: const Offset(0, 5))],
+                  ),
+                  child: Text('"$quote"', style: const TextStyle(color: Colors.white, fontStyle: FontStyle.italic, height: 1.5, fontSize: 13), textAlign: TextAlign.right),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          
+          // The Expert Avatar
+          Container(
+            width: 65, 
+            height: 65,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle, 
+              border: Border.all(color: brandColor, width: 2), 
+              color: const Color(0xFF1E1E1E),
+              boxShadow: [BoxShadow(color: brandColor.withOpacity(0.3), blurRadius: 10)]
+            ),
+            child: ClipOval(
+              child: Image.asset(
+                imagePath,
+                fit: BoxFit.cover,
+                alignment: const Alignment(0.0, -0.6), // Frames the AI portrait properly!
+                errorBuilder: (context, error, stackTrace) {
+                  return Center(child: Text(name[0], style: TextStyle(color: brandColor, fontWeight: FontWeight.w900, fontSize: 24)));
+                },
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -226,7 +392,6 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
                                     final completedCardToPass = List<Match>.from(gameState.currentCard); 
 
                                     // 🛠️ THE FIX: Show the Social Feed Dialog FIRST. 
-                                    // This stops the background from magically transforming into a PPV Kickoff.
                                     await showDialog(
                                       context: context,
                                       barrierDismissible: false,

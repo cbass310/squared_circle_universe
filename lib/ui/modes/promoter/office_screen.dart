@@ -6,7 +6,10 @@ import 'sponsorship_screen.dart';
 import 'title_screen.dart'; 
 import 'rivalry_screen.dart'; 
 import 'ratings_war_screen.dart'; 
-import 'venue_screen.dart'; // 🚀 Brought Venues over!
+import 'venue_screen.dart'; 
+
+// --- IMPORT FOR THE WATERMARK ---
+import '../../components/tv_watermark.dart';
 
 class OfficeScreen extends ConsumerWidget {
   const OfficeScreen({super.key});
@@ -53,7 +56,6 @@ class OfficeScreen extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          // --- EXACT MATCH HEADER ---
           SafeArea(
             child: Padding(
               padding: EdgeInsets.all(isDesktop ? 24.0 : 16.0),
@@ -163,7 +165,6 @@ class OfficeScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 25),
 
-                  // 3. EXACT MATCH MANAGEMENT LIST (Ratings War removed, 4 perfect buttons)
                   const Padding(
                     padding: EdgeInsets.only(bottom: 12),
                     child: Text("CREATIVE & BRANDING", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
@@ -192,7 +193,7 @@ class OfficeScreen extends ConsumerWidget {
                     icon: Icons.handshake,
                     title: "CORPORATE SPONSORS",
                     subtitle: "Active Brand Deals: ${gameState.activeSponsors.length}/3",
-                    baseColor: Colors.tealAccent, // Synced to teal to match
+                    baseColor: Colors.tealAccent, 
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SponsorshipScreen())),
                   ),
 
@@ -201,7 +202,7 @@ class OfficeScreen extends ConsumerWidget {
                     icon: Icons.stadium_rounded,
                     title: "VENUES",
                     subtitle: "Upgrade production and capacity.",
-                    baseColor: Colors.greenAccent, // Synced to green
+                    baseColor: Colors.greenAccent, 
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VenueScreen())),
                   ),
 
@@ -216,14 +217,14 @@ class OfficeScreen extends ConsumerWidget {
   }
 
   // =====================================================================
-  // --- RIGHT PANE: CLEAN ARTWORK PANE
+  // --- RIGHT PANE: ARTWORK ONLY + WATERMARK
   // =====================================================================
   Widget _buildRightArtPane(dynamic gameState, {bool isMobile = false}) {
     return Stack(
       fit: StackFit.expand,
       children: [
         Image.asset(
-          "assets/images/office_background.png", 
+          "assets/images/office_background.png", // Reverted to original filename
           fit: BoxFit.cover,
           errorBuilder: (c, e, s) => Container(color: const Color(0xFF0A0A0A)),
         ),
@@ -237,26 +238,11 @@ class OfficeScreen extends ConsumerWidget {
             ),
           ),
         ),
-        Positioned(
-          bottom: 40, right: 40,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(15),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.amber.withOpacity(0.5), width: 2)
-                ),
-                child: Image.asset("assets/images/logo_scw.png", width: isMobile ? 50 : 80, height: isMobile ? 50 : 80, fit: BoxFit.contain, errorBuilder: (c,o,s) => Icon(Icons.business, size: isMobile ? 40 : 60, color: Colors.amber)),
-              ),
-              const SizedBox(height: 15),
-              Text("OFFICE OF THE PRESIDENT", style: TextStyle(fontSize: isMobile ? 12 : 16, color: Colors.white54, letterSpacing: 2.0, fontWeight: FontWeight.bold)),
-              Text(gameState.promotionName.toUpperCase(), style: TextStyle(fontSize: isMobile ? 24 : 32, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 2.0)),
-            ],
-          ),
-        ),
+        
+        // --- LOGO AND TEXT BLOCKS REMOVED HERE --- //
+        
+        // --- THE GLOBAL WATERMARK ---
+        TVWatermark(isMobile: isMobile),
       ],
     );
   }
@@ -276,7 +262,6 @@ class OfficeScreen extends ConsumerWidget {
     );
   }
 
-  // EXACTLY synced with Home Screen style
   Widget _buildPremiumMenuButton(
     BuildContext context, {
     required IconData icon,

@@ -4,6 +4,9 @@ import 'package:flutter/services.dart';
 import '../../../logic/auth_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState; 
 
+// --- IMPORT FOR THE WATERMARK ---
+import '../../components/tv_watermark.dart';
+
 class GlobalNetworkAuthScreen extends ConsumerWidget {
   const GlobalNetworkAuthScreen({Key? key}) : super(key: key);
 
@@ -197,14 +200,14 @@ class GlobalNetworkAuthScreen extends ConsumerWidget {
   }
 
   // =====================================================================
-  // --- RIGHT PANE: ARTWORK
+  // --- RIGHT PANE: ARTWORK ONLY + WATERMARK
   // =====================================================================
   Widget _buildRightArtworkPane({bool isMobile = false}) {
     return Stack(
       fit: StackFit.expand,
       children: [
         Image.asset(
-          'assets/images/global_stadium.png', // Try to map to a globe or server room
+          'assets/images/global_stadium.png', 
           fit: BoxFit.cover,
           alignment: Alignment.center,
           errorBuilder: (context, error, stackTrace) {
@@ -224,18 +227,9 @@ class GlobalNetworkAuthScreen extends ConsumerWidget {
             ),
           ),
         ),
-        Positioned(
-          bottom: 40, right: 40,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const Icon(Icons.security, size: 50, color: Colors.white10),
-              const SizedBox(height: 10),
-              Text("AUTHENTICATION", style: TextStyle(fontSize: isMobile ? 20 : 32, fontWeight: FontWeight.w900, color: Colors.white24, letterSpacing: 4.0)),
-              Text("SUPABASE IDENTITY SERVICES", style: TextStyle(fontSize: isMobile ? 10 : 14, color: Colors.cyanAccent.withOpacity(0.5), letterSpacing: 2.0, fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ),
+        
+        // --- THE GLOBAL WATERMARK ---
+        TVWatermark(isMobile: isMobile),
       ],
     );
   }

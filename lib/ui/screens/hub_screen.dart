@@ -16,7 +16,7 @@ import '../modes/network/player_pick_sheet_screen.dart';
 import '../modes/network/commissioner_dashboard_screen.dart';
 import 'community_rosters_screen.dart';
 
-// 🚨 NEW WIDGET IMPORT!
+// --- WIDGET IMPORTS ---
 import '../components/global_network_button.dart'; 
 
 class HubScreen extends ConsumerStatefulWidget {
@@ -58,11 +58,11 @@ class _HubScreenState extends ConsumerState<HubScreen> {
                 ],
               ),
               
-          // 2. 🚨 THE NEW UNIVERSAL GLOBAL COMPONENT!
+          // 2. THE NEW UNIVERSAL GLOBAL COMPONENT!
           Positioned(
             top: isDesktop ? 40 : 50, 
             right: isDesktop ? 40 : 20,
-            child: const GlobalNetworkButton(), // It is now just one line of code!
+            child: const GlobalNetworkButton(), 
           ),
         ],
       ),
@@ -131,7 +131,6 @@ class _HubScreenState extends ConsumerState<HubScreen> {
                       }
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Connect your profile in the top right to access the network!", style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.cyanAccent));
-                      // Note: They have to click the top right button to auth now!
                     }
                   },
                 ),
@@ -157,6 +156,9 @@ class _HubScreenState extends ConsumerState<HubScreen> {
     );
   }
 
+  // ====================================================================
+  // WIDGET: RIGHT HERO IMAGE 
+  // ====================================================================
   Widget _buildHeroImage(bool isDesktop) {
     return Expanded(
       flex: isDesktop ? 6 : 1,
@@ -178,18 +180,6 @@ class _HubScreenState extends ConsumerState<HubScreen> {
               ),
             ),
           ),
-          if (isDesktop) 
-            Positioned(
-              bottom: 60,
-              right: 60,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text("SQUARED CIRCLE", style: TextStyle(fontSize: 56, fontWeight: FontWeight.w900, color: Colors.white.withOpacity(0.95), letterSpacing: 1.5, height: 0.9, shadows: [Shadow(color: Colors.black.withOpacity(0.8), blurRadius: 20, offset: const Offset(0, 5))])),
-                  Text("TYCOON", style: TextStyle(fontSize: 56, fontWeight: FontWeight.w900, color: Colors.amber.withOpacity(0.95), letterSpacing: 1.5, height: 0.9, shadows: [Shadow(color: Colors.black.withOpacity(0.8), blurRadius: 20, offset: const Offset(0, 5))])),
-                ],
-              ),
-            ),
         ],
       ),
     );

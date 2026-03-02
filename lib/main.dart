@@ -5,7 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import 'ui/screens/hub_screen.dart'; 
+// 🚨 IMPORT THE SPLASH SCREEN INSTEAD OF HUB SCREEN
+import 'ui/screens/splash_screen.dart'; 
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -83,7 +84,9 @@ class MyApp extends StatelessWidget {
         ), 
         colorScheme: ColorScheme.fromSwatch(brightness: Brightness.dark).copyWith(secondary: const Color(0xFF18FFFF)), // Cyan Accent
       ),
-      home: const HubScreen(), // The Entry Point
+      
+      // 🚨 THE FIX: Set the Entry Point to the Splash Screen!
+      home: const SplashScreen(), 
     );
   }
 }

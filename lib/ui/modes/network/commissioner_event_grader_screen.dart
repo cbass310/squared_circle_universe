@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+// --- IMPORT FOR THE WATERMARK ---
+import '../../components/tv_watermark.dart';
+
 class CommissionerEventGraderScreen extends StatefulWidget {
   final String leagueId;
   const CommissionerEventGraderScreen({super.key, required this.leagueId});
@@ -359,18 +362,9 @@ class _CommissionerEventGraderScreenState extends State<CommissionerEventGraderS
             ),
           ),
         ),
-        Positioned(
-          bottom: 40, right: 40,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const Icon(Icons.fact_check, size: 50, color: Colors.white10),
-              const SizedBox(height: 10),
-              Text("DATA AUDITOR", style: TextStyle(fontSize: isMobile ? 20 : 32, fontWeight: FontWeight.w900, color: Colors.white24, letterSpacing: 4.0)),
-              Text("SUPABASE NODE ACTIVE", style: TextStyle(fontSize: isMobile ? 10 : 14, color: Colors.purpleAccent.withOpacity(0.5), letterSpacing: 2.0, fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ),
+        
+        // --- THE GLOBAL WATERMARK ---
+        TVWatermark(isMobile: isMobile),
       ],
     );
   }

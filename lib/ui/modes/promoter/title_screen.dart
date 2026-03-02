@@ -4,6 +4,9 @@ import '../../../logic/promoter_provider.dart';
 import '../../../data/models/wrestler.dart';
 import '../../components/wrestler_avatar.dart';
 
+// --- IMPORT FOR THE WATERMARK ---
+import '../../components/tv_watermark.dart';
+
 class TitleScreen extends ConsumerWidget {
   const TitleScreen({super.key});
 
@@ -163,7 +166,7 @@ class TitleScreen extends ConsumerWidget {
   }
 
   // =====================================================================
-  // --- RIGHT PANE: THE DISPLAY CASE ARTWORK
+  // --- RIGHT PANE: THE DISPLAY CASE ARTWORK (WATERMARK ONLY)
   // =====================================================================
   Widget _buildRightDisplayCase({bool isMobile = false}) {
     return Stack(
@@ -185,18 +188,11 @@ class TitleScreen extends ConsumerWidget {
             ),
           ),
         ),
-        Positioned(
-          bottom: 40, right: 40,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const Icon(Icons.workspace_premium, size: 50, color: Colors.white10),
-              const SizedBox(height: 10),
-              Text("CHAMPIONSHIP", style: TextStyle(fontSize: isMobile ? 20 : 32, fontWeight: FontWeight.bold, color: Colors.white24, letterSpacing: 4.0)),
-              Text("COMMITTEE", style: TextStyle(fontSize: isMobile ? 10 : 14, color: Colors.white12, letterSpacing: 2.0, fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ),
+        
+        // --- TEXT BLOCKS REMOVED HERE --- //
+        
+        // --- THE GLOBAL WATERMARK ---
+        TVWatermark(isMobile: isMobile),
       ],
     );
   }

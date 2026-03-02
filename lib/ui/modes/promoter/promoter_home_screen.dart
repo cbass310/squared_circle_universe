@@ -94,11 +94,27 @@ class DashboardTab extends ConsumerStatefulWidget {
   ConsumerState<DashboardTab> createState() => _DashboardTabState();
 }
 
-class _DashboardTabState extends ConsumerState<DashboardTab> {
+// 🚨 ADDED TickerProviderStateMixin for the pulsing animations!
+class _DashboardTabState extends ConsumerState<DashboardTab> with SingleTickerProviderStateMixin {
+  
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
+    
+    // Setup the glowing pulse animation
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    )..repeat(reverse: true); 
+    
+    _pulseAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(
+      parent: _pulseController,
+      curve: Curves.easeInOut,
+    ));
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final gameState = ref.read(gameProvider);
       
@@ -114,6 +130,12 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
         ref.read(communicationsProvider.notifier).generateWeeklyContent(gameState.week);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
   }
 
   @override
@@ -140,6 +162,28 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
   // WIDGET: THE MAIN DASHBOARD COLUMN
   // ------------------------------------------------
   Widget _buildDashboardColumn(BuildContext context, dynamic gameState, bool isPPVWeek, bool isDesktop) {
+    
+    // 🚨 TIER 1 SAFETY CHECKS: Safely checks for variables to prevent crashes
+    bool isMissingTvDeal = false;
+    bool isMissingSponsors = false;
+
+    // Safely check for TV Deals (adjusts to whatever your variable is actually named)
+    if (!isPPVWeek) {
+      try {
+         isMissingTvDeal = gameState.activeTvDeals == null || gameState.activeTvDeals.isEmpty;
+      } catch (e) {
+         try { isMissingTvDeal = gameState.tvDeals == null || gameState.tvDeals.isEmpty; } 
+         catch (e) { isMissingTvDeal = false; }
+      }
+    }
+
+    // Safely check for Sponsors
+    try {
+      isMissingSponsors = gameState.activeSponsors == null || gameState.activeSponsors.isEmpty;
+    } catch (e) {
+      isMissingSponsors = false; 
+    }
+
     return Expanded(
       flex: isDesktop ? 4 : 1,
       child: Container(
@@ -165,13 +209,11 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                     const Text("DASHBOARD", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5)),
                     const Spacer(),
                     
-                    // 🚨 RESTORED: The Settings Icon is back at the top!
                     IconButton(
                       icon: const Icon(Icons.settings, color: Colors.grey), 
                       onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()))
                     ),
                     
-                    // 🚨 THE FIX: An invisible buffer box for Mobile so it doesn't hide behind the profile badge!
                     if (!isDesktop) const SizedBox(width: 140),
                   ],
                 ),
@@ -274,7 +316,7 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                     ),
                     const SizedBox(height: 25),
 
-                    // 3. MANAGEMENT LIST (Settings Removed from bottom)
+                    // 3. MANAGEMENT LIST
                     const Padding(
                       padding: EdgeInsets.only(bottom: 12),
                       child: Text("MANAGEMENT", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
@@ -287,6 +329,7 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                       subtitle: "Manage talent, morale, and active rivalries.",
                       baseColor: Colors.blueAccent,
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RosterScreen())),
+                      isPulsing: false, 
                     ),
                     
                     _buildPremiumMenuButton(
@@ -296,24 +339,29 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                       subtitle: "Latest dirt sheet rumors and company actions.",
                       baseColor: Colors.orangeAccent,
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NewsScreen())),
+                      isPulsing: false, 
                     ),
                     
+                    // 🚨 TIER 1 NOTIFICATION: Will pulse red if missing sponsors!
                     _buildPremiumMenuButton(
                       context,
                       icon: Icons.attach_money_rounded,
                       title: "FINANCES",
-                      subtitle: "View the financial ledger and profits.",
-                      baseColor: Colors.tealAccent,
+                      subtitle: isMissingSponsors ? "ACTION REQUIRED: Sign Sponsors!" : "View the financial ledger and profits.",
+                      baseColor: isMissingSponsors ? Colors.redAccent : Colors.tealAccent,
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen())),
+                      isPulsing: isMissingSponsors,
                     ),
 
+                    // 🚨 TIER 1 NOTIFICATION: Will pulse red if missing a TV Deal!
                     _buildPremiumMenuButton(
                       context,
                       icon: Icons.cell_tower_rounded,
                       title: "BROADCASTING",
-                      subtitle: "TV Deals, Production Values, and Show Naming.",
-                      baseColor: Colors.purpleAccent,
+                      subtitle: isMissingTvDeal ? "URGENT: No Active TV Deal!" : "TV Deals, Production Values, and Show Naming.",
+                      baseColor: isMissingTvDeal ? Colors.redAccent : Colors.purpleAccent,
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BroadcastingHubScreen())),
+                      isPulsing: isMissingTvDeal,
                     ),
 
                     const SizedBox(height: 40),
@@ -353,16 +401,18 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
           ),
           if (isDesktop)
             Positioned(
-              bottom: 40,
-              right: 40,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Image.asset("assets/images/logo_scw.png", width: 150, errorBuilder: (c, e, s) => const Icon(Icons.sports_mma, size: 80, color: Colors.white10)),
-                  const SizedBox(height: 20),
-                  Text("SQUARED CIRCLE", style: TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: Colors.white.withOpacity(0.95), letterSpacing: 2, shadows: [Shadow(color: Colors.black.withOpacity(0.8), blurRadius: 10, offset: const Offset(0, 4))])),
-                  Text("TYCOON", style: TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: const Color(0xFFFFD740).withOpacity(0.95), letterSpacing: 2, shadows: [Shadow(color: Colors.black.withOpacity(0.8), blurRadius: 10, offset: const Offset(0, 4))])),
-                ],
+              bottom: 20, 
+              right: 20,
+              child: IgnorePointer( 
+                child: Opacity(
+                  opacity: 0.6, 
+                  child: Image.asset(
+                    "assets/images/logo_watermark.png", 
+                    width: 120, 
+                    fit: BoxFit.contain,
+                    errorBuilder: (c, e, s) => const SizedBox.shrink(),
+                  ),
+                ),
               ),
             ),
         ],
@@ -387,6 +437,7 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
     );
   }
 
+  // 🚨 UPDATED MENU BUTTON: NOW SUPPORTS PULSING ANIMATIONS!
   Widget _buildPremiumMenuButton(
     BuildContext context, {
     required IconData icon,
@@ -394,8 +445,10 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
     required String subtitle,
     required Color baseColor,
     required VoidCallback onTap,
+    required bool isPulsing,
   }) {
-    return Container(
+    
+    Widget buttonContent = Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
@@ -432,9 +485,21 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                      Row(
+                        children: [
+                          Text(title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                          if (isPulsing) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(4)),
+                              child: const Text("!", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900)),
+                            )
+                          ]
+                        ],
+                      ),
                       const SizedBox(height: 4),
-                      Text(subtitle, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11, fontWeight: FontWeight.w500)),
+                      Text(subtitle, style: TextStyle(color: isPulsing ? Colors.redAccent : Colors.white.withOpacity(0.5), fontSize: 11, fontWeight: isPulsing ? FontWeight.bold : FontWeight.w500)),
                     ],
                   ),
                 ),
@@ -444,6 +509,28 @@ class _DashboardTabState extends ConsumerState<DashboardTab> {
           ),
         ),
       ),
+    );
+
+    if (!isPulsing) return buttonContent;
+
+    return AnimatedBuilder(
+      animation: _pulseAnimation,
+      builder: (context, child) {
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.redAccent.withOpacity(_pulseAnimation.value * 0.4),
+                blurRadius: 15,
+                spreadRadius: 2,
+              )
+            ]
+          ),
+          child: child,
+        );
+      },
+      child: buttonContent,
     );
   }
 }

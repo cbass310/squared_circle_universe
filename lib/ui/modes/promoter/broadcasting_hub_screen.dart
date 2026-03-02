@@ -4,6 +4,9 @@ import 'package:isar/isar.dart';
 import '../../../logic/game_state_provider.dart';
 import '../../../data/models/tv_network_deal.dart';
 
+// --- IMPORT FOR THE WATERMARK ---
+import '../../components/tv_watermark.dart';
+
 final availableTvDealsProvider = FutureProvider.family<List<TvNetworkDeal>, int>((ref, tier) async {
   final isar = Isar.getInstance();
   if (isar == null) return [];
@@ -122,10 +125,9 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> {
   // RIGHT COLUMN: IMMERSIVE IMAGES & CONTRACT PANE
   // ----------------------------------------------------------------
   Widget _buildRightColumn(GameState gameState) {
-    // 📸 NEW IMMERSIVE IMAGE DISPLAY FOR TABS 2 & 3
+    // 📸 IMMERSIVE IMAGE DISPLAY FOR TABS 2 & 3
     if (_selectedTabIndex != 0) {
       String imagePath = _selectedTabIndex == 1 ? "assets/images/production_bg.png" : "assets/images/branding_bg.png";
-      String titleText = _selectedTabIndex == 1 ? "PRODUCTION & EQUIPMENT" : "BRANDING & EVENTS";
       
       return Stack(
         fit: StackFit.expand,
@@ -133,7 +135,6 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> {
           Image.asset(
             imagePath, 
             fit: BoxFit.cover, 
-            // Fallback to office if you haven't loaded the production/branding images yet
             errorBuilder: (c, e, s) => Image.asset("assets/images/office_bg.png", fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: const Color(0xFF0A0A0A))),
           ),
           Container(
@@ -146,11 +147,11 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> {
               )
             )
           ),
-          // Sleek subtle label in the bottom right
-          Positioned(
-            bottom: 40, right: 40,
-            child: Text(titleText, style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 2.0)),
-          ),
+          
+          // --- TEXT BLOCKS REMOVED HERE ---
+          
+          // --- THE GLOBAL WATERMARK ---
+          const TVWatermark(),
         ],
       );
     }

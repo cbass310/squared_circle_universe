@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+// --- IMPORT FOR THE WATERMARK ---
+import '../../components/tv_watermark.dart';
+
 class CommissionerEventCreatorScreen extends StatefulWidget {
   final String leagueId;
   const CommissionerEventCreatorScreen({super.key, required this.leagueId});
@@ -318,7 +321,7 @@ class _CommissionerEventCreatorScreenState extends State<CommissionerEventCreato
   }
 
   // =====================================================================
-  // --- RIGHT PANE: ARTWORK
+  // --- RIGHT PANE: ARTWORK ONLY + WATERMARK
   // =====================================================================
   Widget _buildRightArtworkPane({bool isMobile = false}) {
     return Stack(
@@ -340,18 +343,9 @@ class _CommissionerEventCreatorScreenState extends State<CommissionerEventCreato
             ),
           ),
         ),
-        Positioned(
-          bottom: 40, right: 40,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const Icon(Icons.edit_document, size: 50, color: Colors.white10),
-              const SizedBox(height: 10),
-              Text("CARD BUILDER", style: TextStyle(fontSize: isMobile ? 20 : 32, fontWeight: FontWeight.w900, color: Colors.white24, letterSpacing: 4.0)),
-              Text("SUPABASE NODE ACTIVE", style: TextStyle(fontSize: isMobile ? 10 : 14, color: Colors.purpleAccent.withOpacity(0.5), letterSpacing: 2.0, fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ),
+
+        // --- THE GLOBAL WATERMARK ---
+        TVWatermark(isMobile: isMobile),
       ],
     );
   }

@@ -22,8 +22,16 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   int? selectedWrestler2Id;
   
   int _activeDraftSlot = 1;
-  
   bool _isTitleMatchToggled = false;
+
+  // 🚨 THE FIX: A dedicated controller to handle the auto-scrolling!
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +39,22 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     final bookingNotifier = ref.read(bookingProvider.notifier);
     final rosterState = ref.watch(rosterProvider);
     final gameState = ref.watch(gameProvider); 
+
+    // 🚨 THE FIX: Listen to the live logs. When a new message appears, scroll down!
+    ref.listen(bookingProvider, (previous, next) {
+      if (previous != null && next.liveLogs.length > previous.liveLogs.length) {
+        // Short delay to ensure the UI has time to render the new chat bubble first
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (_scrollController.hasClients) {
+            _scrollController.animateTo(
+              _scrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          }
+        });
+      }
+    });
 
     final availableRoster = rosterState.roster.where((w) => !w.isOnIR).toList();
 
@@ -135,11 +159,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                                   children: [
                                     Text(w.name.toUpperCase(), style: TextStyle(color: isSelected ? Colors.amber : Colors.white, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1.0)),
                                     const SizedBox(height: 4),
-                                    
-                                    // 🛠️ FIX: Added Heel/Face and Style to the List View
                                     Text("${w.isHeel ? 'HEEL' : 'FACE'} • ${w.style.name.toUpperCase()}", style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
                                     const SizedBox(height: 4),
-                                    
                                     Row(
                                       children: [
                                         Text("POP ${w.pop.toInt()}", style: const TextStyle(color: Colors.purpleAccent, fontSize: 10, fontWeight: FontWeight.bold)),
@@ -457,12 +478,11 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  WrestlerAvatar(wrestler: w!, size: 60), // Slightly reduced size to fit text
+                  WrestlerAvatar(wrestler: w!, size: 60), 
                   const SizedBox(height: 12),
                   Text(w.name.toUpperCase(), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
                   const SizedBox(height: 4),
                   
-                  // 🛠️ FIX: Added Heel/Face and Style to the Contender Card!
                   Text("${w.isHeel ? 'HEEL' : 'FACE'} • ${w.style.name.toUpperCase()}", style: const TextStyle(color: Colors.cyanAccent, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
                   const SizedBox(height: 8),
                   
@@ -568,36 +588,103 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           ),
           Expanded(
             child: ListView.builder(
+              controller: _scrollController, // 🚨 THE FIX: Attach the scroll controller here!
               padding: const EdgeInsets.all(20),
               itemCount: state.liveLogs.length,
               itemBuilder: (context, index) {
                 final log = state.liveLogs[index];
-                Color iconColor = Colors.white54;
-                IconData icon = Icons.mic;
                 
-                if (log.type == "INFO") { iconColor = Colors.white70; icon = Icons.info_outline; }
-                if (log.type == "FINISH") { iconColor = Colors.greenAccent; icon = Icons.sports_score; }
+                // 🛠️ CHECK IF IT IS A COMMENTATOR SPEAKING
+                bool isVic = log.speaker.toUpperCase().contains("VIC");
+                bool isCyrus = log.speaker.toUpperCase().contains("CYRUS");
+                bool isDialogue = isVic || isCyrus;
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(icon, color: iconColor, size: 18),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: RichText(
-                          text: TextSpan(
+                // --- CHAT BUBBLE UI FOR COMMENTATORS ---
+                if (isDialogue) {
+                  String avatarPath = isVic ? 'assets/images/vic.png' : 'assets/images/cyrus.png';
+                  Color brandColor = isVic ? Colors.blueAccent : Colors.redAccent;
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // The Circular Avatar
+                        Container(
+                          width: 40, 
+                          height: 40,
+                          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: brandColor, width: 2), color: const Color(0xFF1E1E1E)),
+                          child: ClipOval(
+                            child: Image.asset(
+                              avatarPath,
+                              fit: BoxFit.cover,
+                              alignment: const Alignment(0.0, -0.6), 
+                              errorBuilder: (context, error, stackTrace) {
+                                return Center(
+                                  child: Text(isVic ? "V" : "C", style: TextStyle(color: brandColor, fontWeight: FontWeight.w900, fontSize: 20)),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        
+                        // The Text Bubble
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              TextSpan(text: "${log.speaker}: ", style: TextStyle(color: iconColor, fontWeight: FontWeight.bold, fontSize: 14)),
-                              TextSpan(text: log.message, style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.4)),
+                              Text(log.speaker.toUpperCase(), style: TextStyle(color: brandColor, fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1.0)),
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1A1A1A),
+                                  border: Border.all(color: Colors.white10),
+                                  borderRadius: const BorderRadius.only(
+                                    topRight: Radius.circular(12),
+                                    bottomLeft: Radius.circular(12),
+                                    bottomRight: Radius.circular(12),
+                                  ),
+                                ),
+                                child: Text(log.message, style: const TextStyle(color: Colors.white, height: 1.4, fontSize: 13)),
+                              ),
                             ],
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                );
+                      ],
+                    ),
+                  );
+                } 
+                
+                // --- SYSTEM & ALERT UI FOR NON-COMMENTATORS ---
+                else {
+                  Color iconColor = Colors.white54;
+                  IconData icon = Icons.info_outline;
+                  
+                  if (log.type == "FINISH") { iconColor = Colors.greenAccent; icon = Icons.sports_score; }
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(icon, color: iconColor, size: 18),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: RichText(
+                            text: TextSpan(
+                              children: [
+                                TextSpan(text: "${log.speaker}: ", style: TextStyle(color: iconColor, fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1.0)),
+                                TextSpan(text: log.message, style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4, fontStyle: FontStyle.italic)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
               },
             ),
           ),

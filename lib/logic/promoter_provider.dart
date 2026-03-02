@@ -454,7 +454,7 @@ class RosterNotifier extends StateNotifier<RosterState> {
     if (_isar == null) return;
     List<Wrestler> databaseInjection = [];
 
-    // 1. INJECT BOSSES
+    // 1. INJECT BOSSES (With the new official roster names and image paths)
     databaseInjection.addAll(_generateBossCharacters());
 
     // 2. GENERATE RANDOM POOL
@@ -474,7 +474,7 @@ class RosterNotifier extends StateNotifier<RosterState> {
       generatedPool[(i * 2) + 1].cardPosition = i < 3 ? "Main Eventer" : i < 8 ? "Mid-Carder" : "Opener";
     }
 
-    // 4. GENERATE 20 ROOKIE PROSPECTS FOR SCOUTING REGIONS
+    // 4. GENERATE 20 ROOKIE PROSPEcripts FOR SCOUTING REGIONS
     List<Wrestler> prospectPool = _generateRandomRoster(20, isRookie: true);
 
     databaseInjection.addAll(generatedPool);
@@ -485,22 +485,23 @@ class RosterNotifier extends StateNotifier<RosterState> {
     });
   }
 
+  // 🚨 UPDATED TO INCLUDE THE FINAL ROSTER AND IMAGE PATHS
   List<Wrestler> _generateBossCharacters() {
     return [
-      _buildBoss("The Iron Saint", WrestlingStyle.technician, 95, 98, 85, loyalty: 80),
-      _buildBoss("Kid Aerial", WrestlingStyle.highFlyer, 92, 90, 88, greed: 70),
-      _buildBoss("Velvet Rico", WrestlingStyle.entertainer, 98, 75, 99, greed: 95),
-      _buildBoss("Tank Abbott", WrestlingStyle.brawler, 90, 85, 70, loyalty: 40),
-      _buildBoss("Chuck the Hammer", WrestlingStyle.powerhouse, 88, 80, 60, greed: 85),
-      _buildBoss("Richard Sterling", WrestlingStyle.technician, 94, 92, 95, isHeel: true, greed: 90),
-      _buildBoss("Major Tom Justice", WrestlingStyle.powerhouse, 96, 85, 90, loyalty: 95),
-      _buildBoss("Jax Cassidy", WrestlingStyle.brawler, 93, 88, 85),
-      _buildBoss("Malachi The Harbinger", WrestlingStyle.powerhouse, 91, 80, 85, isHeel: true),
-      _buildBoss("Smiley Pete Carnage", WrestlingStyle.hardcore, 89, 75, 80, greed: 40),
+      _buildBoss("Kid Ariel", WrestlingStyle.highFlyer, 92, 90, 88, greed: 70, imagePath: "assets/images/kid_ariel.png"),
+      _buildBoss("Richard Sterling", WrestlingStyle.technician, 94, 98, 95, isHeel: true, greed: 90, imagePath: "assets/images/richard_sterling.png"),
+      _buildBoss("Major Tom Justice", WrestlingStyle.powerhouse, 96, 85, 90, loyalty: 95, imagePath: "assets/images/major_tom.png"),
+      _buildBoss("Jax Cassidy", WrestlingStyle.brawler, 93, 88, 85, imagePath: "assets/images/jax_cassidy.png"),
+      _buildBoss("Smiley Pete Carnage", WrestlingStyle.hardcore, 89, 75, 80, greed: 40, imagePath: "assets/images/smiley_pete.png"),
+      _buildBoss("Malachi the Harbinger", WrestlingStyle.powerhouse, 98, 80, 85, isHeel: true, imagePath: "assets/images/malachi.png"),
+      _buildBoss("The Iron Saint", WrestlingStyle.technician, 95, 99, 70, loyalty: 80, imagePath: "assets/images/iron_saint.png"),
+      _buildBoss("Velvet Rico", WrestlingStyle.entertainer, 91, 75, 99, isHeel: true, greed: 95, imagePath: "assets/images/velvet_rico.png"),
+      _buildBoss("Tank Abbott", WrestlingStyle.brawler, 90, 85, 60, loyalty: 40, imagePath: "assets/images/tank_abbott.png"),
+      _buildBoss("Chuck The Hammer", WrestlingStyle.powerhouse, 88, 80, 60, greed: 85, imagePath: "assets/images/chuck_hammer.png"),
     ];
   }
 
-  Wrestler _buildBoss(String name, WrestlingStyle style, int pop, int ring, int mic, {bool isHeel = false, int greed = 75, int loyalty = 50}) {
+  Wrestler _buildBoss(String name, WrestlingStyle style, int pop, int ring, int mic, {bool isHeel = false, int greed = 75, int loyalty = 50, required String imagePath}) {
     return Wrestler()
       ..name = name
       ..style = style
@@ -515,6 +516,7 @@ class RosterNotifier extends StateNotifier<RosterState> {
       ..loyalty = loyalty
       ..contractWeeks = 0
       ..isScouted = true 
+      ..imagePath = imagePath // <-- Points to the image!
       ..cardPosition = "Main Eventer";
   }
 

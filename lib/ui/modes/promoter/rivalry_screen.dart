@@ -8,6 +8,9 @@ import '../../../data/models/wrestler.dart';
 import '../../../data/models/show_history.dart'; 
 import '../../components/wrestler_avatar.dart';
 
+// --- IMPORT FOR THE WATERMARK ---
+import '../../components/tv_watermark.dart';
+
 class RivalryScreen extends ConsumerWidget {
   const RivalryScreen({super.key});
 
@@ -76,9 +79,9 @@ class RivalryScreen extends ConsumerWidget {
               ),
             ),
           
-          // 🚨 FIXED: Removed the border and added transparent dividerColor!
+          // 🚨 THE FIX: Forced pure black background and transparent divider
           Container(
-            color: Colors.black,
+            color: Colors.black, // Ensures the background is perfectly black
             child: const TabBar(
               dividerColor: Colors.transparent, // Kills the Material 3 gray line
               indicatorColor: Colors.amber,
@@ -471,18 +474,9 @@ class RivalryScreen extends ConsumerWidget {
             ),
           ),
         ),
-        Positioned(
-          bottom: 40, right: 40,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const Icon(Icons.lightbulb, size: 50, color: Colors.white10),
-              const SizedBox(height: 10),
-              Text("CREATIVE CONTROL", style: TextStyle(fontSize: isMobile ? 16 : 24, fontWeight: FontWeight.w900, color: Colors.white24, letterSpacing: 4.0)),
-              Text("GORILLA POSITION", style: TextStyle(fontSize: isMobile ? 10 : 12, color: Colors.white12, letterSpacing: 2.0, fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ),
+        
+        // --- THE GLOBAL WATERMARK ---
+        TVWatermark(isMobile: isMobile),
       ],
     );
   }

@@ -4,6 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'commissioner_event_creator_screen.dart';
 import 'commissioner_event_grader_screen.dart';
 
+// --- IMPORT FOR THE WATERMARK ---
+import '../../components/tv_watermark.dart';
+
 class CommissionerDashboardScreen extends StatefulWidget {
   // We keep the parameter so your navigation doesn't break, but we will default to 'global'
   final String? leagueId;
@@ -222,7 +225,7 @@ class _CommissionerDashboardScreenState extends State<CommissionerDashboardScree
   }
 
   // =====================================================================
-  // --- RIGHT PANE: ARTWORK
+  // --- RIGHT PANE: ARTWORK ONLY + WATERMARK
   // =====================================================================
   Widget _buildRightArtworkPane({bool isMobile = false}) {
     return Stack(
@@ -244,18 +247,11 @@ class _CommissionerDashboardScreenState extends State<CommissionerDashboardScree
             ),
           ),
         ),
-        Positioned(
-          bottom: 40, right: 40,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const Icon(Icons.admin_panel_settings, size: 50, color: Colors.white10),
-              const SizedBox(height: 10),
-              Text("LEAGUE OVERSIGHT", style: TextStyle(fontSize: isMobile ? 20 : 32, fontWeight: FontWeight.w900, color: Colors.white24, letterSpacing: 4.0)),
-              Text("SUPABASE SECURE CONNECTION", style: TextStyle(fontSize: isMobile ? 10 : 14, color: Colors.cyanAccent.withOpacity(0.5), letterSpacing: 2.0, fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ),
+        
+        // --- TEXT BLOCKS REMOVED HERE --- //
+
+        // --- THE GLOBAL WATERMARK ---
+        TVWatermark(isMobile: isMobile),
       ],
     );
   }

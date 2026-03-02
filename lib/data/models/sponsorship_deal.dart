@@ -2,7 +2,7 @@ import 'package:isar/isar.dart';
 
 part 'sponsorship_deal.g.dart';
 
-enum RealEstateSlot { turnbuckle, canvas, eventName }
+enum RealEstateSlot { turnbuckle, canvas, eventName, titantron }
 enum SponsorArchetype { consistency, upfrontCash, performance }
 
 @collection

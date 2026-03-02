@@ -11,7 +11,7 @@ import '../data/models/game_save.dart';
 import '../data/models/tv_network_deal.dart'; 
 import '../data/models/sponsorship_deal.dart'; 
 import '../data/models/financial_record.dart'; 
-import '../data/models/news_item.dart'; // 🚨 NEW IMPORT!
+import '../data/models/news_item.dart';
 
 import 'rival_provider.dart'; 
 import 'promoter_provider.dart'; 
@@ -220,7 +220,7 @@ class GameNotifier extends StateNotifier<GameState> {
       await _isar!.gameSaves.clear();
       await _isar!.sponsorshipDeals.clear(); 
       await _isar!.financialRecords.clear(); 
-      await _isar!.newsItems.clear(); // Clear old news!
+      await _isar!.newsItems.clear(); 
       
       final deals = await _isar!.tvNetworkDeals.where().findAll();
       for (var d in deals) { d.promotionId = -1; }
@@ -284,6 +284,7 @@ class GameNotifier extends StateNotifier<GameState> {
     int cost = next == 2 ? 25000 : (next == 3 ? 250000 : 1000000); 
     if (state.cash >= cost && next <= 4) {
       state = state.copyWith(cash: state.cash - cost, venueLevel: next, isBiddingWarActive: true); 
+      _generateInitialSponsors(); // Trigger new sponsors to spawn when venue upgrades!
       _saveGame(); return true;
     }
     return false;
@@ -305,14 +306,36 @@ class GameNotifier extends StateNotifier<GameState> {
   
   void clearCard() => state = state.copyWith(currentCard: [], titleMatchFlags: []);
 
+  // 🚨 UPDATED LOGIC: Spawns the massive Tiers based on Venue Level!
   void _generateInitialSponsors() {
-    if (state.availableOffers.isEmpty && state.activeSponsors.isEmpty) {
-        state = state.copyWith(availableOffers: [
-          SponsorshipDeal()..id = 100000..sponsorName = "Luigi's Pizza"..description="Consistent local payout."..logoPath="assets/images/sponsor_pizza.png"..slotTarget=RealEstateSlot.turnbuckle..archetype=SponsorArchetype.consistency..durationInWeeks=12..weeksLeft=12..upfrontBonus=0..weeklyPayout=500..performanceBonusThreshold=2.0..performanceBonusAmount=0,
-          SponsorshipDeal()..id = 100001..sponsorName = "Muscle Mass"..description="High bonus for 4+ star Main Events."..logoPath="assets/images/sponsor_gym.png"..slotTarget=RealEstateSlot.turnbuckle..archetype=SponsorArchetype.performance..durationInWeeks=12..weeksLeft=12..upfrontBonus=0..weeklyPayout=100..performanceBonusThreshold=4.0..performanceBonusAmount=2500,
-          SponsorshipDeal()..id = 100002..sponsorName = "CryptoCoin"..description="Massive upfront cash. No weekly pay."..logoPath="assets/images/sponsor_crypto.png"..slotTarget=RealEstateSlot.turnbuckle..archetype=SponsorArchetype.upfrontCash..durationInWeeks=24..weeksLeft=24..upfrontBonus=15000..weeklyPayout=0..performanceBonusThreshold=0.0..performanceBonusAmount=0,
-        ]);
+    final List<SponsorshipDeal> newOffers = [];
+    final currentLevel = state.venueLevel;
+
+    // --- LEVEL 1 OFFERS (Always generate these for the Turnbuckle) ---
+    if (!state.activeSponsors.any((s) => s.slotTarget == RealEstateSlot.turnbuckle)) {
+      newOffers.add(SponsorshipDeal()..id = 100000..sponsorName = "Luigi's Pizza"..description="Consistent local payout."..logoPath="assets/images/sponsor_pizza.png"..slotTarget=RealEstateSlot.turnbuckle..archetype=SponsorArchetype.consistency..durationInWeeks=12..weeksLeft=12..upfrontBonus=0..weeklyPayout=500..performanceBonusThreshold=2.0..performanceBonusAmount=0);
+      newOffers.add(SponsorshipDeal()..id = 100001..sponsorName = "Muscle Mass"..description="High bonus for 4+ star Main Events."..logoPath="assets/images/sponsor_gym.png"..slotTarget=RealEstateSlot.turnbuckle..archetype=SponsorArchetype.performance..durationInWeeks=12..weeksLeft=12..upfrontBonus=0..weeklyPayout=100..performanceBonusThreshold=4.0..performanceBonusAmount=2500);
+      newOffers.add(SponsorshipDeal()..id = 100002..sponsorName = "CryptoCoin"..description="Massive upfront cash. No weekly pay."..logoPath="assets/images/sponsor_crypto.png"..slotTarget=RealEstateSlot.turnbuckle..archetype=SponsorArchetype.upfrontCash..durationInWeeks=24..weeksLeft=24..upfrontBonus=15000..weeklyPayout=0..performanceBonusThreshold=0.0..performanceBonusAmount=0);
     }
+
+    // --- LEVEL 2 OFFERS (Civic Center - Ring Canvas) ---
+    if (currentLevel >= 2 && !state.activeSponsors.any((s) => s.slotTarget == RealEstateSlot.canvas)) {
+      newOffers.add(SponsorshipDeal()..id = 100003..sponsorName = "Monster Energy"..description="Premium energy drink. Wants their massive logo center-ring."..weeklyPayout=4500..upfrontBonus=5000..durationInWeeks=24..weeksLeft=24..slotTarget=RealEstateSlot.canvas..archetype=SponsorArchetype.upfrontCash);
+      newOffers.add(SponsorshipDeal()..id = 100004..sponsorName = "Grip Fitness Gear"..description="Performance brand. Pays huge bonuses for 4+ Star main events."..weeklyPayout=2500..upfrontBonus=0..performanceBonusThreshold=4.0..performanceBonusAmount=5000..durationInWeeks=12..weeksLeft=12..slotTarget=RealEstateSlot.canvas..archetype=SponsorArchetype.performance);
+    }
+
+    // --- LEVEL 3 OFFERS (Arena - Event Naming Rights) ---
+    if (currentLevel >= 3 && !state.activeSponsors.any((s) => s.slotTarget == RealEstateSlot.eventName)) {
+      newOffers.add(SponsorshipDeal()..id = 100005..sponsorName = "Brosweiser Beer"..description="'Brosweiser Presents: Squared Circle TV'. Massive weekly payouts."..weeklyPayout=15000..upfrontBonus=20000..durationInWeeks=48..weeksLeft=48..slotTarget=RealEstateSlot.eventName..archetype=SponsorArchetype.upfrontCash);
+    }
+
+    // --- LEVEL 4 OFFERS (Stadium - Titantron) ---
+    if (currentLevel >= 4 && !state.activeSponsors.any((s) => s.slotTarget == RealEstateSlot.titantron)) {
+      newOffers.add(SponsorshipDeal()..id = 100006..sponsorName = "Globex Tech Corp"..description="Silicon Valley giant wants the entire entrance Titantron video board."..weeklyPayout=50000..upfrontBonus=100000..durationInWeeks=48..weeksLeft=48..slotTarget=RealEstateSlot.titantron..archetype=SponsorArchetype.upfrontCash);
+      newOffers.add(SponsorshipDeal()..id = 100007..sponsorName = "Prime Video Streaming"..description="Huge performance bonuses if your Stadium shows hit 4.5 Stars."..weeklyPayout=30000..upfrontBonus=0..performanceBonusThreshold=4.5..performanceBonusAmount=40000..durationInWeeks=24..weeksLeft=24..slotTarget=RealEstateSlot.titantron..archetype=SponsorArchetype.performance);
+    }
+
+    state = state.copyWith(availableOffers: newOffers);
   }
 
   // =========================================================================
@@ -608,7 +631,6 @@ class GameNotifier extends StateNotifier<GameState> {
       await _isar!.writeTxn(() async { await _isar!.showHistorys.put(historyEntry); });
     }
 
-    // 🚨 NEW: Trigger the Smart Communications Engine!
     await _generateWeeklyCommunications(rating, rival, roster, state.currentCard);
 
     state = state.copyWith(
@@ -621,6 +643,9 @@ class GameNotifier extends StateNotifier<GameState> {
       titleMatchFlags: [], 
       activeSponsors: dealsToKeep,
     );
+
+    // 🚨 THIS IS THE MAGIC HOOK: As weeks pass, old sponsors expire and new ones refresh!
+    _generateInitialSponsors();
     _saveGame();
     
     ref.read(rosterProvider.notifier).advanceTitleReigns();

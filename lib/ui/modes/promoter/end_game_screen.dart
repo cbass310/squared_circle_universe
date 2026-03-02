@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../logic/game_state_provider.dart';
 
+// --- IMPORT FOR THE WATERMARK ---
+import '../../components/tv_watermark.dart';
+
 class EndGameScreen extends ConsumerWidget {
   const EndGameScreen({super.key});
 
@@ -127,6 +130,9 @@ class EndGameScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+                
+                // --- THE GLOBAL WATERMARK ---
+                const TVWatermark(),
               ],
             ),
           ),
