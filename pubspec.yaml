@@ -10,20 +10,20 @@ dependencies:
   flutter:
     sdk: flutter
   
-  # --- THE GREAT PIvOT: Supabase & Vault ---
+  # --- THE GREAT PIVOT: Supabase & Vault ---
   supabase_flutter: ^2.4.0
   flutter_dotenv: ^5.1.0
   # -----------------------------------------
   
   google_sign_in: ^6.2.1
-  sign_in_with_apple: ^3.3.0
+  sign_in_with_apple: ^7.0.1
 
   flutter_riverpod: ^2.5.1
   isar: ^3.1.0+1
   isar_flutter_libs: ^3.1.0+1
   path_provider: ^2.1.2
   cupertino_icons: ^1.0.6
-  audioplayers: ^6.5.1 
+  audioplayers: ^6.6.0 
   file_picker: ^10.3.10
   csv: ^7.1.0
   shared_preferences: ^2.5.4
@@ -35,7 +35,7 @@ dev_dependencies:
   isar_generator: ^3.1.0+1
   flutter_lints: ^3.0.0
   # --- NEW: App Icon Generator ---
-  flutter_launcher_icons: ^0.13.1 
+  flutter_launcher_icons: ^0.14.4 
 
 flutter:
   uses-material-design: true

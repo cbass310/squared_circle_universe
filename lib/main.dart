@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart'; 
+import 'dart:ui' as ui; // 🚨 NEW: Needed to measure the screen before the app loads
 
 // --- THE GREAT PIVOT IMPORTS ---
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -10,6 +12,37 @@ import 'ui/screens/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // ====================================================================
+  // 🚨 THE SMART ORIENTATION LOCK 🚨
+  // ====================================================================
+  // 1. Grab the physical screen measurements
+  final ui.FlutterView view = ui.PlatformDispatcher.instance.views.first;
+  final double physicalWidth = view.physicalSize.width;
+  final double physicalHeight = view.physicalSize.height;
+  final double devicePixelRatio = view.devicePixelRatio;
+
+  // 2. Convert raw pixels to logical Flutter pixels
+  final double width = physicalWidth / devicePixelRatio;
+  final double height = physicalHeight / devicePixelRatio;
+
+  // 3. Find the shortest side of the device
+  final double shortestSide = width < height ? width : height;
+
+  // 4. Lock based on device type
+  if (shortestSide < 600) {
+    // 📱 IT IS A PHONE: Lock to Portrait (Vertical)
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+    ]);
+  } else {
+    // 💻 IT IS A TABLET/PC: Lock to Landscape (Horizontal)
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+  }
+  // ====================================================================
   
   // 1. Unlock the vault to get your keys
   await dotenv.load(fileName: ".env");
@@ -85,7 +118,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSwatch(brightness: Brightness.dark).copyWith(secondary: const Color(0xFF18FFFF)), // Cyan Accent
       ),
       
-      // 🚨 THE FIX: Set the Entry Point to the Splash Screen!
+      // 🚨 Set the Entry Point to the Splash Screen!
       home: const SplashScreen(), 
     );
   }

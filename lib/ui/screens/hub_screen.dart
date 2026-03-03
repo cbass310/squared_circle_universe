@@ -37,118 +37,99 @@ class _HubScreenState extends ConsumerState<HubScreen> {
   Widget build(BuildContext context) {
     final rosterState = ref.watch(rosterProvider);
     final bool hasSaveFile = rosterState.roster.isNotEmpty;
-    final bool isDesktop = MediaQuery.of(context).size.width > 800;
     
     final session = Supabase.instance.client.auth.currentSession;
     final user = session?.user;
     final bool isLoggedIn = user != null;
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          // 1. THE MAIN LAYOUT
-          isDesktop 
-            ? Row(children: [_buildMenuColumn(hasSaveFile, isDesktop, isLoggedIn, user), _buildHeroImage(true)])
-            : Stack(
-                children: [
-                  _buildHeroImage(false),
-                  Container(color: Colors.black.withOpacity(0.7)), 
-                  _buildMenuColumn(hasSaveFile, false, isLoggedIn, user),
-                ],
+    // 📱 LAYOUT BUILDER ADAPTS TO PHONE VS TABLET
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isDesktop = constraints.maxWidth > 800;
+
+        return Scaffold(
+          backgroundColor: Colors.black,
+          body: Stack(
+            children: [
+              // 1. DYNAMIC LAYOUT
+              isDesktop 
+                  ? Row(children: [_buildDesktopMenu(hasSaveFile, isLoggedIn, user), _buildHeroImage(true)])
+                  : _buildMobileLayout(hasSaveFile, isLoggedIn, user),
+                  
+              // 2. THE GLOBAL NETWORK PROFILE BUTTON
+              Positioned(
+                top: isDesktop ? 40 : 50, 
+                right: isDesktop ? 40 : 20,
+                child: const GlobalNetworkButton(), 
               ),
-              
-          // 2. THE NEW UNIVERSAL GLOBAL COMPONENT!
-          Positioned(
-            top: isDesktop ? 40 : 50, 
-            right: isDesktop ? 40 : 20,
-            child: const GlobalNetworkButton(), 
+            ],
           ),
-        ],
-      ),
+        );
+      }
     );
   }
 
   // ====================================================================
-  // WIDGET: THE MAIN MENU
+  // 📱 NEW MOBILE LAYOUT (Centered, Gradient Background, Scrollable)
   // ====================================================================
-  Widget _buildMenuColumn(bool hasSaveFile, bool isDesktop, bool isLoggedIn, User? user) {
-    final rosterState = ref.watch(rosterProvider);
+  Widget _buildMobileLayout(bool hasSaveFile, bool isLoggedIn, User? user) {
+    return Stack(
+      children: [
+        // Background Hero
+        Positioned.fill(
+          child: Image.asset(
+            "assets/images/imagepromoter.png",
+            fit: BoxFit.cover,
+            errorBuilder: (c, e, s) => Container(color: const Color(0xFF101010)),
+          ),
+        ),
+        // Shadow Gradient (Lighter at top, pitch black at bottom for readability)
+        Positioned.fill(
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.black.withOpacity(0.3), Colors.black.withOpacity(0.95)],
+                stops: const [0.0, 0.8],
+              ),
+            ),
+          ),
+        ),
+        // Centered Main Menu
+        SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: _buildMenuButtons(hasSaveFile, isLoggedIn, user, false),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
+  // ====================================================================
+  // 💻 DESKTOP/TABLET LAYOUT (Left Column)
+  // ====================================================================
+  Widget _buildDesktopMenu(bool hasSaveFile, bool isLoggedIn, User? user) {
     return Expanded(
-      flex: isDesktop ? 4 : 1, 
+      flex: 4, 
       child: Container(
-        decoration: BoxDecoration(
-          color: isDesktop ? Colors.black : Colors.transparent,
-          border: isDesktop ? const Border(right: BorderSide(color: Colors.white10)) : null,
+        decoration: const BoxDecoration(
+          color: Colors.black,
+          border: Border(right: BorderSide(color: Colors.white10)),
         ),
         child: Center(
           child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: isDesktop ? 32.0 : 24.0, vertical: 40.0),
+            padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 40.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SafeArea(
-                  child: Center(
-                    child: Image.asset(
-                      "assets/images/imagelogo.png", 
-                      height: isDesktop ? 120 : 100,
-                      fit: BoxFit.contain,
-                      errorBuilder: (c, e, s) => const Icon(Icons.sports_mma, size: 80, color: Colors.amber),
-                    ),
-                  ),
-                ),
-                SizedBox(height: isDesktop ? 50 : 30),
-
-                const Text("SELECT MODE", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
-                const SizedBox(height: 20),
-
-                // 1. PROMOTER MODE
-                _buildMenuButton(
-                  icon: Icons.business_center_rounded,
-                  title: "PROMOTER MODE",
-                  subtitle: hasSaveFile ? "Continue Year ${rosterState.titleHistory.isEmpty ? 1 : 'Current'}" : "Build your empire. Manage your roster.",
-                  baseColor: Colors.amber,
-                  onTap: () {
-                    _showCareerOptions(hasSaveFile);
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // 2. GLOBAL NETWORK
-                _buildMenuButton(
-                  icon: Icons.public,
-                  title: "GLOBAL NETWORK",
-                  subtitle: "Predict real-world PPVs & earn rewards.",
-                  baseColor: Colors.cyanAccent,
-                  onTap: () {
-                    if (isLoggedIn) {
-                      if (adminEmails.contains(user!.email)) {
-                        _showNetworkOptions(); 
-                      } else {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerPickSheetScreen(leagueId: 'global')));
-                      }
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Connect your profile in the top right to access the network!", style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.cyanAccent));
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // 3. GLOBAL LEADERBOARDS
-                _buildMenuButton(
-                  icon: Icons.leaderboard_rounded,
-                  title: "HALL OF FAME",
-                  subtitle: "See where you rank in the world.",
-                  baseColor: Colors.purpleAccent,
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LeaderboardScreen())),
-                ),
-
-                const SizedBox(height: 40),
-                const Center(child: Text("v1.0.0 RELEASE", style: TextStyle(color: Colors.white24, fontSize: 10, letterSpacing: 2.0))),
-                const SizedBox(height: 20),
-              ],
+              children: _buildMenuButtons(hasSaveFile, isLoggedIn, user, true),
             ),
           ),
         ),
@@ -157,11 +138,72 @@ class _HubScreenState extends ConsumerState<HubScreen> {
   }
 
   // ====================================================================
-  // WIDGET: RIGHT HERO IMAGE 
+  // 🛠 THE REUSABLE MENU ITEMS (Used by both Phone and Tablet)
+  // ====================================================================
+  List<Widget> _buildMenuButtons(bool hasSaveFile, bool isLoggedIn, User? user, bool isDesktop) {
+    final rosterState = ref.watch(rosterProvider);
+    return [
+      Image.asset(
+        "assets/images/imagelogo.png", 
+        height: isDesktop ? 120 : 100,
+        fit: BoxFit.contain,
+        errorBuilder: (c, e, s) => const Icon(Icons.sports_mma, size: 80, color: Colors.amber),
+      ),
+      SizedBox(height: isDesktop ? 50 : 30),
+
+      const Text("SELECT MODE", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+      const SizedBox(height: 20),
+
+      // 1. PROMOTER MODE
+      _buildMenuButton(
+        icon: Icons.business_center_rounded,
+        title: "PROMOTER MODE",
+        subtitle: hasSaveFile ? "Continue Year ${rosterState.titleHistory.isEmpty ? 1 : 'Current'}" : "Build your empire. Manage your roster.",
+        baseColor: Colors.amber,
+        onTap: () => _showCareerOptions(hasSaveFile),
+      ),
+      const SizedBox(height: 16),
+
+      // 2. GLOBAL NETWORK
+      _buildMenuButton(
+        icon: Icons.public,
+        title: "GLOBAL NETWORK",
+        subtitle: "Predict real-world PPVs & earn rewards.",
+        baseColor: Colors.cyanAccent,
+        onTap: () {
+          if (isLoggedIn) {
+            if (adminEmails.contains(user!.email)) {
+              _showNetworkOptions(); 
+            } else {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerPickSheetScreen(leagueId: 'global')));
+            }
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Connect your profile in the top right to access the network!", style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.cyanAccent));
+          }
+        },
+      ),
+      const SizedBox(height: 16),
+
+      // 3. GLOBAL LEADERBOARDS
+      _buildMenuButton(
+        icon: Icons.leaderboard_rounded,
+        title: "HALL OF FAME",
+        subtitle: "See where you rank in the world.",
+        baseColor: Colors.purpleAccent,
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LeaderboardScreen())),
+      ),
+
+      const SizedBox(height: 40),
+      const Center(child: Text("v1.0.0 RELEASE", style: TextStyle(color: Colors.white24, fontSize: 10, letterSpacing: 2.0))),
+    ];
+  }
+
+  // ====================================================================
+  // WIDGET: RIGHT HERO IMAGE (For Desktop/Tablet)
   // ====================================================================
   Widget _buildHeroImage(bool isDesktop) {
     return Expanded(
-      flex: isDesktop ? 6 : 1,
+      flex: 6,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -173,8 +215,8 @@ class _HubScreenState extends ConsumerState<HubScreen> {
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin: isDesktop ? Alignment.centerLeft : Alignment.topCenter,
-                end: isDesktop ? Alignment.centerRight : Alignment.bottomCenter,
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
                 colors: [Colors.black, Colors.black.withOpacity(0.4), Colors.transparent],
                 stops: const [0.0, 0.4, 1.0],
               ),
@@ -238,90 +280,83 @@ class _HubScreenState extends ConsumerState<HubScreen> {
   }
 
   // ====================================================================
-  // DIALOGS
+  // 📱 THE NEW BOTTOM SHEET ENGINE (Replaces Dialogs)
   // ====================================================================
+  void _openBottomSheet(BuildContext context, String title, List<Widget> children, Color accentColor) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [BoxShadow(color: Colors.black87, blurRadius: 15, spreadRadius: 5)],
+          ),
+          child: SafeArea( // Ensures it doesn't overlap the phone's home bar
+            child: Column(
+              mainAxisSize: MainAxisSize.min, // Shrinks to fit content perfectly
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.white12, width: 1))),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: accentColor, letterSpacing: 1.2)),
+                      IconButton(icon: const Icon(Icons.close, color: Colors.white54), onPressed: () => Navigator.pop(context)),
+                    ],
+                  ),
+                ),
+                // Buttons Layer
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(children: children),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   void _showNetworkOptions() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF202020),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("ADMIN CONTROL", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12.0),
-              child: _buildDialogButton("PLAY AS USER", Icons.sports_esports, Colors.cyanAccent, () {
-                Navigator.pop(ctx);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerPickSheetScreen(leagueId: 'global')));
-              }),
-            ),
-            _buildDialogButton("COMMISSIONER DESK", Icons.admin_panel_settings, Colors.purpleAccent, () {
-              Navigator.pop(ctx);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const CommissionerDashboardScreen(leagueId: 'global')));
-            }),
-          ],
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text("CANCEL", style: TextStyle(color: Colors.white.withOpacity(0.5))))],
-      ),
-    );
+    _openBottomSheet(context, "ADMIN CONTROL", [
+      _buildBottomSheetButton("PLAY AS USER", Icons.sports_esports, Colors.cyanAccent, () {
+        Navigator.pop(context);
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerPickSheetScreen(leagueId: 'global')));
+      }),
+      const SizedBox(height: 12),
+      _buildBottomSheetButton("COMMISSIONER DESK", Icons.admin_panel_settings, Colors.purpleAccent, () {
+        Navigator.pop(context);
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const CommissionerDashboardScreen(leagueId: 'global')));
+      }),
+    ], Colors.redAccent);
   }
 
   void _showCareerOptions(bool hasSaveFile) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF202020),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("CAREER OPTIONS", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (hasSaveFile) Padding(padding: const EdgeInsets.only(bottom: 12.0), child: _buildDialogButton("CONTINUE CAREER", Icons.play_arrow_rounded, Colors.greenAccent, () { Navigator.pop(ctx); Navigator.push(context, MaterialPageRoute(builder: (_) => const PromoterHomeScreen())); })),
-            if (hasSaveFile) Padding(padding: const EdgeInsets.only(bottom: 12.0), child: _buildDialogButton("VIEW ARCHIVES", Icons.history_rounded, Colors.amberAccent, () { Navigator.pop(ctx); Navigator.push(context, MaterialPageRoute(builder: (_) => const ShowHistoryScreen())); })),
-            Padding(padding: const EdgeInsets.only(bottom: 12.0), child: _buildDialogButton("NEW CAREER", Icons.add_circle_outline_rounded, Colors.blueAccent, () { Navigator.pop(ctx); _confirmNewGame(); })),
-            
-            // ☁️ NEW: THE COMMUNITY CLOUD MOD HUB
-            Padding(padding: const EdgeInsets.only(bottom: 12.0), child: _buildDialogButton("COMMUNITY MODS", Icons.cloud_download, Colors.cyanAccent, () { Navigator.pop(ctx); Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunityRostersScreen())); })),
-            
-            // 📂 ORIGINAL: LOCAL FILE IMPORT
-            _buildDialogButton("IMPORT LOCAL FILE", Icons.folder, Colors.purpleAccent, () async { Navigator.pop(ctx); final importer = RosterImporter(ref, context); await importer.pickAndImport(); }),
-          ],
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text("CANCEL", style: TextStyle(color: Colors.white.withOpacity(0.5))))],
-      ),
-    );
+    List<Widget> options = [];
+    
+    if (hasSaveFile) {
+      options.add(_buildBottomSheetButton("CONTINUE CAREER", Icons.play_arrow_rounded, Colors.greenAccent, () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const PromoterHomeScreen())); }));
+      options.add(const SizedBox(height: 12));
+      options.add(_buildBottomSheetButton("VIEW ARCHIVES", Icons.history_rounded, Colors.amberAccent, () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const ShowHistoryScreen())); }));
+      options.add(const SizedBox(height: 12));
+    }
+    
+    options.add(_buildBottomSheetButton("NEW CAREER", Icons.add_circle_outline_rounded, Colors.blueAccent, () { Navigator.pop(context); _confirmNewGame(); }));
+    options.add(const SizedBox(height: 12));
+    options.add(_buildBottomSheetButton("COMMUNITY MODS", Icons.cloud_download, Colors.cyanAccent, () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunityRostersScreen())); }));
+    options.add(const SizedBox(height: 12));
+    options.add(_buildBottomSheetButton("IMPORT LOCAL FILE", Icons.folder, Colors.purpleAccent, () async { Navigator.pop(context); final importer = RosterImporter(ref, context); await importer.pickAndImport(); }));
+
+    _openBottomSheet(context, "CAREER OPTIONS", options, Colors.white);
   }
 
-  void _confirmNewGame() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: const Text("Start New Career?", style: TextStyle(color: Colors.white)),
-        content: const Text("This will delete your current progress and generate a new roster.\n\nAre you sure?", style: TextStyle(color: Colors.white70)),
-        actions: [
-          TextButton(child: const Text("Cancel"), onPressed: () => Navigator.pop(ctx)),
-          TextButton(
-            child: const Text("START NEW GAME", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)), 
-            onPressed: () async { 
-              Navigator.pop(ctx); 
-              await ref.read(rosterProvider.notifier).factoryReset(); 
-              await ref.read(gameProvider.notifier).resetGame(); 
-              
-              if (context.mounted) { 
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const PromoterHomeScreen())); 
-              } 
-            }
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDialogButton(String text, IconData icon, Color baseColor, VoidCallback onTap) {
+  Widget _buildBottomSheetButton(String text, IconData icon, Color baseColor, VoidCallback onTap) {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
@@ -345,6 +380,33 @@ class _HubScreenState extends ConsumerState<HubScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // Destructive Action: Kept as standard Dialog to ensure user attention
+  void _confirmNewGame() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text("Start New Career?", style: TextStyle(color: Colors.white)),
+        content: const Text("This will delete your current progress and generate a new roster.\n\nAre you sure?", style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(child: const Text("Cancel"), onPressed: () => Navigator.pop(ctx)),
+          TextButton(
+            child: const Text("START NEW GAME", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)), 
+            onPressed: () async { 
+              Navigator.pop(ctx); 
+              await ref.read(rosterProvider.notifier).factoryReset(); 
+              await ref.read(gameProvider.notifier).resetGame(); 
+              
+              if (context.mounted) { 
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const PromoterHomeScreen())); 
+              } 
+            }
+          ),
+        ],
       ),
     );
   }
