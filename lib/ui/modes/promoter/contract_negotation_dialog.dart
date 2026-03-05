@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/wrestler.dart';
 import '../../../logic/promoter_provider.dart';
-// import '../../components/wrestler_avatar.dart'; // Uncomment this once your avatar file is ready!
+import '../../components/wrestler_avatar.dart'; 
 
 class ContractNegotiationDialog extends ConsumerStatefulWidget {
   final Wrestler wrestler;
@@ -36,6 +37,7 @@ class _ContractNegotiationDialogState extends ConsumerState<ContractNegotiationD
 
   // --- THE AI NEGOTIATION ALGORITHM ---
   void _submitOffer() {
+    HapticFeedback.mediumImpact();
     final rosterState = ref.read(rosterProvider);
     
     // 1. Budget Check
@@ -100,9 +102,6 @@ class _ContractNegotiationDialogState extends ConsumerState<ContractNegotiationD
 
     // Send to Database
     ref.read(rosterProvider.notifier).hireWrestler(w);
-
-    // Deduct the upfront bonus from the player's bank account
-    // (Note: To make this work, we will add a tiny spendCash function to your provider next!)
     
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) Navigator.pop(context);
@@ -118,149 +117,222 @@ class _ContractNegotiationDialogState extends ConsumerState<ContractNegotiationD
     if (widget.wrestler.greed > 75) trait = "Mercenary (Follows the money)";
     if (widget.wrestler.loyalty > 75) trait = "Company Man (Values stability)";
 
+    final bool isDesktop = MediaQuery.of(context).size.width > 800;
+
     return Dialog(
       backgroundColor: const Color(0xFF1E1E1E),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Colors.white10, width: 2),
+      ),
       child: Container(
-        width: 800, // Wide layout for tablet/landscape
-        height: 500,
+        width: isDesktop ? 800 : MediaQuery.of(context).size.width * 0.95, 
+        height: isDesktop ? 500 : MediaQuery.of(context).size.height * 0.85,
         padding: const EdgeInsets.all(20),
+        child: isDesktop 
+          // 💻 PC LAYOUT: Side-by-side
+          ? Row(
+              children: [
+                Expanded(flex: 3, child: _buildDossier(trait, isDesktop: true)),
+                const SizedBox(width: 20),
+                Expanded(flex: 5, child: _buildSandbox(rosterState, isDesktop: true)),
+              ],
+            )
+          // 📱 MOBILE LAYOUT: Vertical Stack
+          : Column(
+              children: [
+                _buildDossier(trait, isDesktop: false),
+                const SizedBox(height: 16),
+                Expanded(child: _buildSandbox(rosterState, isDesktop: false)),
+              ],
+            ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // ZONE 1: THE DOSSIER (Responsive)
+  // ==========================================
+  Widget _buildDossier(String trait, {required bool isDesktop}) {
+    if (isDesktop) {
+      // 💻 PC DOSSIER: Vertical Profile Card
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(padding: const EdgeInsets.all(4), decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.amber, width: 2)), child: WrestlerAvatar(wrestler: widget.wrestler, size: 100)),
+            const SizedBox(height: 15),
+            Text(widget.wrestler.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            Text("Pop: ${widget.wrestler.pop}  |  Skill: ${widget.wrestler.ringSkill}", style: const TextStyle(color: Colors.amber, fontSize: 14, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            const Divider(color: Colors.white24),
+            const SizedBox(height: 10),
+            const Text("SCOUTING REPORT", style: TextStyle(color: Colors.grey, fontSize: 10, letterSpacing: 1.5, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 5),
+            Text("Personality: $trait", style: const TextStyle(color: Colors.white70, fontSize: 14, fontStyle: FontStyle.italic), textAlign: TextAlign.center),
+            if (widget.wrestler.isHoldingOut) ...[
+              const SizedBox(height: 20),
+              Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.red.withOpacity(0.2), borderRadius: BorderRadius.circular(8)), child: const Text("CURRENTLY HOLDING OUT", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 12))),
+            ]
+          ],
+        ),
+      );
+    } else {
+      // 📱 MOBILE DOSSIER: Compact Horizontal Header
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
         child: Row(
           children: [
-            // ==========================================
-            // ZONE 1: THE DOSSIER (Left Panel)
-            // ==========================================
+            Container(padding: const EdgeInsets.all(2), decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.amber, width: 2)), child: WrestlerAvatar(wrestler: widget.wrestler, size: 60)),
+            const SizedBox(width: 16),
             Expanded(
-              flex: 3,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.black45,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white10),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Placeholder for your WrestlerAvatar
-                    const CircleAvatar(radius: 50, backgroundColor: Colors.grey, child: Icon(Icons.person, size: 50, color: Colors.white)),
-                    const SizedBox(height: 15),
-                    Text(widget.wrestler.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                    Text("Pop: ${widget.wrestler.pop}  |  Skill: ${widget.wrestler.ringSkill}", style: const TextStyle(color: Colors.amber, fontSize: 14)),
-                    const SizedBox(height: 20),
-                    const Divider(color: Colors.white24),
-                    const SizedBox(height: 10),
-                    const Text("SCOUTING REPORT", style: TextStyle(color: Colors.grey, fontSize: 10, letterSpacing: 1.5)),
-                    const SizedBox(height: 5),
-                    Text("Personality: $trait", style: const TextStyle(color: Colors.white70, fontSize: 14), textAlign: TextAlign.center),
-                    if (widget.wrestler.isHoldingOut) ...[
-                      const SizedBox(height: 20),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: Colors.red.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                        child: const Text("CURRENTLY HOLDING OUT", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 12)),
-                      )
-                    ]
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 20),
-
-            // ==========================================
-            // ZONE 2 & 3: THE SANDBOX & FEEDBACK
-            // ==========================================
-            Expanded(
-              flex: 5,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text("CONTRACT NEGOTIATION", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                      Text("Budget: \$${rosterState.bankAccount}", style: const TextStyle(color: Colors.greenAccent, fontSize: 16, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Slider 1: Upfront Bonus
-                  Text("Upfront Signing Bonus: \$${_offeredBonus.toInt()}", style: const TextStyle(color: Colors.white70)),
-                  Slider(
-                    value: _offeredBonus,
-                    min: 0,
-                    max: 100000,
-                    divisions: 100,
-                    activeColor: Colors.green,
-                    onChanged: _isNegotiating ? (val) => setState(() => _offeredBonus = val) : null,
-                  ),
-
-                  // Slider 2: Weekly Salary
-                  Text("Weekly Appearance Pay: \$${_offeredSalary.toInt()}", style: const TextStyle(color: Colors.white70)),
-                  Slider(
-                    value: _offeredSalary,
-                    min: 500,
-                    max: 20000,
-                    divisions: 195,
-                    activeColor: Colors.blueAccent,
-                    onChanged: _isNegotiating ? (val) => setState(() => _offeredSalary = val) : null,
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // Term Length Stepper
-                  Row(
-                    children: [
-                      const Text("Duration (Weeks): ", style: TextStyle(color: Colors.white70)),
-                      IconButton(
-                        icon: const Icon(Icons.remove_circle_outline, color: Colors.amber),
-                        onPressed: (_isNegotiating && _offeredWeeks > 4) ? () => setState(() => _offeredWeeks -= 4) : null,
-                      ),
-                      Text("$_offeredWeeks", style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                      IconButton(
-                        icon: const Icon(Icons.add_circle_outline, color: Colors.amber),
-                        onPressed: (_isNegotiating && _offeredWeeks < 52) ? () => setState(() => _offeredWeeks += 4) : null,
-                      ),
-                    ],
-                  ),
-
-                  // Creative Control Toggle
-                  SwitchListTile(
-                    title: const Text("Creative Control (Veto Power)", style: TextStyle(color: Colors.white)),
-                    subtitle: const Text("Lowers asking price by 15%, but wrestler cannot be booked to lose.", style: TextStyle(color: Colors.grey, fontSize: 10)),
-                    value: _creativeControl,
-                    activeColor: Colors.purpleAccent,
-                    onChanged: _isNegotiating ? (val) => setState(() => _creativeControl = val) : null,
-                  ),
-
-                  const Spacer(),
-
-                  // Feedback Engine
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: _feedbackColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: _feedbackColor)),
-                    child: Text(_aiFeedback, style: TextStyle(color: _feedbackColor, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                  ),
-
-                  const SizedBox(height: 15),
-
-                  // Action Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.amber[700]),
-                      onPressed: _isNegotiating ? _submitOffer : null,
-                      child: const Text("SUBMIT OFFER", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1.5)),
-                    ),
-                  ),
+                  Text(widget.wrestler.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.0), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 4),
+                  Text("POP: ${widget.wrestler.pop}  |  RING: ${widget.wrestler.ringSkill}", style: const TextStyle(color: Colors.amber, fontSize: 11, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text("Trait: $trait", style: const TextStyle(color: Colors.white54, fontSize: 10, fontStyle: FontStyle.italic), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  if (widget.wrestler.isHoldingOut) Padding(padding: const EdgeInsets.only(top: 4), child: const Text("⚠ HOLDING OUT", style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold))),
                 ],
               ),
             ),
           ],
         ),
-      ),
+      );
+    }
+  }
+
+  // ==========================================
+  // ZONE 2 & 3: THE SANDBOX & FEEDBACK
+  // ==========================================
+  Widget _buildSandbox(dynamic rosterState, {required bool isDesktop}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text("NEGOTIATION", style: TextStyle(color: Colors.white, fontSize: isDesktop ? 20 : 16, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+            Text("Budget: \$${rosterState.bankAccount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}", style: const TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        const Padding(padding: EdgeInsets.symmetric(vertical: 8.0), child: Divider(color: Colors.white24)),
+        
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Slider 1: Upfront Bonus
+                Text("Upfront Signing Bonus: \$${_offeredBonus.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                Slider(
+                  value: _offeredBonus,
+                  min: 0,
+                  max: 100000,
+                  divisions: 100,
+                  activeColor: Colors.green,
+                  onChanged: _isNegotiating ? (val) => setState(() => _offeredBonus = val) : null,
+                ),
+                const SizedBox(height: 10),
+
+                // Slider 2: Weekly Salary
+                Text("Weekly Appearance Pay: \$${_offeredSalary.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                Slider(
+                  value: _offeredSalary,
+                  min: 500,
+                  max: 20000,
+                  divisions: 195,
+                  activeColor: Colors.blueAccent,
+                  onChanged: _isNegotiating ? (val) => setState(() => _offeredSalary = val) : null,
+                ),
+                const SizedBox(height: 10),
+
+                // Term Length Stepper
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(8)),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("Duration (Weeks)", style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 12)),
+                      Row(
+                        children: [
+                          IconButton(icon: const Icon(Icons.remove_circle_outline, color: Colors.amber), onPressed: (_isNegotiating && _offeredWeeks > 4) ? () { HapticFeedback.selectionClick(); setState(() => _offeredWeeks -= 4); } : null),
+                          SizedBox(width: 30, child: Text("$_offeredWeeks", textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900))),
+                          IconButton(icon: const Icon(Icons.add_circle_outline, color: Colors.amber), onPressed: (_isNegotiating && _offeredWeeks < 52) ? () { HapticFeedback.selectionClick(); setState(() => _offeredWeeks += 4); } : null),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Creative Control Toggle
+                Container(
+                  decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(8), border: Border.all(color: _creativeControl ? Colors.purpleAccent : Colors.transparent)),
+                  child: SwitchListTile(
+                    title: const Text("Creative Control (Veto Power)", style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                    subtitle: const Text("Lowers asking price by 15%, but wrestler cannot be booked to lose.", style: TextStyle(color: Colors.white54, fontSize: 10)),
+                    value: _creativeControl,
+                    activeColor: Colors.black,
+                    activeTrackColor: Colors.purpleAccent,
+                    onChanged: _isNegotiating ? (val) { HapticFeedback.selectionClick(); setState(() => _creativeControl = val); } : null,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Feedback Engine
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: _feedbackColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: _feedbackColor, width: 2)),
+          child: Text(_aiFeedback, style: TextStyle(color: _feedbackColor, fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.center),
+        ),
+
+        const SizedBox(height: 16),
+
+        // Action Buttons
+        Row(
+          children: [
+            if (!isDesktop) ...[
+              Expanded(
+                flex: 1,
+                child: SizedBox(
+                  height: 50,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white24), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("CANCEL", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+            ],
+            Expanded(
+              flex: 2,
+              child: SizedBox(
+                height: 50,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.amber[700], shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                  onPressed: _isNegotiating ? _submitOffer : null,
+                  child: const Text("SUBMIT OFFER", style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1.5)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

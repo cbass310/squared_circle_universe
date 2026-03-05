@@ -16,7 +16,6 @@ class _VenueScreenState extends ConsumerState<VenueScreen> {
   @override
   void initState() {
     super.initState();
-    // Default to currently owned venue on load
     WidgetsBinding.instance.addPostFrameCallback((_) {
       setState(() {
         _selectedVenueLevel = ref.read(gameProvider).venueLevel;
@@ -28,80 +27,198 @@ class _VenueScreenState extends ConsumerState<VenueScreen> {
   Widget build(BuildContext context) {
     final gameState = ref.watch(gameProvider);
     final notifier = ref.read(gameProvider.notifier);
-    final bool isDesktop = MediaQuery.of(context).size.width > 800;
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: isDesktop
-            ? Row(
-                children: [
-                  Expanded(flex: 4, child: _buildLeftListColumn(gameState, isDesktop)),
-                  Expanded(flex: 6, child: _buildRightDetailPane(gameState, notifier)),
-                ],
-              )
-            // On mobile, just stack the selected venue right on top of the list
-            : Column(
-                children: [
-                  _buildMobileHeader(),
-                  Expanded(flex: 1, child: _buildRightDetailPane(gameState, notifier)),
-                  Expanded(flex: 1, child: _buildLeftListColumn(gameState, false)),
-                ],
-              ),
-      ),
-    );
-  }
+    // --- VENUE DATA EXTRACTION ---
+    String name; String cap; String cost; String desc; String img; int rent;
+    switch (_selectedVenueLevel) {
+      case 4: 
+        name = gameState.venueCustomNames[3]; cap = "60,000 Fans"; cost = "\$1,000,000"; rent = 250000;
+        desc = "The grandest stage of them all. Legends are made here. Unlocks maximum TV and Sponsorship potential."; 
+        img = "assets/images/venue_stadium.png"; break;
+      case 3: 
+        name = gameState.venueCustomNames[2]; cap = "15,000 Fans"; cost = "\$250,000"; rent = 50000;
+        desc = "A massive televised arena with luxury boxes and pyrotechnics. Capable of hosting major PPV events."; 
+        img = "assets/images/venue_arena.png"; break;
+      case 2: 
+        name = gameState.venueCustomNames[1]; cap = "2,500 Fans"; cost = "\$25,000"; rent = 5000;
+        desc = "A respectable local hall with proper lighting and seating. The first step out of the indies."; 
+        img = "assets/images/venue_civic.png"; break;
+      case 1: 
+      default: 
+        name = gameState.venueCustomNames[0]; cap = "500 Fans"; cost = "FREE"; rent = 500;
+        desc = "A sweaty, gritty gym. It smells like hard work. Maximum capacity is strictly enforced by the fire marshal."; 
+        img = "assets/images/venue_gym.png"; break;
+    }
 
-  Widget _buildMobileHeader() {
-    return Container(
-      color: const Color(0xFF121212),
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20),
-            onPressed: () => Navigator.pop(context),
-          ),
-          const SizedBox(width: 8),
-          const Text("REAL ESTATE", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-        ],
-      ),
-    );
-  }
+    bool isCurrent = _selectedVenueLevel == gameState.venueLevel;
+    bool isNext = _selectedVenueLevel == gameState.venueLevel + 1;
+    bool isLocked = _selectedVenueLevel > gameState.venueLevel + 1;
 
-  // ----------------------------------------------------------------
-  // LEFT COLUMN: List of available venues
-  // ----------------------------------------------------------------
-  Widget _buildLeftListColumn(GameState gameState, bool isDesktop) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF121212),
-        border: isDesktop ? const Border(right: BorderSide(color: Colors.white10, width: 2)) : const Border(top: BorderSide(color: Colors.white10, width: 2)),
-      ),
-      child: Column(
-        children: [
-          if (isDesktop)
-            Padding(
-              padding: const EdgeInsets.all(16.0),
+    // 🚨 SMART LAYOUT BUILDER 🚨
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isDesktop = constraints.maxWidth > 800;
+
+        if (isDesktop) {
+          // 💻 PC LAYOUT (Wide Side-by-Side)
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: SafeArea(
               child: Row(
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text("REAL ESTATE", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                  Expanded(flex: 4, child: _buildDesktopListColumn(gameState)),
+                  Expanded(flex: 6, child: _buildDesktopDetailPane(name, cap, cost, desc, img, rent, isCurrent, isNext, isLocked, notifier)),
                 ],
               ),
             ),
-          
+          );
+        } else {
+          // 📱 MOBILE LAYOUT (40/60 Vertical Split)
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: Column(
+              children: [
+                // TOP 40%: The Cinematic Viewport
+                Expanded(
+                  flex: 4,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      ColorFiltered(
+                        colorFilter: isLocked ? const ColorFilter.mode(Colors.black87, BlendMode.saturation) : const ColorFilter.mode(Colors.transparent, BlendMode.multiply),
+                        child: Image.asset(img, fit: BoxFit.cover, errorBuilder: (c, o, s) => Container(color: Colors.grey[900])),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.black.withOpacity(0.5), Colors.transparent, Colors.black],
+                            stops: const [0.0, 0.4, 1.0],
+                          ),
+                        ),
+                      ),
+                      SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20),
+                                    onPressed: () => Navigator.pop(context),
+                                    padding: EdgeInsets.zero,
+                                    alignment: Alignment.centerLeft,
+                                  ),
+                                  const Text("REAL ESTATE", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+                                ],
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(color: Colors.amber.withOpacity(0.2), borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.amber)),
+                                        child: Text("TIER $_selectedVenueLevel", style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 10)),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      if (isCurrent) 
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(color: Colors.greenAccent.withOpacity(0.2), borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.greenAccent)),
+                                          child: const Text("CURRENT HQ", style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 10)),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1.5, height: 1.1)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // BOTTOM 60%: The Scrollable Dashboard
+                Expanded(
+                  flex: 6,
+                  child: Container(
+                    color: Colors.black,
+                    width: double.infinity,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(child: _buildStatBadge(Icons.groups_rounded, "CAPACITY", cap, Colors.amber)),
+                              const SizedBox(width: 12),
+                              Expanded(child: _buildStatBadge(Icons.receipt_long_rounded, "WEEKLY RENT", "\$${rent.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}", Colors.redAccent)),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(desc, style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.5, fontStyle: FontStyle.italic)),
+                          const SizedBox(height: 24),
+                          
+                          _buildActionButton(isNext, isLocked, isCurrent, cost, notifier),
+                          
+                          const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Divider(color: Colors.white10, thickness: 1)),
+                          const Text("AVAILABLE PROPERTIES", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                          const SizedBox(height: 16),
+
+                          _buildListTile(1, gameState.venueCustomNames[0], "500 Fans", "assets/images/venue_gym.png", gameState.venueLevel),
+                          _buildListTile(2, gameState.venueCustomNames[1], "2,500 Fans", "assets/images/venue_civic.png", gameState.venueLevel),
+                          _buildListTile(3, gameState.venueCustomNames[2], "15,000 Fans", "assets/images/venue_arena.png", gameState.venueLevel),
+                          _buildListTile(4, gameState.venueCustomNames[3], "60,000 Fans", "assets/images/venue_stadium.png", gameState.venueLevel),
+                          const SizedBox(height: 40),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+      }
+    );
+  }
+
+  // =====================================================================
+  // --- 💻 DESKTOP SPECIFIC WIDGETS
+  // =====================================================================
+  Widget _buildDesktopListColumn(GameState gameState) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF121212),
+        border: Border(right: BorderSide(color: Colors.white10, width: 2)),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Row(
+              children: [
+                IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20), onPressed: () => Navigator.pop(context)),
+                const SizedBox(width: 8),
+                const Text("REAL ESTATE", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+              ],
+            ),
+          ),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
             decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.white10))),
             child: const Text("AVAILABLE PROPERTIES", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, letterSpacing: 1.5, fontSize: 12)),
           ),
-
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(16),
@@ -118,6 +235,74 @@ class _VenueScreenState extends ConsumerState<VenueScreen> {
     );
   }
 
+  Widget _buildDesktopDetailPane(String name, String cap, String cost, String desc, String img, int rent, bool isCurrent, bool isNext, bool isLocked, GameNotifier notifier) {
+    return Container(
+      color: Colors.black,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Align(
+            alignment: Alignment.topCenter,
+            child: SizedBox(
+              height: MediaQuery.of(context).size.height * 0.6,
+              width: double.infinity,
+              child: ColorFiltered(
+                colorFilter: isLocked ? const ColorFilter.mode(Colors.black87, BlendMode.saturation) : const ColorFilter.mode(Colors.transparent, BlendMode.multiply),
+                child: Image.asset(img, fit: BoxFit.cover, errorBuilder: (c, o, s) => Container(color: Colors.grey[900])),
+              ),
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.black.withOpacity(0.2), Colors.black.withOpacity(0.8), Colors.black],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: const [0.0, 0.4, 0.7],
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: Padding(
+              padding: const EdgeInsets.all(40.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.white24)), child: Text("TIER $_selectedVenueLevel", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12))),
+                      const SizedBox(width: 12),
+                      if (isCurrent) Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: Colors.greenAccent.withOpacity(0.2), borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.greenAccent)), child: const Text("CURRENT HQ", style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 12))),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w900, letterSpacing: 1.5, height: 1.1)),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      _buildStatBadge(Icons.groups_rounded, "CAPACITY", cap, Colors.amber),
+                      const SizedBox(width: 20),
+                      _buildStatBadge(Icons.receipt_long_rounded, "WEEKLY RENT", "\$${rent.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}", Colors.redAccent),
+                    ],
+                  ),
+                  const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Divider(color: Colors.white24, thickness: 1)),
+                  Text(desc, style: const TextStyle(color: Colors.white70, fontSize: 16, height: 1.5, fontStyle: FontStyle.italic)),
+                  const SizedBox(height: 40),
+                  _buildActionButton(isNext, isLocked, isCurrent, cost, notifier),
+                ],
+              ),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  // =====================================================================
+  // --- 🛠️ HELPER WIDGETS
+  // =====================================================================
   Widget _buildListTile(int level, String name, String capacity, String imagePath, int currentLevel) {
     bool isSelected = _selectedVenueLevel == level;
     bool isOwned = level <= currentLevel;
@@ -151,7 +336,7 @@ class _VenueScreenState extends ConsumerState<VenueScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(name.toUpperCase(), style: TextStyle(color: isLocked ? Colors.white54 : Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text(name.toUpperCase(), style: TextStyle(color: isLocked ? Colors.white54 : Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 4),
                   Text(isLocked ? "LOCKED" : capacity, style: TextStyle(color: isOwned ? Colors.greenAccent : Colors.amber, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
                 ],
@@ -167,151 +352,59 @@ class _VenueScreenState extends ConsumerState<VenueScreen> {
     );
   }
 
-  // ----------------------------------------------------------------
-  // RIGHT COLUMN: The Immersive Detail Pane
-  // ----------------------------------------------------------------
-  Widget _buildRightDetailPane(GameState gameState, GameNotifier notifier) {
-    String name; String cap; String cost; String desc; String img; int rent;
-    switch (_selectedVenueLevel) {
-      case 4: 
-        name = gameState.venueCustomNames[3]; cap = "60,000 Fans"; cost = "\$1,000,000"; rent = 250000;
-        desc = "The grandest stage of them all. Legends are made here. Unlocks maximum TV and Sponsorship potential."; 
-        img = "assets/images/venue_stadium.png"; break;
-      case 3: 
-        name = gameState.venueCustomNames[2]; cap = "15,000 Fans"; cost = "\$250,000"; rent = 50000;
-        desc = "A massive televised arena with luxury boxes and pyrotechnics. Capable of hosting major PPV events."; 
-        img = "assets/images/venue_arena.png"; break;
-      case 2: 
-        name = gameState.venueCustomNames[1]; cap = "2,500 Fans"; cost = "\$25,000"; rent = 5000;
-        desc = "A respectable local hall with proper lighting and seating. The first step out of the indies."; 
-        img = "assets/images/venue_civic.png"; break;
-      case 1: 
-      default: 
-        name = gameState.venueCustomNames[0]; cap = "500 Fans"; cost = "FREE"; rent = 500;
-        desc = "A sweaty, gritty gym. It smells like hard work. Maximum capacity is strictly enforced by the fire marshal."; 
-        img = "assets/images/venue_gym.png"; break;
-    }
-
-    bool isCurrent = _selectedVenueLevel == gameState.venueLevel;
-    bool isNext = _selectedVenueLevel == gameState.venueLevel + 1;
-    bool isLocked = _selectedVenueLevel > gameState.venueLevel + 1;
-
+  Widget _buildStatBadge(IconData icon, String label, String value, Color color) {
     return Container(
-      color: Colors.black,
-      child: Stack(
-        fit: StackFit.expand,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(8), border: Border.all(color: color.withOpacity(0.3))),
+      child: Row(
         children: [
-          // THE MASSIVE BACKGROUND IMAGE
-          Align(
-            alignment: Alignment.topCenter,
-            child: SizedBox(
-              height: MediaQuery.of(context).size.height * 0.6,
-              width: double.infinity,
-              child: ColorFiltered(
-                colorFilter: isLocked ? const ColorFilter.mode(Colors.black87, BlendMode.saturation) : const ColorFilter.mode(Colors.transparent, BlendMode.multiply),
-                child: Image.asset(img, fit: BoxFit.cover, errorBuilder: (c, o, s) => Container(color: Colors.grey[900])),
-              ),
-            ),
-          ),
-          
-          // THE FADE GRADIENT
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.black.withOpacity(0.2), Colors.black.withOpacity(0.8), Colors.black],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                stops: const [0.0, 0.4, 0.7],
-              ),
-            ),
-          ),
-
-          // THE CONTENT
-          Positioned(
-            bottom: 0, left: 0, right: 0,
-            child: Padding(
-              padding: const EdgeInsets.all(40.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.white24)), child: Text("TIER $_selectedVenueLevel", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12))),
-                      const SizedBox(width: 12),
-                      if (isCurrent) Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: Colors.greenAccent.withOpacity(0.2), borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.greenAccent)), child: const Text("CURRENT HQ", style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 12))),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w900, letterSpacing: 1.5, height: 1.1)),
-                  const SizedBox(height: 16),
-                  
-                  // STATS ROW
-                  Row(
-                    children: [
-                      _buildStatBadge(Icons.groups_rounded, "CAPACITY", cap, Colors.amber),
-                      const SizedBox(width: 20),
-                      _buildStatBadge(Icons.receipt_long_rounded, "WEEKLY RENT", "\$${rent.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}", Colors.redAccent),
-                    ],
-                  ),
-                  
-                  const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Divider(color: Colors.white24, thickness: 1)),
-                  Text(desc, style: const TextStyle(color: Colors.white70, fontSize: 16, height: 1.5, fontStyle: FontStyle.italic)),
-                  const SizedBox(height: 40),
-
-                  // CALL TO ACTION BUTTON
-                  if (isNext)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 20), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                        icon: const Icon(Icons.shopping_cart),
-                        label: Text("PURCHASE DEED ($cost)", style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1.0)),
-                        onPressed: () {
-                          bool success = notifier.purchaseVenueUpgrade();
-                          if (success) {
-                            ref.read(soundProvider).playSound("bell.mp3"); 
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("UPGRADE SUCCESSFUL! WELCOME TO THE BIG LEAGUES!"), backgroundColor: Colors.green));
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("NOT ENOUGH CASH IN THE TREASURY!"), backgroundColor: Colors.red));
-                          }
-                        },
-                      ),
-                    )
-                  else if (isLocked)
-                    Container(
-                      width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 20), alignment: Alignment.center,
-                      decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.white24)),
-                      child: const Text("LOCKED - UPGRADE PREVIOUS TIER FIRST", style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-                    )
-                  else if (isCurrent)
-                    Container(
-                      width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 20), alignment: Alignment.center,
-                      decoration: BoxDecoration(color: Colors.greenAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.greenAccent)),
-                      child: const Text("PROPERTY OWNED & ACTIVE", style: TextStyle(color: Colors.greenAccent, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-                    )
-                ],
-              ),
-            ),
+          Icon(icon, color: color, size: 24),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 2),
+              Text(value, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w900)),
+            ],
           )
         ],
       ),
     );
   }
 
-  Widget _buildStatBadge(IconData icon, String label, String value, Color color) {
-    return Row(
-      children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(width: 8),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
-            Text(value, style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.w900)),
-          ],
-        )
-      ],
-    );
+  Widget _buildActionButton(bool isNext, bool isLocked, bool isCurrent, String cost, GameNotifier notifier) {
+    if (isNext) {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 18), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+          icon: const Icon(Icons.shopping_cart),
+          label: Text("PURCHASE DEED ($cost)", style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1.0)),
+          onPressed: () {
+            bool success = notifier.purchaseVenueUpgrade();
+            if (success) {
+              ref.read(soundProvider).playSound("bell.mp3"); 
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("UPGRADE SUCCESSFUL! WELCOME TO THE BIG LEAGUES!"), backgroundColor: Colors.green));
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("NOT ENOUGH CASH IN THE TREASURY!"), backgroundColor: Colors.red));
+            }
+          },
+        ),
+      );
+    } else if (isLocked) {
+      return Container(
+        width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 18), alignment: Alignment.center,
+        decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.white24)),
+        child: const Text("LOCKED - UPGRADE PREVIOUS TIER FIRST", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+      );
+    } else if (isCurrent) {
+      return Container(
+        width: double.infinity, padding: const EdgeInsets.symmetric(vertical: 18), alignment: Alignment.center,
+        decoration: BoxDecoration(color: Colors.greenAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.greenAccent)),
+        child: const Text("PROPERTY OWNED & ACTIVE", style: TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+      );
+    }
+    return const SizedBox.shrink();
   }
 }

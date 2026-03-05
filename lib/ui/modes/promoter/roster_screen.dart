@@ -126,34 +126,137 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
     _clearSelection();
     
     if (mounted) {
-      if (MediaQuery.of(context).size.width <= 800) Navigator.pop(context); // Close sheet on mobile
+      if (MediaQuery.of(context).size.width <= 600) Navigator.pop(context); // Close sheet on mobile
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("SIGNED ${w.name.toUpperCase()}!", style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black)), backgroundColor: Colors.greenAccent));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool isDesktop = MediaQuery.of(context).size.width > 800;
+    // 🚨 SMART LAYOUT BUILDER 🚨
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isDesktop = constraints.maxWidth > 600;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF121212),
-      appBar: AppBar(
-        title: const Text("ROSTER MANAGEMENT", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.white)),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: isDesktop
-          ? Row(
+        if (isDesktop) {
+          // 💻 PC LAYOUT (Wide Side-by-Side)
+          return Scaffold(
+            backgroundColor: const Color(0xFF121212),
+            appBar: AppBar(
+              title: const Text("ROSTER MANAGEMENT", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.white)),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber), onPressed: () => Navigator.pop(context)),
+            ),
+            body: Row(
               children: [
                 Expanded(flex: 4, child: _buildLeftListPanel(isDesktop)),
                 Expanded(flex: 6, child: _buildRightDetailPanelContent()), 
               ],
-            )
-          : _buildLeftListPanel(isDesktop), 
+            ),
+          );
+        } else {
+          // 📱 MOBILE LAYOUT (40/60 Vertical Split)
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: Column(
+              children: [
+                // 🛠️ THE FIX: Top 40% Image NOW INCLUDES THE HEADER TITLE
+                Expanded(
+                  flex: 4,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.asset(
+                        "assets/images/locker_room.png", 
+                        fit: BoxFit.cover,
+                        errorBuilder: (c, e, s) => Container(color: const Color(0xFF151515)),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.black.withOpacity(0.4), Colors.black],
+                            stops: const [0.5, 1.0],
+                          ),
+                        ),
+                      ),
+                      SafeArea(
+                        child: Align(
+                          alignment: Alignment.topLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Row(
+                              children: [
+                                IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20), onPressed: () => Navigator.pop(context)),
+                                const Text("LOCKER ROOM", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      // HERO PROFILE OVERLAY (Only shows if someone is selected)
+                      if (_selectedWrestler != null)
+                        _buildMobileHeroOverlay(),
+                    ],
+                  ),
+                ),
+                // 🛠️ THE FIX: Bottom 60% Dashboard is completely free of the header!
+                Expanded(
+                  flex: 6,
+                  child: Container(
+                    color: Colors.black,
+                    width: double.infinity,
+                    child: _buildLeftListPanel(isDesktop),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+      }
+    );
+  }
+
+  // ====================================================================
+  // 📱 MOBILE SPECIFIC: HERO OVERLAY
+  // ====================================================================
+  Widget _buildMobileHeroOverlay() {
+    final w = _selectedWrestler!;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.amber, width: 2), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 8)]),
+                  child: _buildAvatar(w, 80),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(w.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                      const SizedBox(height: 4),
+                      Text("${w.style.name.toUpperCase()} • ${w.isHeel ? 'HEEL' : 'FACE'}", style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold)),
+                      if (w.isHoldingOut) const Padding(padding: EdgeInsets.only(top: 4.0), child: Text("⚠ HOLDING OUT", style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold))),
+                      if (w.isInjured) Padding(padding: const EdgeInsets.only(top: 4.0), child: Text("🚑 INJURED: ${w.injuryWeeks} WKS", style: const TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold))),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -165,7 +268,7 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF121212),
+        color: isDesktop ? const Color(0xFF121212) : Colors.black,
         border: isDesktop ? const Border(right: BorderSide(color: Colors.white10, width: 2)) : null,
       ),
       child: Column(
@@ -185,10 +288,10 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
             child: _selectedTabIndex == 0 
                 ? _buildListView(rosterState.roster, rosterState.isLoading, isDesktop)
                 : _selectedTabIndex == 1 
-                    ? _buildListView(rosterState.injuredReserve, rosterState.isLoading, isDesktop)
-                    : _selectedTabIndex == 2
-                        ? _buildListView(rosterState.freeAgents, rosterState.isLoading, isDesktop)
-                        : _buildListView(_rivalRoster, _isLoadingRivals, isDesktop),
+                  ? _buildListView(rosterState.injuredReserve, rosterState.isLoading, isDesktop)
+                  : _selectedTabIndex == 2
+                    ? _buildListView(rosterState.freeAgents, rosterState.isLoading, isDesktop)
+                    : _buildListView(_rivalRoster, _isLoadingRivals, isDesktop),
           ),
         ],
       ),
@@ -325,7 +428,7 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
   // RIGHT PANEL (60%): THE LOCKER ROOM DETAILS & ATTRIBUTES
   // ----------------------------------------------------------------
   Widget _buildRightDetailPanelContent() {
-    final bool isDesktop = MediaQuery.of(context).size.width > 800;
+    final bool isDesktop = MediaQuery.of(context).size.width > 600;
 
     if (_selectedWrestler == null) {
       return const Center(
@@ -356,41 +459,43 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- 1. HERO PROFILE CARD ---
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.amber, width: 2)),
-                  child: _buildAvatar(w, 100),
-                ),
-                const SizedBox(width: 24),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(w.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
-                      const SizedBox(height: 4),
-                      Text("${w.style.name.toUpperCase()} • ${w.isHeel ? 'HEEL' : 'FACE'} • ${w.cardPosition.toUpperCase()}", style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 12),
-                      
-                      // 📢 DYNAMIC WARNING LABELS
-                      if (w.isHoldingOut) const Text("⚠ HOLDING OUT (Morale Critical)", style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
-                      if (w.isInjured) Text("🚑 INJURED: ${w.injuryWeeks} WEEKS", style: const TextStyle(color: Colors.orangeAccent, fontSize: 12, fontWeight: FontWeight.bold)),
-                      
-                      if (w.activePromise == "TITLE_RUN") 
-                        Container(
-                          margin: const EdgeInsets.only(top: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(color: Colors.purpleAccent.withOpacity(0.2), borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.purpleAccent)),
-                          child: Text("⏳ DEMANDS A TITLE (${w.promiseDeadline} WEEKS LEFT)", style: const TextStyle(color: Colors.purpleAccent, fontSize: 10, fontWeight: FontWeight.w900)),
-                        ),
-                    ],
+            // --- 1. HERO PROFILE CARD (PC ONLY - Mobile handles this in the top image now) ---
+            if (isDesktop) ...[
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.amber, width: 2)),
+                    child: _buildAvatar(w, 100),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 32),
+                  const SizedBox(width: 24),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(w.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                        const SizedBox(height: 4),
+                        Text("${w.style.name.toUpperCase()} • ${w.isHeel ? 'HEEL' : 'FACE'} • ${w.cardPosition.toUpperCase()}", style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 12),
+                        
+                        // 📢 DYNAMIC WARNING LABELS
+                        if (w.isHoldingOut) const Text("⚠ HOLDING OUT (Morale Critical)", style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                        if (w.isInjured) Text("🚑 INJURED: ${w.injuryWeeks} WEEKS", style: const TextStyle(color: Colors.orangeAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                        
+                        if (w.activePromise == "TITLE_RUN") 
+                          Container(
+                            margin: const EdgeInsets.only(top: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(color: Colors.purpleAccent.withOpacity(0.2), borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.purpleAccent)),
+                            child: Text("⏳ DEMANDS A TITLE (${w.promiseDeadline} WEEKS LEFT)", style: const TextStyle(color: Colors.purpleAccent, fontSize: 10, fontWeight: FontWeight.w900)),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 32),
+            ],
 
             // --- 2. KEY ATTRIBUTES GRID ---
             const Text("ATTRIBUTES", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
@@ -427,7 +532,8 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
                           child: ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 16)),
                             icon: const Icon(Icons.monetization_on),
-                            label: const Text("RENEGOTIATE", style: TextStyle(fontWeight: FontWeight.bold)),
+                            // 🛠️ THE FIX: FittedBox stops "RENEGOTIATE" from wrapping to two lines
+                            label: const FittedBox(fit: BoxFit.scaleDown, child: Text("RENEGOTIATE", style: TextStyle(fontWeight: FontWeight.bold))),
                             onPressed: () => showDialog(context: context, builder: (_) => ContractNegotiationDialog(wrestler: w)),
                           ),
                         ),
@@ -436,7 +542,7 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
                           child: OutlinedButton.icon(
                             style: OutlinedButton.styleFrom(foregroundColor: Colors.redAccent, side: const BorderSide(color: Colors.redAccent), padding: const EdgeInsets.symmetric(vertical: 16)),
                             icon: const Icon(Icons.person_remove),
-                            label: const Text("RELEASE", style: TextStyle(fontWeight: FontWeight.bold)),
+                            label: const FittedBox(fit: BoxFit.scaleDown, child: Text("RELEASE", style: TextStyle(fontWeight: FontWeight.bold))),
                             onPressed: () => _confirmRelease(context, w, notifier, isDesktop),
                           ),
                         ),

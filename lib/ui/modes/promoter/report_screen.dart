@@ -4,6 +4,9 @@ import 'package:isar/isar.dart';
 import '../../../logic/game_state_provider.dart';
 import '../../../data/models/financial_record.dart';
 
+// --- IMPORT FOR THE WATERMARK ---
+import '../../components/tv_watermark.dart';
+
 final financialHistoryProvider = FutureProvider.autoDispose<List<FinancialRecord>>((ref) async {
   final isar = Isar.getInstance();
   if (isar == null) return [];
@@ -21,60 +24,191 @@ class ReportScreen extends ConsumerStatefulWidget {
 class _ReportScreenState extends ConsumerState<ReportScreen> {
   FinancialRecord? _selectedRecord;
 
+  void _selectRecord(FinancialRecord r, bool isDesktop) {
+    setState(() {
+      _selectedRecord = r;
+    });
+
+    if (!isDesktop) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true, 
+        backgroundColor: Colors.transparent, 
+        builder: (context) => DraggableScrollableSheet(
+          initialChildSize: 0.9, 
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          builder: (_, controller) => Container(
+            decoration: const BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              border: Border(top: BorderSide(color: Colors.white24, width: 2)),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 12),
+                  height: 4, width: 40,
+                  decoration: BoxDecoration(color: Colors.white30, borderRadius: BorderRadius.circular(2)),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: controller,
+                    padding: const EdgeInsets.all(24),
+                    child: _buildDetailContent(), 
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ).whenComplete(() {
+        setState(() {
+          _selectedRecord = null;
+        });
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final gameState = ref.watch(gameProvider);
     final historyAsync = ref.watch(financialHistoryProvider);
     
-    // Responsive Check
-    final bool isDesktop = MediaQuery.of(context).size.width > 800;
+    // 🚨 SMART LAYOUT BUILDER 🚨
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isDesktop = constraints.maxWidth > 800;
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: isDesktop
-            ? Row(
+        if (isDesktop) {
+          // 💻 PC LAYOUT (Wide Side-by-Side)
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: SafeArea(
+              child: Row(
                 children: [
-                  // LEFT COLUMN: Summary & History List (40%)
-                  Expanded(flex: 4, child: _buildLeftColumn(gameState, historyAsync, isDesktop)),
-                  // RIGHT COLUMN: Detailed Breakdown (60%)
-                  Expanded(flex: 6, child: _buildRightColumn()),
+                  Expanded(flex: 4, child: _buildLeftColumn(gameState, historyAsync, true)),
+                  Expanded(
+                    flex: 6, 
+                    child: Container(
+                      color: Colors.black,
+                      padding: const EdgeInsets.all(40),
+                      child: _selectedRecord == null ? const SizedBox.shrink() : _buildDetailContent(),
+                    )
+                  ),
                 ],
-              )
-            // MOBILE LAYOUT
-            : _selectedRecord == null 
-                ? _buildLeftColumn(gameState, historyAsync, isDesktop) 
-                : _buildMobileDetailPane(),
-      ),
+              ),
+            ),
+          );
+        } else {
+          // 📱 MOBILE LAYOUT (40/60 Vertical Split)
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: Column(
+              children: [
+                // TOP 40%: The Cinematic Viewport
+                Expanded(
+                  flex: 4,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.asset(
+                        "assets/images/office_background.png", 
+                        fit: BoxFit.cover,
+                        errorBuilder: (c, e, s) => Container(color: const Color(0xFF151515)),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.black.withOpacity(0.4), Colors.black],
+                            stops: const [0.5, 1.0],
+                          ),
+                        ),
+                      ),
+                      TVWatermark(isMobile: true),
+                      SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20),
+                                onPressed: () => Navigator.pop(context),
+                                padding: EdgeInsets.zero,
+                                alignment: Alignment.topLeft,
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: const [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.attach_money, color: Colors.greenAccent, size: 24),
+                                      SizedBox(width: 8),
+                                      Text("FINANCIAL DEPARTMENT", style: TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+                                    ],
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text("EXECUTIVE LEDGER", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // BOTTOM 60%: The Scrollable Ledger
+                Expanded(
+                  flex: 6,
+                  child: Container(
+                    color: Colors.black,
+                    width: double.infinity,
+                    child: _buildLeftColumn(gameState, historyAsync, false),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+      }
     );
   }
 
   // ----------------------------------------------------------------
-  // WIDGET: LEFT COLUMN (Summary & History List)
+  // WIDGET: LEFT COLUMN (Summary & History List - Shared)
   // ----------------------------------------------------------------
   Widget _buildLeftColumn(GameState gameState, AsyncValue<List<FinancialRecord>> historyAsync, bool isDesktop) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF121212),
+        color: isDesktop ? const Color(0xFF121212) : Colors.black,
         border: isDesktop ? const Border(right: BorderSide(color: Colors.white10, width: 2)) : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // HEADER AREA
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20),
-                  onPressed: () => Navigator.pop(context),
+          // HEADER AREA (PC ONLY - Mobile uses the image overlay)
+          if (isDesktop)
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text("EXECUTIVE LEDGER", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                const Text("EXECUTIVE LEDGER", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-              ],
+              ),
             ),
-          ),
 
           // THE DATA
           Expanded(
@@ -105,20 +239,20 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                     ),
                     Expanded(
                       child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         itemCount: records.length,
                         itemBuilder: (context, index) {
                           final r = records[index];
                           final isSelected = _selectedRecord?.id == r.id;
 
                           return GestureDetector(
-                            onTap: () => setState(() => _selectedRecord = r),
+                            onTap: () => _selectRecord(r, isDesktop),
                             child: Container(
-                              margin: const EdgeInsets.only(bottom: 8),
+                              margin: const EdgeInsets.only(bottom: 12),
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 color: isSelected ? Colors.amber.withOpacity(0.05) : const Color(0xFF1A1A1A),
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: isSelected ? Colors.amber : Colors.white10, width: isSelected ? 2 : 1),
                               ),
                               child: Row(
@@ -208,56 +342,12 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         children: [
           const Text("TOTAL TREASURY", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
           const SizedBox(height: 8),
-          Text("\$${_format(gameState.cash)}", style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w900, fontFamily: "Monospace")),
+          Text("\$${_format(gameState.cash)}", style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, fontFamily: "Monospace")),
           const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(color: Colors.white10, height: 1)),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(color: runwayColor.withOpacity(0.1), borderRadius: BorderRadius.circular(6), border: Border.all(color: runwayColor.withOpacity(0.3))),
-            child: Text(runwayText, style: TextStyle(color: runwayColor, fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1.0)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ----------------------------------------------------------------
-  // WIDGET: RIGHT COLUMN (Desktop Detail Pane)
-  // ----------------------------------------------------------------
-  Widget _buildRightColumn() {
-    if (_selectedRecord == null) return Container(color: Colors.black);
-    return Container(
-      color: Colors.black,
-      padding: const EdgeInsets.all(40.0),
-      child: _buildDetailContent(),
-    );
-  }
-
-  // ----------------------------------------------------------------
-  // WIDGET: MOBILE DETAIL PANE (Slide over)
-  // ----------------------------------------------------------------
-  Widget _buildMobileDetailPane() {
-    return Container(
-      color: Colors.black,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20),
-                  onPressed: () => setState(() => _selectedRecord = null), 
-                ),
-                const Text("BACK TO LEDGER", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 12)),
-              ],
-            ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 10),
-              child: _buildDetailContent(),
-            ),
+            child: Text(runwayText, style: TextStyle(color: runwayColor, fontWeight: FontWeight.w900, fontSize: 10, letterSpacing: 1.0)),
           ),
         ],
       ),
@@ -270,7 +360,6 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   Widget _buildDetailContent() {
     final r = _selectedRecord!;
     
-    // 🛠️ THE FIX: We calculate the totals right here in the UI!
     final int calcTotalIncome = r.tvRevenue + r.ticketSales + r.ppvRevenue + r.sponsorshipRevenue + r.merchandiseSales;
     final int calcTotalExpenses = r.rosterPayroll + r.productionCosts + r.logisticsCosts + r.facilityCosts;
 
@@ -289,22 +378,21 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text("WEEKLY BREAKDOWN", style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
-                Text("Year ${r.year} • Week ${r.week}", style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
+                Text("Year ${r.year} • Week ${r.week}", style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
               ],
             ),
           ],
         ),
-        const Padding(padding: EdgeInsets.symmetric(vertical: 30), child: Divider(color: Colors.white10, thickness: 2)),
+        const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Divider(color: Colors.white10, thickness: 2)),
 
         // INCOME BAR
         Row(
           children: [
             const Icon(Icons.arrow_circle_down_rounded, color: Colors.greenAccent, size: 20),
             const SizedBox(width: 8),
-            const Text("TOTAL REVENUE", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text("TOTAL REVENUE", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
             const Spacer(),
-            // Using the calculated total
-            Text("\$${_format(calcTotalIncome)}", style: const TextStyle(color: Colors.greenAccent, fontSize: 18, fontWeight: FontWeight.w900, fontFamily: "Monospace")),
+            Text("\$${_format(calcTotalIncome)}", style: const TextStyle(color: Colors.greenAccent, fontSize: 16, fontWeight: FontWeight.w900, fontFamily: "Monospace")),
           ],
         ),
         const SizedBox(height: 12),
@@ -334,10 +422,9 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
           children: [
             const Icon(Icons.arrow_circle_up_rounded, color: Colors.redAccent, size: 20),
             const SizedBox(width: 8),
-            const Text("TOTAL EXPENSES", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text("TOTAL EXPENSES", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
             const Spacer(),
-            // Using the calculated total
-            Text("\$${_format(calcTotalExpenses)}", style: const TextStyle(color: Colors.redAccent, fontSize: 18, fontWeight: FontWeight.w900, fontFamily: "Monospace")),
+            Text("\$${_format(calcTotalExpenses)}", style: const TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.w900, fontFamily: "Monospace")),
           ],
         ),
         const SizedBox(height: 12),
@@ -357,6 +444,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
             _buildLegend("Facilities", Colors.teal, r.facilityCosts),
           ],
         ),
+        const SizedBox(height: 40), // Bottom padding
       ],
     );
   }
@@ -389,8 +477,8 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         children: [
           Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
           const SizedBox(width: 8),
-          Text("$label: ", style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
-          Text("\$${_format(amount)}", style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w900)),
+          Text("$label: ", style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
+          Text("\$${_format(amount)}", style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w900)),
         ],
       ),
     );

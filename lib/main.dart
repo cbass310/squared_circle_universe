@@ -1,48 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart'; 
-import 'dart:ui' as ui; // 🚨 NEW: Needed to measure the screen before the app loads
 
 // --- THE GREAT PIVOT IMPORTS ---
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-// 🚨 IMPORT THE SPLASH SCREEN INSTEAD OF HUB SCREEN
+// 🚨 IMPORT THE SPLASH SCREEN
 import 'ui/screens/splash_screen.dart'; 
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // ====================================================================
-  // 🚨 THE SMART ORIENTATION LOCK 🚨
+  // 🚨 THE FIX: COMPLETELY UNLOCK ALL ORIENTATIONS 🚨
+  // By allowing all orientations, we bypass any Android hardware bugs
+  // that falsely report screen sizes on boot. 
+  // Our LayoutBuilders (> 600) will automatically handle the UI changes!
   // ====================================================================
-  // 1. Grab the physical screen measurements
-  final ui.FlutterView view = ui.PlatformDispatcher.instance.views.first;
-  final double physicalWidth = view.physicalSize.width;
-  final double physicalHeight = view.physicalSize.height;
-  final double devicePixelRatio = view.devicePixelRatio;
-
-  // 2. Convert raw pixels to logical Flutter pixels
-  final double width = physicalWidth / devicePixelRatio;
-  final double height = physicalHeight / devicePixelRatio;
-
-  // 3. Find the shortest side of the device
-  final double shortestSide = width < height ? width : height;
-
-  // 4. Lock based on device type
-  if (shortestSide < 600) {
-    // 📱 IT IS A PHONE: Lock to Portrait (Vertical)
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-    ]);
-  } else {
-    // 💻 IT IS A TABLET/PC: Lock to Landscape (Horizontal)
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
-  }
-  // ====================================================================
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
   
   // 1. Unlock the vault to get your keys
   await dotenv.load(fileName: ".env");
@@ -62,7 +43,6 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      // 1. UPDATED TITLE
       title: 'Squared Circle Tycoon',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -72,7 +52,7 @@ class MyApp extends StatelessWidget {
         cardColor: const Color(0xFF1E1E1E), // Card Grey
         primaryColor: const Color(0xFFFFD740), // Gold Accent
         
-        // 2. SMOOTH PAGE TRANSITIONS
+        // SMOOTH PAGE TRANSITIONS
         pageTransitionsTheme: const PageTransitionsTheme(
           builders: {
             TargetPlatform.android: ZoomPageTransitionsBuilder(),
@@ -80,7 +60,7 @@ class MyApp extends StatelessWidget {
             TargetPlatform.fuchsia: ZoomPageTransitionsBuilder(),
             TargetPlatform.linux: ZoomPageTransitionsBuilder(),
             TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
-            TargetPlatform.windows: ZoomPageTransitionsBuilder(), // Zoom for Windows
+            TargetPlatform.windows: ZoomPageTransitionsBuilder(), 
           },
         ),
 

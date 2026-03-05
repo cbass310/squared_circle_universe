@@ -8,7 +8,6 @@ import 'commissioner_event_grader_screen.dart';
 import '../../components/tv_watermark.dart';
 
 class CommissionerDashboardScreen extends StatefulWidget {
-  // We keep the parameter so your navigation doesn't break, but we will default to 'global'
   final String? leagueId;
   const CommissionerDashboardScreen({super.key, this.leagueId});
 
@@ -27,17 +26,12 @@ class _CommissionerDashboardScreenState extends State<CommissionerDashboardScree
     _fetchGlobalData();
   }
 
-  Future _fetchDashboardData() async {
-    // Legacy method - keeping empty to prevent errors if called elsewhere
-  }
-
   Future _fetchGlobalData() async {
     try {
-      // Just fetching a quick count of ungraded events to show on the dashboard
       final events = await _supabase
           .from('pickem_events')
           .select('id')
-          .eq('league_id', 'global') // Hardcoded to global
+          .eq('league_id', 'global') 
           .eq('is_graded', false);
 
       if (mounted) {
@@ -54,8 +48,6 @@ class _CommissionerDashboardScreenState extends State<CommissionerDashboardScree
 
   @override
   Widget build(BuildContext context) {
-    final bool isDesktop = MediaQuery.of(context).size.width > 800;
-
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: Colors.black,
@@ -63,58 +55,123 @@ class _CommissionerDashboardScreenState extends State<CommissionerDashboardScree
       );
     }
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: isDesktop
-            ? Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isDesktop = constraints.maxWidth > 600;
+
+        if (isDesktop) {
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: SafeArea(
+              child: Row(
                 children: [
-                  Expanded(flex: 4, child: _buildLeftDashboard(isDesktop)),
-                  Expanded(flex: 6, child: _buildRightArtworkPane(isMobile: false)),
-                ],
-              )
-            : Column(
-                children: [
-                  Expanded(flex: 4, child: _buildRightArtworkPane(isMobile: true)),
-                  Expanded(flex: 6, child: _buildLeftDashboard(isDesktop)),
+                  Expanded(flex: 4, child: _buildDashboard(true)),
+                  Expanded(flex: 6, child: _buildArtworkPane(isMobile: false)),
                 ],
               ),
-      ),
+            ),
+          );
+        } else {
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: Column(
+              children: [
+                Expanded(
+                  flex: 4,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _buildArtworkPane(isMobile: true),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.black.withOpacity(0.4), Colors.black],
+                            stops: const [0.5, 1.0],
+                          ),
+                        ),
+                      ),
+                      SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.cyanAccent, size: 20),
+                                onPressed: () => Navigator.pop(context),
+                                padding: EdgeInsets.zero,
+                                alignment: Alignment.topLeft,
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: const [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.admin_panel_settings, color: Colors.cyanAccent, size: 24),
+                                      SizedBox(width: 8),
+                                      Text("GLOBAL PICK 'EM NETWORK", style: TextStyle(color: Colors.cyanAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+                                    ],
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text("COMMISSIONER DESK", style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  flex: 6,
+                  child: Container(
+                    color: Colors.black,
+                    width: double.infinity,
+                    child: _buildDashboard(false),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+      }
     );
   }
 
-  // =====================================================================
-  // --- LEFT PANE: THE COMMISSIONER CONTROLS
-  // =====================================================================
-  Widget _buildLeftDashboard(bool isDesktop) {
+  Widget _buildDashboard(bool isDesktop) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF121212),
-        border: isDesktop ? const Border(right: BorderSide(color: Colors.black, width: 3)) : const Border(top: BorderSide(color: Colors.black, width: 3)),
+        color: isDesktop ? const Color(0xFF121212) : Colors.black,
+        border: isDesktop ? const Border(right: BorderSide(color: Colors.white10, width: 2)) : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- HEADER ---
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Row(
-              children: [
-                IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.cyanAccent, size: 20), onPressed: () => Navigator.pop(context)),
-                const SizedBox(width: 8),
-                const Text("COMMISSIONER DESK", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1.5)),
-              ],
+          if (isDesktop)
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Row(
+                  children: [
+                    IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.cyanAccent, size: 20), onPressed: () => Navigator.pop(context)),
+                    const SizedBox(width: 8),
+                    const Text("COMMISSIONER DESK", style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1.5)),
+                  ],
+                ),
+              ),
             ),
-          ),
-          
-          Container(height: 3, color: Colors.black), 
+            
+          if (isDesktop) Container(height: 1, color: Colors.white10), 
 
-          // --- CONTENT ---
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                // 1. GLOBAL STATUS CARD (Replaced the old Invite Code card)
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -132,21 +189,26 @@ class _CommissionerDashboardScreenState extends State<CommissionerDashboardScree
                           children: [
                             const Text("SYSTEM STATUS", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                             const SizedBox(height: 4),
-                            const Text("GLOBAL PICK 'EM NETWORK", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                            const Text("GLOBAL PICK 'EM NETWORK", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
                             const SizedBox(height: 12),
                             Row(
                               children: [
                                 Icon(Icons.circle, color: _activeEventsCount > 0 ? Colors.greenAccent : Colors.redAccent, size: 12),
                                 const SizedBox(width: 8),
-                                Text(
-                                  "$_activeEventsCount ACTIVE EVENTS PENDING", 
-                                  style: TextStyle(color: _activeEventsCount > 0 ? Colors.greenAccent : Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)
+                                Expanded(
+                                  child: Text(
+                                    "$_activeEventsCount ACTIVE EVENTS PENDING", 
+                                    style: TextStyle(color: _activeEventsCount > 0 ? Colors.greenAccent : Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ],
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(width: 12),
                       const Icon(Icons.public, color: Colors.cyanAccent, size: 40),
                     ],
                   ),
@@ -156,14 +218,12 @@ class _CommissionerDashboardScreenState extends State<CommissionerDashboardScree
                 const Text("EVENT MANAGEMENT", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
                 const SizedBox(height: 12),
 
-                // 2. CONTROL BUTTONS
                 _buildControlButton(
                   icon: Icons.event_available, 
                   label: "CREATE GLOBAL EVENT", 
                   color: Colors.cyanAccent, 
                   onTap: () {
                     HapticFeedback.selectionClick();
-                    // Pass 'global' instead of a private invite code
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const CommissionerEventCreatorScreen(leagueId: 'global')));
                   }
                 ),
@@ -182,7 +242,6 @@ class _CommissionerDashboardScreenState extends State<CommissionerDashboardScree
                 const Text("LIVEOPS & COMMUNITY", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
                 const SizedBox(height: 12),
 
-                // 3. NEW LIVEOPS BUTTON
                 _buildControlButton(
                   icon: Icons.campaign, 
                   label: "SEND GLOBAL PUSH NOTIFICATION", 
@@ -196,6 +255,7 @@ class _CommissionerDashboardScreenState extends State<CommissionerDashboardScree
                     );
                   }
                 ),
+                const SizedBox(height: 40), 
               ],
             ),
           ),
@@ -224,33 +284,29 @@ class _CommissionerDashboardScreenState extends State<CommissionerDashboardScree
     );
   }
 
-  // =====================================================================
-  // --- RIGHT PANE: ARTWORK ONLY + WATERMARK
-  // =====================================================================
-  Widget _buildRightArtworkPane({bool isMobile = false}) {
+  // 🛠️ FIXED: Renamed to match the layout builder call above!
+  Widget _buildArtworkPane({required bool isMobile}) {
     return Stack(
       fit: StackFit.expand,
       children: [
         Image.asset(
-          "assets/images/online_hub_background.png", // Web3 / Server / Globe artwork
+          "assets/images/online_hub_background.png", 
           fit: BoxFit.cover,
           alignment: Alignment.center,
           errorBuilder: (c, e, s) => Image.asset("assets/images/office_background.png", fit: BoxFit.cover, errorBuilder: (c,e,s) => Container(color: const Color(0xFF0A0A0A))),
         ),
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [Colors.black.withOpacity(0.95), Colors.black.withOpacity(0.4), Colors.black.withOpacity(0.8)],
-              stops: const [0.0, 0.5, 1.0],
+        if (!isMobile)
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [Colors.black.withOpacity(0.95), Colors.black.withOpacity(0.4), Colors.black.withOpacity(0.8)],
+                stops: const [0.0, 0.5, 1.0],
+              ),
             ),
           ),
-        ),
-        
-        // --- TEXT BLOCKS REMOVED HERE --- //
-
-        // --- THE GLOBAL WATERMARK ---
+          
         TVWatermark(isMobile: isMobile),
       ],
     );

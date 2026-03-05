@@ -3,7 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../logic/roster_importer.dart';
-import '../modes/promoter/promoter_home_screen.dart'; // To route them to the game after download
+// 🛠️ THE FIX: Added '../' so it correctly finds the modes folder!
+import '../modes/promoter/promoter_home_screen.dart'; 
 
 class CommunityRostersScreen extends ConsumerStatefulWidget {
   const CommunityRostersScreen({super.key});
@@ -26,7 +27,6 @@ class _CommunityRostersScreenState extends ConsumerState<CommunityRostersScreen>
 
   Future<void> _fetchRosters() async {
     try {
-      // Order by most downloaded first!
       final data = await _supabase.from('community_rosters').select().order('downloads', ascending: false);
       if (mounted) {
         setState(() {
@@ -43,13 +43,12 @@ class _CommunityRostersScreenState extends ConsumerState<CommunityRostersScreen>
   Future<void> _downloadAndInject(Map<String, dynamic> rosterData) async {
     HapticFeedback.heavyImpact();
     
-    // Safety warning!
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.grey[900],
         title: const Text("OVERWRITE SAVE?", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
-        content: Text("Downloading '${rosterData['mod_name']}' will permanently wipe your current universe and start a new career. Are you sure?", style: const TextStyle(color: Colors.white70)),
+        content: Text("Downloading '${rosterData['mod_name']}' will permanently wipe your current universe and start a new career. Are you sure?", style: const TextStyle(color: Colors.white70, height: 1.4)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("CANCEL", style: TextStyle(color: Colors.white54))),
           TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("DOWNLOAD & PLAY", style: TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold))),
@@ -58,21 +57,17 @@ class _CommunityRostersScreenState extends ConsumerState<CommunityRostersScreen>
     );
 
     if (confirm != true) return;
-
     setState(() => _isDownloading = true);
 
     try {
-      // 1. Inject the JSON into the game
       final importer = RosterImporter(ref, context);
       await importer.importFromCloud(rosterData['json_data']);
 
-      // 2. Increment the download counter in the cloud!
       int newCount = (rosterData['downloads'] ?? 0) + 1;
       await _supabase.from('community_rosters').update({'downloads': newCount}).eq('id', rosterData['id']);
 
-      // 3. Kick them straight into the game to play!
       if (mounted) {
-        Navigator.pop(context); // Close the hub
+        Navigator.pop(context); 
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const PromoterHomeScreen()));
       }
     } catch (e) {
@@ -85,45 +80,153 @@ class _CommunityRostersScreenState extends ConsumerState<CommunityRostersScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF121212),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1A1A1A),
-        elevation: 10,
-        leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.cyanAccent), onPressed: () => Navigator.pop(context)),
-        title: const Text("COMMUNITY MODS", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 2.0)),
-        centerTitle: true,
-      ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator(color: Colors.cyanAccent))
-        : _rosters.isEmpty
-            ? _buildEmptyState()
-            : Stack(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isDesktop = constraints.maxWidth > 600;
+
+        if (isDesktop) {
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: SafeArea(
+              child: Row(
                 children: [
-                  ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _rosters.length,
-                    itemBuilder: (context, index) {
-                      final r = _rosters[index];
-                      return _buildModCard(r);
-                    },
-                  ),
-                  if (_isDownloading)
-                    Container(
-                      color: Colors.black.withOpacity(0.8),
-                      child: const Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            CircularProgressIndicator(color: Colors.cyanAccent),
-                            SizedBox(height: 16),
-                            Text("DOWNLOADING UNIVERSE...", style: TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.w900, letterSpacing: 2.0)),
-                          ],
-                        ),
-                      ),
-                    ),
+                  Expanded(flex: 4, child: _buildDashboard(true)),
+                  Expanded(flex: 6, child: _buildArtworkPane(isMobile: false)),
                 ],
               ),
+            ),
+          );
+        } else {
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: Column(
+              children: [
+                Expanded(
+                  flex: 4,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _buildArtworkPane(isMobile: true),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.black.withOpacity(0.4), Colors.black],
+                            stops: const [0.5, 1.0],
+                          ),
+                        ),
+                      ),
+                      SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.cyanAccent, size: 20),
+                                onPressed: () => Navigator.pop(context),
+                                padding: EdgeInsets.zero,
+                                alignment: Alignment.topLeft,
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: const [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.download, color: Colors.cyanAccent, size: 24),
+                                      SizedBox(width: 8),
+                                      Text("GLOBAL DATABASE", style: TextStyle(color: Colors.cyanAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+                                    ],
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text("COMMUNITY MODS", style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  flex: 6,
+                  child: Container(
+                    color: Colors.black,
+                    width: double.infinity,
+                    child: _buildDashboard(false),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+      }
+    );
+  }
+
+  Widget _buildDashboard(bool isDesktop) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDesktop ? const Color(0xFF121212) : Colors.black,
+        border: isDesktop ? const Border(right: BorderSide(color: Colors.white10, width: 2)) : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (isDesktop)
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Row(
+                  children: [
+                    IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.cyanAccent, size: 20), onPressed: () => Navigator.pop(context)),
+                    const SizedBox(width: 8),
+                    const Text("COMMUNITY MODS", style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1.5)),
+                  ],
+                ),
+              ),
+            ),
+            
+          if (isDesktop) Container(height: 1, color: Colors.white10), 
+
+          Expanded(
+            child: _isLoading 
+              ? const Center(child: CircularProgressIndicator(color: Colors.cyanAccent))
+              : _rosters.isEmpty
+                ? _buildEmptyState()
+                : Stack(
+                    children: [
+                      ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _rosters.length,
+                        itemBuilder: (context, index) {
+                          final r = _rosters[index];
+                          return _buildModCard(r);
+                        },
+                      ),
+                      if (_isDownloading)
+                        Container(
+                          color: Colors.black.withOpacity(0.9),
+                          child: const Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CircularProgressIndicator(color: Colors.cyanAccent),
+                                SizedBox(height: 20),
+                                Text("DOWNLOADING UNIVERSE...", style: TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.w900, letterSpacing: 2.0)),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -147,7 +250,6 @@ class _CommunityRostersScreenState extends ConsumerState<CommunityRostersScreen>
         color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.cyanAccent.withOpacity(0.3), width: 1),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -195,6 +297,31 @@ class _CommunityRostersScreenState extends ConsumerState<CommunityRostersScreen>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildArtworkPane({required bool isMobile}) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          "assets/images/leaderboard_bg.png", 
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+          errorBuilder: (c, e, s) => Image.asset("assets/images/office_background.png", fit: BoxFit.cover, errorBuilder: (c,e,s) => Container(color: const Color(0xFF0A0A0A))),
+        ),
+        if (!isMobile)
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [Colors.black.withOpacity(0.95), Colors.black.withOpacity(0.4), Colors.black.withOpacity(0.8)],
+                stops: const [0.0, 0.5, 1.0],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

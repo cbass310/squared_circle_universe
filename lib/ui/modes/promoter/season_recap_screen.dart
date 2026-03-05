@@ -46,8 +46,6 @@ class _SeasonRecapScreenState extends ConsumerState<SeasonRecapScreen> {
   Widget build(BuildContext context) {
     final gameState = ref.watch(gameProvider);
     final ledger = gameState.ledger;
-    
-    final bool isDesktop = MediaQuery.of(context).size.width > 800;
 
     double highestRating = 0.0;
     if (ledger.isNotEmpty) {
@@ -55,122 +53,241 @@ class _SeasonRecapScreenState extends ConsumerState<SeasonRecapScreen> {
     }
 
     final totalProfit = ledger.fold(0, (sum, e) => sum + e.profit);
+    // Format the profit to look like real money (e.g. $1,250,000)
+    final formattedProfit = totalProfit.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
+    
     final nextYear = gameState.year + 1;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF121212),
-      body: Row(
-        children: [
-          // LEFT COLUMN (40%) - The Data
-          Expanded(
-            flex: 4,
-            child: Container(
-              color: const Color(0xFF121212),
-              padding: const EdgeInsets.all(40.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'YEAR-END AWARDS GALA',
-                    style: TextStyle(
-                      fontSize: 32, 
-                      fontWeight: FontWeight.bold, 
-                      color: Colors.amber,
-                    ),
-                  ),
-                  const SizedBox(height: 50),
-                  _buildStatRow('Event of the Year', '⭐ ${highestRating.toStringAsFixed(1)} Rating'),
-                  const SizedBox(height: 30),
-                  _buildStatRow('Wrestler of the Year', isLoading ? 'Loading...' : (woty?.name ?? 'N/A')),
-                  const SizedBox(height: 30),
-                  _buildStatRow('Total Annual Profit', '\$${totalProfit.toString()}'),
-                  const Spacer(),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 60,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.amber,
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      onPressed: () async {
-                        HapticFeedback.heavyImpact();
-                        await ref.read(gameProvider.notifier).processYearEnd();
-                        if (context.mounted) {
-                          Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(builder: (_) => const HubScreen()),
-                            (route) => false,
-                          );
-                        }
-                      },
-                      child: Text(
-                        'ADVANCE TO YEAR $nextYear',
-                        style: const TextStyle(
-                          fontSize: 20, 
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // RIGHT COLUMN (60%) - The Visuals
-          Expanded(
-            flex: 6,
-            child: Stack(
-              fit: StackFit.expand,
+    // 🚨 SMART LAYOUT BUILDER 🚨
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isDesktop = constraints.maxWidth > 800;
+
+        if (isDesktop) {
+          // 💻 PC LAYOUT (Wide Side-by-Side)
+          return Scaffold(
+            backgroundColor: const Color(0xFF121212),
+            body: Row(
               children: [
-                Image.asset(
-                  'assets/images/awards_gala.png',
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[900],
-                      child: const Center(
-                        child: Icon(Icons.emoji_events, size: 150, color: Colors.amber),
-                      ),
-                    );
-                  },
-                ),
-                Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF121212), Colors.transparent],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.center,
-                    ),
-                  ),
-                ),
-                
-                // --- THE GLOBAL WATERMARK ---
-                TVWatermark(isMobile: !isDesktop),
+                Expanded(flex: 4, child: _buildDesktopDataColumn(highestRating, formattedProfit, nextYear)),
+                Expanded(flex: 6, child: _buildArtworkPane(isMobile: false)),
               ],
             ),
+          );
+        } else {
+          // 📱 MOBILE LAYOUT (40/60 Vertical Split)
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: Column(
+              children: [
+                // TOP 40%: The Cinematic Viewport
+                Expanded(
+                  flex: 4,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _buildArtworkPane(isMobile: true),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.black.withOpacity(0.4), Colors.black],
+                            stops: const [0.5, 1.0],
+                          ),
+                        ),
+                      ),
+                      SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: const [
+                                  Icon(Icons.stars, color: Colors.amber, size: 24),
+                                  SizedBox(width: 8),
+                                  Text("SEASON FINALE", style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              const Text("YEAR-END AWARDS", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // BOTTOM 60%: The Dashboard Data
+                Expanded(
+                  flex: 6,
+                  child: Container(
+                    color: Colors.black,
+                    width: double.infinity,
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: SingleChildScrollView(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildStatRow('Event of the Year', '⭐ ${highestRating.toStringAsFixed(1)} Rating', isMobile: true),
+                                  const SizedBox(height: 30),
+                                  _buildStatRow('Wrestler of the Year', isLoading ? 'Loading...' : (woty?.name ?? 'N/A'), isMobile: true),
+                                  const SizedBox(height: 30),
+                                  _buildStatRow('Total Annual Profit', '\$$formattedProfit', isMobile: true),
+                                ],
+                              ),
+                            ),
+                          ),
+                          _buildAdvanceButton(nextYear),
+                          const SizedBox(height: 16), // Bottom safe area
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+      }
+    );
+  }
+
+  // =====================================================================
+  // --- 💻 DESKTOP SPECIFIC WIDGETS
+  // =====================================================================
+  Widget _buildDesktopDataColumn(double highestRating, String formattedProfit, int nextYear) {
+    return Container(
+      color: const Color(0xFF121212),
+      padding: const EdgeInsets.all(40.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'YEAR-END AWARDS GALA',
+            style: TextStyle(
+              fontSize: 32, 
+              fontWeight: FontWeight.bold, 
+              color: Colors.amber,
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 50),
+          _buildStatRow('Event of the Year', '⭐ ${highestRating.toStringAsFixed(1)} Rating', isMobile: false),
+          const SizedBox(height: 30),
+          _buildStatRow('Wrestler of the Year', isLoading ? 'Loading...' : (woty?.name ?? 'N/A'), isMobile: false),
+          const SizedBox(height: 30),
+          _buildStatRow('Total Annual Profit', '\$$formattedProfit', isMobile: false),
+          const Spacer(),
+          _buildAdvanceButton(nextYear),
+        ],
+      ),
+    );
+  }
+
+  // =====================================================================
+  // --- 🧩 MODULAR COMPONENTS (Shared by Mobile and Desktop)
+  // =====================================================================
+  Widget _buildAdvanceButton(int nextYear) {
+    return SizedBox(
+      width: double.infinity,
+      height: 65,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.amber,
+          foregroundColor: Colors.black,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 10,
+          shadowColor: Colors.amber.withOpacity(0.5),
+        ),
+        onPressed: () async {
+          HapticFeedback.heavyImpact();
+          await ref.read(gameProvider.notifier).processYearEnd();
+          if (context.mounted) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const HubScreen()),
+              (route) => false,
+            );
+          }
+        },
+        child: Text(
+          'ADVANCE TO YEAR $nextYear',
+          style: const TextStyle(
+            fontSize: 20, 
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.0,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatRow(String title, String value, {required bool isMobile}) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isMobile ? 16 : 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title.toUpperCase(), 
+            style: const TextStyle(fontSize: 12, color: Colors.white54, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value, 
+            style: TextStyle(fontSize: isMobile ? 24 : 32, fontWeight: FontWeight.w900, color: Colors.white),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatRow(String title, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildArtworkPane({required bool isMobile}) {
+    return Stack(
+      fit: StackFit.expand,
       children: [
-        Text(
-          title, 
-          style: const TextStyle(fontSize: 18, color: Colors.grey),
+        Image.asset(
+          'assets/images/awards_gala.png',
+          fit: BoxFit.cover,
+          alignment: isMobile ? Alignment.topCenter : Alignment.center,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: Colors.grey[900],
+              child: const Center(
+                child: Icon(Icons.emoji_events, size: 100, color: Colors.amber),
+              ),
+            );
+          },
         ),
-        const SizedBox(height: 8),
-        Text(
-          value, 
-          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
-        ),
+        if (!isMobile)
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF121212), Colors.transparent],
+                begin: Alignment.centerLeft,
+                end: Alignment.center,
+              ),
+            ),
+          ),
+        
+        // --- THE GLOBAL WATERMARK ---
+        TVWatermark(isMobile: isMobile),
       ],
     );
   }

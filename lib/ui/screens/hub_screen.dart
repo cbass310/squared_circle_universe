@@ -35,8 +35,11 @@ class _HubScreenState extends ConsumerState<HubScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final rosterState = ref.watch(rosterProvider);
-    final bool hasSaveFile = rosterState.roster.isNotEmpty;
+    final gameState = ref.watch(gameProvider);
+    
+    // 🛠️ THE FIX: A save file only exists if the player has advanced past week 1, 
+    // moved to a new year, or has generated financial ledger history.
+    final bool hasSaveFile = gameState.week > 1 || gameState.year > 1 || gameState.ledger.isNotEmpty;
     
     final session = Supabase.instance.client.auth.currentSession;
     final user = session?.user;
@@ -45,7 +48,8 @@ class _HubScreenState extends ConsumerState<HubScreen> {
     // 📱 LAYOUT BUILDER ADAPTS TO PHONE VS TABLET
     return LayoutBuilder(
       builder: (context, constraints) {
-        final bool isDesktop = constraints.maxWidth > 800;
+        // 🛠️ THE FIX: 600 Breakpoint ensures Tablets get the Desktop Menu!
+        final bool isDesktop = constraints.maxWidth > 600;
 
         return Scaffold(
           backgroundColor: Colors.black,
@@ -53,8 +57,8 @@ class _HubScreenState extends ConsumerState<HubScreen> {
             children: [
               // 1. DYNAMIC LAYOUT
               isDesktop 
-                  ? Row(children: [_buildDesktopMenu(hasSaveFile, isLoggedIn, user), _buildHeroImage(true)])
-                  : _buildMobileLayout(hasSaveFile, isLoggedIn, user),
+                  ? Row(children: [_buildDesktopMenu(hasSaveFile, isLoggedIn, user, gameState), _buildHeroImage(true)])
+                  : _buildMobileLayout(hasSaveFile, isLoggedIn, user, gameState),
                   
               // 2. THE GLOBAL NETWORK PROFILE BUTTON
               Positioned(
@@ -72,7 +76,7 @@ class _HubScreenState extends ConsumerState<HubScreen> {
   // ====================================================================
   // 📱 NEW MOBILE LAYOUT (Centered, Gradient Background, Scrollable)
   // ====================================================================
-  Widget _buildMobileLayout(bool hasSaveFile, bool isLoggedIn, User? user) {
+  Widget _buildMobileLayout(bool hasSaveFile, bool isLoggedIn, User? user, dynamic gameState) {
     return Stack(
       children: [
         // Background Hero
@@ -103,7 +107,7 @@ class _HubScreenState extends ConsumerState<HubScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: _buildMenuButtons(hasSaveFile, isLoggedIn, user, false),
+                children: _buildMenuButtons(hasSaveFile, isLoggedIn, user, false, gameState),
               ),
             ),
           ),
@@ -115,7 +119,7 @@ class _HubScreenState extends ConsumerState<HubScreen> {
   // ====================================================================
   // 💻 DESKTOP/TABLET LAYOUT (Left Column)
   // ====================================================================
-  Widget _buildDesktopMenu(bool hasSaveFile, bool isLoggedIn, User? user) {
+  Widget _buildDesktopMenu(bool hasSaveFile, bool isLoggedIn, User? user, dynamic gameState) {
     return Expanded(
       flex: 4, 
       child: Container(
@@ -129,7 +133,7 @@ class _HubScreenState extends ConsumerState<HubScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
-              children: _buildMenuButtons(hasSaveFile, isLoggedIn, user, true),
+              children: _buildMenuButtons(hasSaveFile, isLoggedIn, user, true, gameState),
             ),
           ),
         ),
@@ -140,16 +144,32 @@ class _HubScreenState extends ConsumerState<HubScreen> {
   // ====================================================================
   // 🛠 THE REUSABLE MENU ITEMS (Used by both Phone and Tablet)
   // ====================================================================
-  List<Widget> _buildMenuButtons(bool hasSaveFile, bool isLoggedIn, User? user, bool isDesktop) {
-    final rosterState = ref.watch(rosterProvider);
+  List<Widget> _buildMenuButtons(bool hasSaveFile, bool isLoggedIn, User? user, bool isDesktop, dynamic gameState) {
     return [
-      Image.asset(
-        "assets/images/imagelogo.png", 
-        height: isDesktop ? 120 : 100,
-        fit: BoxFit.contain,
-        errorBuilder: (c, e, s) => const Icon(Icons.sports_mma, size: 80, color: Colors.amber),
+      
+      // 🚨 RESIZED AND CENTERED LOGO TREATMENT 🚨
+      Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.6),
+                blurRadius: 40,
+                spreadRadius: -10,
+                offset: const Offset(0, 10),
+              )
+            ]
+          ),
+          child: Image.asset(
+            "assets/images/imagelogo.png", 
+            height: isDesktop ? 180 : 120, // Perfectly scaled back to fit the frame
+            fit: BoxFit.contain,
+            errorBuilder: (c, e, s) => Icon(Icons.sports_mma, size: isDesktop ? 100 : 80, color: Colors.amber),
+          ),
+        ),
       ),
-      SizedBox(height: isDesktop ? 50 : 30),
+      SizedBox(height: isDesktop ? 25 : 15), // Reduced empty gap
 
       const Text("SELECT MODE", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
       const SizedBox(height: 20),
@@ -158,7 +178,7 @@ class _HubScreenState extends ConsumerState<HubScreen> {
       _buildMenuButton(
         icon: Icons.business_center_rounded,
         title: "PROMOTER MODE",
-        subtitle: hasSaveFile ? "Continue Year ${rosterState.titleHistory.isEmpty ? 1 : 'Current'}" : "Build your empire. Manage your roster.",
+        subtitle: hasSaveFile ? "Continue Year ${gameState.year}" : "Build your empire. Manage your roster.",
         baseColor: Colors.amber,
         onTap: () => _showCareerOptions(hasSaveFile),
       ),
@@ -347,7 +367,16 @@ class _HubScreenState extends ConsumerState<HubScreen> {
       options.add(const SizedBox(height: 12));
     }
     
-    options.add(_buildBottomSheetButton("NEW CAREER", Icons.add_circle_outline_rounded, Colors.blueAccent, () { Navigator.pop(context); _confirmNewGame(); }));
+    // 🛠️ THE FIX: Smart "New Game" routing. If they have a save, warn them. If not, just launch!
+    options.add(_buildBottomSheetButton("NEW CAREER", Icons.add_circle_outline_rounded, Colors.blueAccent, () { 
+      Navigator.pop(context); 
+      if (hasSaveFile) {
+        _confirmNewGame(); 
+      } else {
+        _startFreshGame();
+      }
+    }));
+    
     options.add(const SizedBox(height: 12));
     options.add(_buildBottomSheetButton("COMMUNITY MODS", Icons.cloud_download, Colors.cyanAccent, () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunityRostersScreen())); }));
     options.add(const SizedBox(height: 12));
@@ -384,6 +413,17 @@ class _HubScreenState extends ConsumerState<HubScreen> {
     );
   }
 
+  // 🛠️ The Direct Launch Function (Skips Dialog)
+  Future<void> _startFreshGame() async {
+    HapticFeedback.heavyImpact();
+    await ref.read(rosterProvider.notifier).factoryReset(); 
+    await ref.read(gameProvider.notifier).resetGame(); 
+    
+    if (context.mounted) { 
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const PromoterHomeScreen())); 
+    } 
+  }
+
   // Destructive Action: Kept as standard Dialog to ensure user attention
   void _confirmNewGame() {
     showDialog(
@@ -396,14 +436,9 @@ class _HubScreenState extends ConsumerState<HubScreen> {
           TextButton(child: const Text("Cancel"), onPressed: () => Navigator.pop(ctx)),
           TextButton(
             child: const Text("START NEW GAME", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)), 
-            onPressed: () async { 
+            onPressed: () { 
               Navigator.pop(ctx); 
-              await ref.read(rosterProvider.notifier).factoryReset(); 
-              await ref.read(gameProvider.notifier).resetGame(); 
-              
-              if (context.mounted) { 
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const PromoterHomeScreen())); 
-              } 
+              _startFreshGame(); // Calls the same logic cleanly
             }
           ),
         ],

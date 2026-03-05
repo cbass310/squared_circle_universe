@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../logic/game_state_provider.dart';
 
+// --- IMPORT FOR THE WATERMARK ---
+import '../../components/tv_watermark.dart';
+
 class RatingsWarScreen extends ConsumerWidget {
   const RatingsWarScreen({super.key});
 
@@ -19,72 +22,149 @@ class RatingsWarScreen extends ConsumerWidget {
     // 3. Get last 5 weeks for the chart
     final recentHistory = history.take(5).toList().reversed.toList();
 
-    final bool isDesktop = MediaQuery.of(context).size.width > 800;
+    // Override "Universe" to "Wrestling" for this screen specifically
+    String pName = gameState.promotionName.toUpperCase();
+    if (pName == "SQUARED CIRCLE UNIVERSE") {
+      pName = "SQUARED CIRCLE WRESTLING";
+    }
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: isDesktop
-            ? Row(
+    // 🚨 SMART LAYOUT BUILDER 🚨
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isDesktop = constraints.maxWidth > 600; // 🛠️ Updated to 600 for Tablets!
+
+        if (isDesktop) {
+          // 💻 PC LAYOUT (Wide Side-by-Side)
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: SafeArea(
+              child: Row(
                 children: [
-                  // LEFT COLUMN: History Log (40%)
-                  Expanded(flex: 4, child: _buildLeftHistoryLog(history, isDesktop, context)),
-                  // RIGHT COLUMN: The War Room Dashboard (60%)
-                  Expanded(flex: 6, child: _buildRightDashboard(gameState, wins, losses, draws, recentHistory, isDesktop: true)),
-                ],
-              )
-            // MOBILE: Stack the dashboard on top of the list
-            : Column(
-                children: [
-                  _buildMobileHeader(context),
-                  Expanded(flex: 5, child: _buildRightDashboard(gameState, wins, losses, draws, recentHistory, isMobile: true)),
-                  Expanded(flex: 5, child: _buildLeftHistoryLog(history, isDesktop, context)),
+                  Expanded(flex: 4, child: _buildDesktopLeftLog(history, context)),
+                  Expanded(flex: 6, child: _buildDesktopRightDashboard(gameState, pName, wins, losses, draws, recentHistory)),
                 ],
               ),
-      ),
-    );
-  }
-
-  Widget _buildMobileHeader(BuildContext context) {
-    return Container(
-      color: const Color(0xFF121212),
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
-        children: [
-          IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20), onPressed: () => Navigator.pop(context)),
-          const SizedBox(width: 8),
-          const Text("WAR ROOM", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-        ],
-      ),
+            ),
+          );
+        } else {
+          // 📱 MOBILE LAYOUT (40/60 Vertical Split)
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: Column(
+              children: [
+                // TOP 40%: The Cinematic Viewport (Scoreboard)
+                Expanded(
+                  flex: 4,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.asset(
+                        "assets/images/crowd_background.png", 
+                        fit: BoxFit.cover,
+                        errorBuilder: (c, e, s) => Container(color: const Color(0xFF151515)),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.black.withOpacity(0.6), Colors.black.withOpacity(0.8), Colors.black],
+                            stops: const [0.0, 0.5, 1.0],
+                          ),
+                        ),
+                      ),
+                      const TVWatermark(isMobile: true),
+                      SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20),
+                                    onPressed: () => Navigator.pop(context),
+                                    padding: EdgeInsets.zero,
+                                    alignment: Alignment.topLeft,
+                                  ),
+                                  const Text("WAR ROOM", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+                                ],
+                              ),
+                              const Spacer(),
+                              _buildScoreboard(gameState, pName, wins, losses, draws, isMobile: true),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // BOTTOM 60%: The Dashboard Data (Chart + Ledger)
+                Expanded(
+                  flex: 6,
+                  child: Container(
+                    color: Colors.black,
+                    width: double.infinity,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildChart(recentHistory, isMobile: true),
+                          const SizedBox(height: 32),
+                          const Text("BATTLE LEDGER", style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+                          const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(color: Colors.white10, thickness: 1)),
+                          
+                          if (history.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.all(24.0),
+                              child: Center(child: Text("No data yet. Book your first show!", style: TextStyle(color: Colors.white54))),
+                            )
+                          else
+                            ...history.map((entry) => _buildHistoryItem(entry)).toList(),
+                            
+                          const SizedBox(height: 40), // Bottom padding
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+      }
     );
   }
 
   // =====================================================================
-  // --- LEFT PANE: HISTORY LOG 
+  // --- 💻 DESKTOP SPECIFIC WIDGETS
   // =====================================================================
-  Widget _buildLeftHistoryLog(List<dynamic> history, bool isDesktop, BuildContext context) {
+  Widget _buildDesktopLeftLog(List<dynamic> history, BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF121212),
-        border: isDesktop ? const Border(right: BorderSide(color: Colors.white10, width: 2)) : const Border(top: BorderSide(color: Colors.white10, width: 2)),
+      decoration: const BoxDecoration(
+        color: Color(0xFF121212),
+        border: Border(right: BorderSide(color: Colors.white10, width: 2)),
       ),
       child: Column(
         children: [
-          if (isDesktop)
-            Padding(
-              padding: const EdgeInsets.all(16.0),
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
               child: Row(
                 children: [
                   IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20), onPressed: () => Navigator.pop(context)),
                   const SizedBox(width: 8),
-                  const Text("WAR ROOM", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                  const Text("WAR ROOM", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                 ],
               ),
             ),
-          
+          ),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
             decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.white10))),
             child: Row(
               children: const [
@@ -94,7 +174,6 @@ class RatingsWarScreen extends ConsumerWidget {
               ],
             ),
           ),
-
           Expanded(
             child: history.isEmpty 
                 ? const Center(child: Text("No data yet. Book your first show!", style: TextStyle(color: Colors.white54)))
@@ -102,49 +181,7 @@ class RatingsWarScreen extends ConsumerWidget {
                     padding: const EdgeInsets.all(16),
                     itemCount: history.length,
                     itemBuilder: (context, index) {
-                      final entry = history[index];
-                      bool won = entry.warResult == "VICTORY";
-                      bool lost = entry.warResult == "DEFEAT";
-                      String resultText = entry.warResult;
-                      
-                      Color accentColor = Colors.grey;
-                      if (won) accentColor = Colors.greenAccent;
-                      if (lost) accentColor = Colors.redAccent;
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1A1A1A),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: accentColor.withOpacity(0.5), width: 1.5),
-                          boxShadow: [BoxShadow(color: accentColor.withOpacity(0.05), blurRadius: 8)],
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text("WEEK ${entry.week}", style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Text("${entry.showRating}", style: TextStyle(color: won ? Colors.white : Colors.white54, fontWeight: FontWeight.w900, fontSize: 20)),
-                                    const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text("VS", style: TextStyle(color: Colors.white24, fontSize: 12, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic))),
-                                    Text("${entry.rivalRating}", style: TextStyle(color: lost ? Colors.white : Colors.white54, fontWeight: FontWeight.w900, fontSize: 20)),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(color: accentColor.withOpacity(0.15), borderRadius: BorderRadius.circular(6), border: Border.all(color: accentColor.withOpacity(0.3))),
-                              child: Text(resultText, style: TextStyle(color: accentColor, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
-                            )
-                          ],
-                        ),
-                      );
+                      return _buildHistoryItem(history[index]);
                     },
                   ),
           ),
@@ -153,17 +190,7 @@ class RatingsWarScreen extends ConsumerWidget {
     );
   }
 
-  // =====================================================================
-  // --- RIGHT PANE: THE MASSIVE DASHBOARD GRAPHIC
-  // =====================================================================
-  Widget _buildRightDashboard(dynamic gameState, int wins, int losses, int draws, List<dynamic> recentHistory, {bool isMobile = false, bool isDesktop = false}) {
-    
-    // 🛠️ THE FIX: Override "Universe" to "Wrestling" for this screen specifically
-    String pName = gameState.promotionName.toUpperCase();
-    if (pName == "SQUARED CIRCLE UNIVERSE") {
-      pName = "SQUARED CIRCLE WRESTLING";
-    }
-
+  Widget _buildDesktopRightDashboard(dynamic gameState, String pName, int wins, int losses, int draws, List<dynamic> recentHistory) {
     return Container(
       color: Colors.black,
       child: Stack(
@@ -173,98 +200,15 @@ class RatingsWarScreen extends ConsumerWidget {
             opacity: 0.15,
             child: Image.asset("assets/images/crowd_background.png", fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: Colors.black)),
           ),
-
+          const TVWatermark(isMobile: false),
           SingleChildScrollView(
-            // 🛠️ THE FIX: Reduced overall padding so it fits without scrolling
-            padding: EdgeInsets.all(isMobile ? 16 : 24.0),
+            padding: const EdgeInsets.all(40.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // THE GIANT SCOREBOARD
-                Container(
-                  width: double.infinity,
-                  // 🛠️ THE FIX: Reduced container padding
-                  padding: EdgeInsets.all(isMobile ? 16 : 24.0),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [Colors.blue.shade900.withOpacity(0.8), Colors.black, Colors.red.shade900.withOpacity(0.8)], begin: Alignment.centerLeft, end: Alignment.centerRight),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white24, width: 2),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.8), blurRadius: 20, offset: const Offset(0, 10))],
-                  ),
-                  child: Column(
-                    children: [
-                      const Text("LIFETIME RECORD", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 3.0)),
-                      const SizedBox(height: 8),
-                      // Slightly scaled down giant text
-                      Text("$wins - $losses - $draws", style: TextStyle(color: Colors.white, fontSize: isMobile ? 32 : 40, fontWeight: FontWeight.w900, fontFamily: "Monospace")),
-                      
-                      const Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Divider(color: Colors.white24)),
-                      
-                      // 🛠️ THE FIX: Strict symmetry using Expanded so VS is always dead-center
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            flex: 2, 
-                            child: _buildTeamColumn(pName, "assets/images/logo_scw.png", Colors.blueAccent, isMobile)
-                          ),
-                          Expanded(
-                            flex: 1,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const SizedBox(height: 10), // Pushes VS down to align with logos
-                                Text("VS", style: TextStyle(color: Colors.white30, fontSize: isMobile ? 24 : 32, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic)),
-                                const SizedBox(height: 10),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), 
-                                  decoration: BoxDecoration(color: Colors.amber.withOpacity(0.2), borderRadius: BorderRadius.circular(6)), 
-                                  child: Text("WEEK ${gameState.week}", style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 10))
-                                ),
-                              ],
-                            ),
-                          ),
-                          Expanded(
-                            flex: 2, 
-                            child: _buildTeamColumn("EMPIRE WRESTLING", "assets/images/logo_empire.png", Colors.redAccent, isMobile)
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // 🛠️ THE FIX: Reduced gap between scoreboard and chart
-                const SizedBox(height: 24),
-
-                // THE TREND CHART
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text("RECENT RATINGS TREND", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 2.0)),
-                ),
-                const SizedBox(height: 16),
-                
-                if (recentHistory.isEmpty)
-                  Container(
-                    height: isMobile ? 150 : 200, width: double.infinity,
-                    decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
-                    child: const Center(child: Text("NO DATA COLLECTED", style: TextStyle(color: Colors.white30, fontWeight: FontWeight.bold, letterSpacing: 2.0))),
-                  )
-                else
-                  Container(
-                    // 🛠️ THE FIX: Chart height is shorter so it fits on screen
-                    height: isMobile ? 160 : 200,
-                    padding: const EdgeInsets.only(top: 20, bottom: 10, left: 10, right: 10),
-                    decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: recentHistory.map((entry) {
-                        return _buildComparisonBar(entry.week, entry.showRating, entry.rivalRating, isMobile ? 100 : 130);
-                      }).toList(),
-                    ),
-                  ),
+                _buildScoreboard(gameState, pName, wins, losses, draws, isMobile: false),
+                const SizedBox(height: 40),
+                _buildChart(recentHistory, isMobile: false),
               ],
             ),
           ),
@@ -273,14 +217,152 @@ class RatingsWarScreen extends ConsumerWidget {
     );
   }
 
-  // --- HELPER WIDGETS ---
+  // =====================================================================
+  // --- 🧩 MODULAR COMPONENTS (Shared by Mobile and Desktop)
+  // =====================================================================
+  
+  Widget _buildScoreboard(dynamic gameState, String pName, int wins, int losses, int draws, {required bool isMobile}) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isMobile ? 12 : 32.0),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [Colors.blue.shade900.withOpacity(0.8), Colors.black, Colors.red.shade900.withOpacity(0.8)], begin: Alignment.centerLeft, end: Alignment.centerRight),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white24, width: 2),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.8), blurRadius: 20, offset: const Offset(0, 10))],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text("LIFETIME RECORD", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 3.0)),
+          const SizedBox(height: 4),
+          
+          // 🛠️ THE FIX: FittedBox ensures the record never wraps to two lines on a tablet!
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              "$wins - $losses - $draws", 
+              style: TextStyle(color: Colors.white, fontSize: isMobile ? 26 : 48, fontWeight: FontWeight.w900, fontFamily: "Monospace")
+            ),
+          ),
+          
+          Padding(padding: EdgeInsets.symmetric(vertical: isMobile ? 12 : 24), child: const Divider(color: Colors.white24)),
+          
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 4, 
+                child: _buildTeamColumn(pName, "assets/images/logo_scw.png", Colors.blueAccent, isMobile)
+              ),
+              Expanded(
+                flex: 3,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(height: isMobile ? 10 : 20), 
+                    Text("VS", style: TextStyle(color: Colors.white30, fontSize: isMobile ? 20 : 36, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic)),
+                    SizedBox(height: isMobile ? 10 : 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), 
+                      decoration: BoxDecoration(color: Colors.amber.withOpacity(0.2), borderRadius: BorderRadius.circular(6)), 
+                      child: Text("WEEK ${gameState.week}", style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 10))
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 4, 
+                child: _buildTeamColumn("EMPIRE WRESTLING", "assets/images/logo_empire.png", Colors.redAccent, isMobile)
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChart(List<dynamic> recentHistory, {required bool isMobile}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("RECENT RATINGS TREND", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 2.0)),
+        const SizedBox(height: 16),
+        
+        if (recentHistory.isEmpty)
+          Container(
+            height: isMobile ? 160 : 250, width: double.infinity,
+            decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
+            child: const Center(child: Text("NO DATA COLLECTED", style: TextStyle(color: Colors.white30, fontWeight: FontWeight.bold, letterSpacing: 2.0))),
+          )
+        else
+          Container(
+            height: isMobile ? 160 : 250,
+            padding: const EdgeInsets.only(top: 20, bottom: 10, left: 10, right: 10),
+            decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: recentHistory.map((entry) {
+                return _buildComparisonBar(entry.week, entry.showRating, entry.rivalRating, isMobile ? 100 : 170);
+              }).toList(),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildHistoryItem(dynamic entry) {
+    bool won = entry.warResult == "VICTORY";
+    bool lost = entry.warResult == "DEFEAT";
+    String resultText = entry.warResult;
+    
+    Color accentColor = Colors.grey;
+    if (won) accentColor = Colors.greenAccent;
+    if (lost) accentColor = Colors.redAccent;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accentColor.withOpacity(0.5), width: 1.5),
+        boxShadow: [BoxShadow(color: accentColor.withOpacity(0.05), blurRadius: 8)],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("WEEK ${entry.week}", style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Text("${entry.showRating}", style: TextStyle(color: won ? Colors.white : Colors.white54, fontWeight: FontWeight.w900, fontSize: 20)),
+                  const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text("VS", style: TextStyle(color: Colors.white24, fontSize: 12, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic))),
+                  Text("${entry.rivalRating}", style: TextStyle(color: lost ? Colors.white : Colors.white54, fontWeight: FontWeight.w900, fontSize: 20)),
+                ],
+              ),
+            ],
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(color: accentColor.withOpacity(0.15), borderRadius: BorderRadius.circular(6), border: Border.all(color: accentColor.withOpacity(0.3))),
+            child: Text(resultText, style: TextStyle(color: accentColor, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+          )
+        ],
+      ),
+    );
+  }
 
   Widget _buildTeamColumn(String name, String logoPath, Color color, bool isMobile) {
     return Column(
       children: [
-        // 🛠️ THE FIX: Slightly smaller avatars
         Container(
-          height: isMobile ? 60 : 80, width: isMobile ? 60 : 80,
+          height: isMobile ? 50 : 100, width: isMobile ? 50 : 100,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(color: color.withOpacity(0.5), width: 3),
@@ -291,24 +373,26 @@ class RatingsWarScreen extends ConsumerWidget {
             child: Image.asset(
               logoPath, 
               fit: BoxFit.cover,
-              errorBuilder: (c, o, s) => Icon(Icons.shield, color: color, size: isMobile ? 30 : 40),
+              errorBuilder: (c, o, s) => Icon(Icons.shield, color: color, size: isMobile ? 24 : 50),
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        // 🛠️ THE FIX: Smaller font, strictly centered, max lines to force nice wrapping
-        Text(
-          name, 
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: isMobile ? 10 : 13, letterSpacing: 1.0, height: 1.2)
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              name.replaceFirst(" ", "\n"), 
+              textAlign: TextAlign.center,
+              style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: isMobile ? 11 : 14, letterSpacing: 1.0, height: 1.2)
+            ),
+          ),
         ),
       ],
     );
   }
 
-  // 🛠️ THE FIX: Pass maxH dynamically so the bars don't overflow the newly shortened container
   Widget _buildComparisonBar(int week, double myScore, double rivalScore, double maxH) {
     double h1 = (myScore / 5.0) * maxH;
     double h2 = (rivalScore / 5.0) * maxH;

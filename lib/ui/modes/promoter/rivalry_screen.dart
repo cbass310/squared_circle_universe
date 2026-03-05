@@ -19,71 +19,134 @@ class RivalryScreen extends ConsumerWidget {
     final gameState = ref.watch(gameProvider);
     final rosterState = ref.watch(rosterProvider);
 
-    final bool isDesktop = MediaQuery.of(context).size.width > 800;
-
     return DefaultTabController(
       length: 3, 
-      child: Scaffold(
-        backgroundColor: Colors.black,
-        body: SafeArea(
-          child: isDesktop
-              ? Row(
+      // 🚨 SMART LAYOUT BUILDER 🚨
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final bool isDesktop = constraints.maxWidth > 800;
+
+          if (isDesktop) {
+            // 💻 PC LAYOUT (Wide Side-by-Side)
+            return Scaffold(
+              backgroundColor: Colors.black,
+              body: SafeArea(
+                child: Row(
                   children: [
-                    Expanded(flex: 4, child: _buildLeftDashboard(context, gameState, rosterState, isDesktop)),
-                    Expanded(flex: 6, child: _buildRightArtworkPane(gameState)),
-                  ],
-                )
-              : Column(
-                  children: [
-                    _buildMobileHeader(context),
-                    Expanded(flex: 5, child: _buildRightArtworkPane(gameState, isMobile: true)),
-                    Expanded(flex: 6, child: _buildLeftDashboard(context, gameState, rosterState, isDesktop)),
+                    Expanded(flex: 4, child: _buildDashboard(context, gameState, rosterState, true)),
+                    Expanded(flex: 6, child: _buildArtworkPane(gameState, isMobile: false)),
                   ],
                 ),
-        ),
+              ),
+            );
+          } else {
+            // 📱 MOBILE LAYOUT (40/60 Vertical Split)
+            return Scaffold(
+              backgroundColor: Colors.black,
+              body: Column(
+                children: [
+                  // TOP 40%: The Cinematic Viewport
+                  Expanded(
+                    flex: 4,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _buildArtworkPane(gameState, isMobile: true),
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Colors.black.withOpacity(0.4), Colors.black],
+                              stops: const [0.5, 1.0],
+                            ),
+                          ),
+                        ),
+                        // SAFE AREA FOR BACK BUTTON & TITLE
+                        SafeArea(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20), 
+                                  onPressed: () => Navigator.pop(context),
+                                  padding: EdgeInsets.zero,
+                                  alignment: Alignment.topLeft,
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: const [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.lightbulb, color: Colors.amber, size: 24),
+                                        SizedBox(width: 8),
+                                        Text("WRITER'S ROOM", style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+                                      ],
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text("CREATIVE HUB", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // BOTTOM 60%: The Dashboard Data
+                  Expanded(
+                    flex: 6,
+                    child: Container(
+                      color: Colors.black,
+                      width: double.infinity,
+                      child: _buildDashboard(context, gameState, rosterState, false),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+        }
       ),
     );
   }
 
-  Widget _buildMobileHeader(BuildContext context) {
-    return Container(
-      color: const Color(0xFF121212),
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
-        children: [
-          IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20), onPressed: () => Navigator.pop(context)),
-          const SizedBox(width: 8),
-          const Text("CREATIVE HUB", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLeftDashboard(BuildContext context, dynamic gameState, dynamic rosterState, bool isDesktop) {
+  // =====================================================================
+  // --- THE CREATIVE DASHBOARD (Shared)
+  // =====================================================================
+  Widget _buildDashboard(BuildContext context, dynamic gameState, dynamic rosterState, bool isDesktop) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF121212),
-        border: isDesktop ? const Border(right: BorderSide(color: Colors.white10, width: 2)) : const Border(top: BorderSide(color: Colors.white10, width: 2)),
+        color: isDesktop ? const Color(0xFF121212) : Colors.black,
+        border: isDesktop ? const Border(right: BorderSide(color: Colors.white10, width: 2)) : null,
       ),
       child: Column(
         children: [
+          // HEADER (PC ONLY - Mobile handles this in the image overlay)
           if (isDesktop)
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(24.0),
               child: Row(
                 children: [
                   IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20), onPressed: () => Navigator.pop(context)),
                   const SizedBox(width: 8),
-                  const Text("CREATIVE HUB", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                  const Text("CREATIVE HUB", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                 ],
               ),
             ),
           
-          // 🚨 THE FIX: Forced pure black background and transparent divider
+          // --- TABS ---
           Container(
-            color: Colors.black, // Ensures the background is perfectly black
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: isDesktop ? Colors.black : Colors.white10, width: isDesktop ? 3 : 1)),
+              color: isDesktop ? const Color(0xFF121212) : Colors.black,
+            ),
             child: const TabBar(
-              dividerColor: Colors.transparent, // Kills the Material 3 gray line
+              dividerColor: Colors.transparent, 
               indicatorColor: Colors.amber,
               indicatorWeight: 3,
               labelColor: Colors.amber,
@@ -97,6 +160,7 @@ class RivalryScreen extends ConsumerWidget {
             ),
           ),
 
+          // --- TAB CONTENT ---
           Expanded(
             child: TabBarView(
               children: [
@@ -111,6 +175,38 @@ class RivalryScreen extends ConsumerWidget {
     );
   }
 
+  // =====================================================================
+  // --- ARTWORK PANE (Shared)
+  // =====================================================================
+  Widget _buildArtworkPane(dynamic gameState, {required bool isMobile}) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          "assets/images/gorilla_position.png", 
+          fit: BoxFit.cover,
+          alignment: Alignment.centerRight,
+          errorBuilder: (c, e, s) => Container(color: const Color(0xFF0A0A0A)),
+        ),
+        if (!isMobile)
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [Colors.black.withOpacity(0.95), Colors.black.withOpacity(0.4), Colors.black.withOpacity(0.8)],
+                stops: const [0.0, 0.5, 1.0],
+              ),
+            ),
+          ),
+        TVWatermark(isMobile: isMobile),
+      ],
+    );
+  }
+
+  // =====================================================================
+  // --- TAB 1: RIVALRIES
+  // =====================================================================
   Widget _buildRivalriesTab(dynamic rosterState) {
     if (rosterState.activeRivalries.isEmpty) {
       return Center(
@@ -154,7 +250,7 @@ class RivalryScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: heatColor.withOpacity(0.5), width: 2),
+        border: Border.all(color: heatColor.withOpacity(0.5), width: 1), // Thinned border slightly for cleaner look
         boxShadow: [BoxShadow(color: heatColor.withOpacity(0.1), blurRadius: 15, offset: const Offset(0, 5))],
       ),
       child: Stack(
@@ -219,6 +315,9 @@ class RivalryScreen extends ConsumerWidget {
     );
   }
 
+  // =====================================================================
+  // --- TAB 2: HISTORY
+  // =====================================================================
   Widget _buildHistoryTab(dynamic gameState) {
     final isar = Isar.getInstance();
     if (isar == null) return const Center(child: Text("Archive Database Offline."));
@@ -318,6 +417,9 @@ class RivalryScreen extends ConsumerWidget {
     );
   }
 
+  // =====================================================================
+  // --- TAB 3: ASSISTANT GM
+  // =====================================================================
   Widget _buildAssistantGMTab(BuildContext context, dynamic rosterState) {
     dynamic topFeud;
     if (rosterState.activeRivalries.isNotEmpty) {
@@ -420,7 +522,8 @@ class RivalryScreen extends ConsumerWidget {
                 Navigator.pop(context);
               },
             ),
-          )
+          ),
+          const SizedBox(height: 40), // Bottom safe area
         ],
       ),
     );
@@ -451,33 +554,6 @@ class RivalryScreen extends ConsumerWidget {
           Text(logicReason, style: const TextStyle(color: Colors.white54, fontSize: 10, fontStyle: FontStyle.italic)),
         ],
       ),
-    );
-  }
-
-  Widget _buildRightArtworkPane(dynamic gameState, {bool isMobile = false}) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Image.asset(
-          "assets/images/gorilla_position.png", 
-          fit: BoxFit.cover,
-          alignment: Alignment.centerRight,
-          errorBuilder: (c, e, s) => Image.asset("assets/images/crowd_background.png", fit: BoxFit.cover, errorBuilder: (c,e,s) => Container(color: const Color(0xFF0A0A0A))),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [Colors.black.withOpacity(0.95), Colors.black.withOpacity(0.4), Colors.black.withOpacity(0.8)],
-              stops: const [0.0, 0.5, 1.0],
-            ),
-          ),
-        ),
-        
-        // --- THE GLOBAL WATERMARK ---
-        TVWatermark(isMobile: isMobile),
-      ],
     );
   }
 }

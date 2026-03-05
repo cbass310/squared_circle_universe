@@ -14,72 +14,149 @@ class GlobalNetworkAuthScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
     final isAuthenticating = authState == AuthState.authenticating;
-    final bool isDesktop = MediaQuery.of(context).size.width > 800;
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: isDesktop
-            ? Row(
+    // 🚨 SMART LAYOUT BUILDER 🚨
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isDesktop = constraints.maxWidth > 800;
+
+        if (isDesktop) {
+          // 💻 PC LAYOUT (Wide Side-by-Side)
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: SafeArea(
+              child: Row(
                 children: [
-                  Expanded(flex: 4, child: _buildLeftDashboard(context, ref, isAuthenticating, isDesktop)),
-                  Expanded(flex: 6, child: _buildRightArtworkPane(isMobile: false)),
-                ],
-              )
-            : Column(
-                children: [
-                  Expanded(flex: 4, child: _buildRightArtworkPane(isMobile: true)),
-                  Expanded(flex: 6, child: _buildLeftDashboard(context, ref, isAuthenticating, isDesktop)),
+                  Expanded(flex: 4, child: _buildDashboard(context, ref, isAuthenticating, true)),
+                  Expanded(flex: 6, child: _buildArtworkPane(isMobile: false)),
                 ],
               ),
-      ),
+            ),
+          );
+        } else {
+          // 📱 MOBILE LAYOUT (40/60 Vertical Split)
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: Column(
+              children: [
+                // TOP 40%: The Cinematic Viewport
+                Expanded(
+                  flex: 4,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _buildArtworkPane(isMobile: true),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.black.withOpacity(0.4), Colors.black],
+                            stops: const [0.5, 1.0],
+                          ),
+                        ),
+                      ),
+                      SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.cyanAccent, size: 20),
+                                onPressed: () => Navigator.pop(context),
+                                padding: EdgeInsets.zero,
+                                alignment: Alignment.topLeft,
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: const [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.public, color: Colors.cyanAccent, size: 24),
+                                      SizedBox(width: 8),
+                                      Text("CONNECTION PORTAL", style: TextStyle(color: Colors.cyanAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+                                    ],
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text("THE GLOBAL NETWORK", style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // BOTTOM 60%: The Dashboard Data
+                Expanded(
+                  flex: 6,
+                  child: Container(
+                    color: Colors.black,
+                    width: double.infinity,
+                    child: _buildDashboard(context, ref, isAuthenticating, false),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+      }
     );
   }
 
   // =====================================================================
-  // --- LEFT PANE: THE AUTHENTICATION PORTAL
+  // --- THE DASHBOARD (Shared by Desktop & Mobile)
   // =====================================================================
-  Widget _buildLeftDashboard(BuildContext context, WidgetRef ref, bool isAuthenticating, bool isDesktop) {
+  Widget _buildDashboard(BuildContext context, WidgetRef ref, bool isAuthenticating, bool isDesktop) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF121212),
-        border: isDesktop ? const Border(right: BorderSide(color: Colors.black, width: 3)) : const Border(top: BorderSide(color: Colors.black, width: 3)),
+        color: isDesktop ? const Color(0xFF121212) : Colors.black,
+        border: isDesktop ? const Border(right: BorderSide(color: Colors.white10, width: 2)) : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- HEADER ---
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Row(
-              children: [
-                IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.cyanAccent, size: 20), onPressed: () => Navigator.pop(context)),
-                const SizedBox(width: 8),
-                const Text("CONNECTION PORTAL", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1.5)),
-              ],
+          // --- HEADER (PC ONLY - Mobile uses the image overlay) ---
+          if (isDesktop)
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Row(
+                  children: [
+                    IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.cyanAccent, size: 20), onPressed: () => Navigator.pop(context)),
+                    const SizedBox(width: 8),
+                    const Text("CONNECTION PORTAL", style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1.5)),
+                  ],
+                ),
+              ),
             ),
-          ),
-          
-          Container(height: 3, color: Colors.black), 
+            
+          if (isDesktop) Container(height: 1, color: Colors.white10), 
 
           // --- CONTENT ---
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(40.0),
+              padding: EdgeInsets.all(isDesktop ? 40.0 : 24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
-                    'THE GLOBAL NETWORK',
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.cyanAccent, letterSpacing: 2.0),
-                  ),
-                  const SizedBox(height: 16),
+                  if (isDesktop) ...[
+                    const Text(
+                      'THE GLOBAL NETWORK',
+                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.cyanAccent, letterSpacing: 2.0),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   const Text(
                     "Sync your offline legacy. Predict real-world PPV results. Dominate the global leaderboards and claim your spot on the blockchain.",
                     style: TextStyle(fontSize: 14, color: Colors.white70, height: 1.5, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 50),
+                  SizedBox(height: isDesktop ? 50 : 30),
                   
                   if (isAuthenticating)
                     const Center(child: CircularProgressIndicator(color: Colors.cyanAccent))
@@ -200,9 +277,9 @@ class GlobalNetworkAuthScreen extends ConsumerWidget {
   }
 
   // =====================================================================
-  // --- RIGHT PANE: ARTWORK ONLY + WATERMARK
+  // --- ARTWORK PANE (Shared)
   // =====================================================================
-  Widget _buildRightArtworkPane({bool isMobile = false}) {
+  Widget _buildArtworkPane({required bool isMobile}) {
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -217,16 +294,17 @@ class GlobalNetworkAuthScreen extends ConsumerWidget {
             );
           },
         ),
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [Colors.black.withOpacity(0.95), Colors.black.withOpacity(0.4), Colors.black.withOpacity(0.8)],
-              stops: const [0.0, 0.5, 1.0],
+        if (!isMobile)
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [Colors.black.withOpacity(0.95), Colors.black.withOpacity(0.4), Colors.black.withOpacity(0.8)],
+                stops: const [0.0, 0.5, 1.0],
+              ),
             ),
           ),
-        ),
         
         // --- THE GLOBAL WATERMARK ---
         TVWatermark(isMobile: isMobile),

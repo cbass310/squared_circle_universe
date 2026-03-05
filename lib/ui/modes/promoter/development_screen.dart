@@ -22,6 +22,15 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
   Wrestler? _selectedA;
   Wrestler? _selectedB;
 
+  // Local state to track how many prospects have been scouted per region!
+  // Once a region hits 5, it locks permanently. 
+  final Map<String, int> _scoutCounters = {
+    "North America": 0,
+    "Mexico & Canada": 0,
+    "Japan & Asia": 0,
+    "UK & Europe": 0,
+  };
+
   @override
   void initState() {
     super.initState();
@@ -46,57 +55,116 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
   Widget build(BuildContext context) {
     final rosterState = ref.watch(rosterProvider);
     final gameState = ref.watch(gameProvider); 
-    
-    final bool isDesktop = MediaQuery.of(context).size.width > 800;
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: isDesktop
-            ? Row(
-                children: [
-                  Expanded(flex: 4, child: _buildLeftDashboard(gameState, rosterState, isDesktop)),
-                  Expanded(flex: 6, child: _buildRightArtworkPane(isMobile: false)),
-                ],
-              )
-            : Column(
-                children: [
-                  Expanded(flex: 4, child: _buildRightArtworkPane(isMobile: true)),
-                  Expanded(flex: 6, child: _buildLeftDashboard(gameState, rosterState, isDesktop)),
-                ],
-              ),
-      ),
+    // 🚨 SMART LAYOUT BUILDER 🚨
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isDesktop = constraints.maxWidth > 600; // 🛠️ Adjusted for Tablets
+
+        if (isDesktop) {
+          // 💻 PC LAYOUT (Wide Side-by-Side)
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: Row(
+              children: [
+                Expanded(flex: 4, child: _buildDashboard(gameState, rosterState, true)),
+                Expanded(flex: 6, child: _buildArtworkPane(isMobile: false)),
+              ],
+            ),
+          );
+        } else {
+          // 📱 MOBILE LAYOUT (40/60 Vertical Split)
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: Column(
+              children: [
+                Expanded(
+                  flex: 4,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _buildArtworkPane(isMobile: true),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.black.withOpacity(0.3), Colors.black],
+                            stops: const [0.5, 1.0],
+                          ),
+                        ),
+                      ),
+                      SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Row(
+                                children: [
+                                  Icon(Icons.flash_on, color: Colors.amber, size: 24),
+                                  SizedBox(width: 8),
+                                  Text("SCW PIPELINE", style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+                                ],
+                              ),
+                              SizedBox(height: 4),
+                              Text("POWER PLANT", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  flex: 6,
+                  child: Container(
+                    color: Colors.black,
+                    width: double.infinity,
+                    child: _buildDashboard(gameState, rosterState, false),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+      },
     );
   }
 
   // =====================================================================
-  // --- LEFT PANE: THE POWER PLANT DASHBOARD
+  // --- THE POWER PLANT DASHBOARD (Shared)
   // =====================================================================
-  Widget _buildLeftDashboard(dynamic gameState, dynamic rosterState, bool isDesktop) {
+  Widget _buildDashboard(dynamic gameState, dynamic rosterState, bool isDesktop) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF121212),
-        border: isDesktop ? const Border(right: BorderSide(color: Colors.black, width: 3)) : const Border(top: BorderSide(color: Colors.black, width: 3)),
+        color: isDesktop ? const Color(0xFF121212) : Colors.black,
+        border: isDesktop ? const Border(right: BorderSide(color: Colors.black, width: 3)) : null,
       ),
       child: Column(
         children: [
-          // --- HEADER ---
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Row(
-              children: const [
-                Icon(Icons.flash_on, color: Colors.amber, size: 28),
-                SizedBox(width: 12),
-                Text("POWER PLANT", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5)),
-              ],
+          // --- HEADER (PC ONLY - Mobile handles this in the image overlay) ---
+          if (isDesktop)
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Row(
+                  children: const [
+                    Icon(Icons.flash_on, color: Colors.amber, size: 28),
+                    SizedBox(width: 12),
+                    Text("POWER PLANT", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5)),
+                  ],
+                ),
+              ),
             ),
-          ),
           
           // --- TABS ---
           Container(
-            color: Colors.black, // 🚨 Ensures the background blends perfectly
+            color: Colors.black, 
             child: TabBar(
-              dividerColor: Colors.transparent, // 🚨 REMOVES THE UGLY GRAY LINE!
+              dividerColor: Colors.transparent, 
               controller: _tabController,
               indicatorColor: Colors.amber,
               indicatorWeight: 3,
@@ -128,9 +196,9 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
   }
 
   // =====================================================================
-  // --- RIGHT PANE: ARTWORK ONLY + WATERMARK
+  // --- ARTWORK PANE (Shared)
   // =====================================================================
-  Widget _buildRightArtworkPane({bool isMobile = false}) {
+  Widget _buildArtworkPane({required bool isMobile}) {
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -138,80 +206,73 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
           "assets/images/gym_background.png", 
           fit: BoxFit.cover,
           alignment: Alignment.center,
-          errorBuilder: (c, e, s) => Image.asset("assets/images/office_background.png", fit: BoxFit.cover, errorBuilder: (c,e,s) => Container(color: const Color(0xFF0A0A0A))),
+          errorBuilder: (c, e, s) => Container(color: const Color(0xFF151515)),
         ),
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [Colors.black.withOpacity(0.95), Colors.black.withOpacity(0.4), Colors.black.withOpacity(0.8)],
-              stops: const [0.0, 0.5, 1.0],
+        if (!isMobile)
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [Colors.black.withOpacity(0.95), Colors.black.withOpacity(0.4), Colors.transparent],
+                stops: const [0.0, 0.4, 1.0],
+              ),
             ),
           ),
-        ),
-        
-        // --- TEXT AND LOGO BLOCKS REMOVED HERE --- //
-
-        // --- THE GLOBAL WATERMARK ---
         TVWatermark(isMobile: isMobile),
       ],
     );
   }
 
   // ===========================================================================
-  // TAB 1: SCOUTING 
+  // TAB 1: SCOUTING (🛠️ REDESIGNED LOGIC)
   // ===========================================================================
   Widget _buildScoutingTab(dynamic gameState) {
-    bool isScoutingClosed = gameState.week > 26;
-
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text("GLOBAL SCOUTING NETWORK", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-            Text(isScoutingClosed ? "SEASON CLOSED" : "SEASON ACTIVE (Wks 1-26)", style: TextStyle(color: isScoutingClosed ? Colors.redAccent : Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold)),
-          ],
-        ),
+        // 🛠️ THE FIX: Removed the "MAX 5 PROSPECTS" text to clear up space!
+        const Text("GLOBAL SCOUTING", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
         const SizedBox(height: 16),
         
-        _buildRegionCard(gameState, "North America", 1, 500, "Gym", "assets/images/scout_usa.png", isScoutingClosed),
-        _buildRegionCard(gameState, "Mexico & Canada", 2, 1000, "Civic Center", "assets/images/scout_mexico.png", isScoutingClosed),
-        _buildRegionCard(gameState, "Japan & Asia", 3, 2500, "Arena", "assets/images/scout_japan.png", isScoutingClosed),
-        _buildRegionCard(gameState, "United Kingdom & Europe", 4, 5000, "Stadium", "assets/images/scout_uk.png", isScoutingClosed),
+        _buildRegionCard(gameState, "North America", 1, 500, "Gym", "assets/images/scout_usa.png"),
+        _buildRegionCard(gameState, "Mexico & Canada", 2, 1000, "Civic Center", "assets/images/scout_mexico.png"),
+        _buildRegionCard(gameState, "Japan & Asia", 3, 2500, "Arena", "assets/images/scout_japan.png"),
+        _buildRegionCard(gameState, "UK & Europe", 4, 5000, "Stadium", "assets/images/scout_uk.png"),
         
         const SizedBox(height: 24),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: isScoutingClosed ? Colors.red.withOpacity(0.05) : Colors.amber.withOpacity(0.05), 
+            color: Colors.amber.withOpacity(0.05), 
             borderRadius: BorderRadius.circular(8), 
-            border: Border.all(color: isScoutingClosed ? Colors.red.withOpacity(0.3) : Colors.amber.withOpacity(0.3))
+            border: Border.all(color: Colors.amber.withOpacity(0.3))
           ),
           child: Row(
             children: [
-              Icon(isScoutingClosed ? Icons.warning_amber_rounded : Icons.info_outline, color: isScoutingClosed ? Colors.redAccent : Colors.amber, size: 20),
-              const SizedBox(width: 12),
+              const Icon(Icons.info_outline, color: Colors.amber, size: 24),
+              const SizedBox(width: 16),
               Expanded(
                 child: Text(
-                  isScoutingClosed 
-                    ? "The scouting season is over! Remaining prospects have entered the global Free Agent pool. Check back in Week 1!" 
-                    : "Each region holds 5 hidden prospects. At Week 26, all unscouted prospects enter Global Free Agency!", 
-                  style: TextStyle(color: isScoutingClosed ? Colors.redAccent : Colors.amber, fontSize: 11)
+                  "Each region only holds 5 hidden prospects for your entire career. Choose carefully when to spend your cash to unearth them! Unsigned prospects fall into Free Agency.", 
+                  style: const TextStyle(color: Colors.amber, fontSize: 11, height: 1.5)
                 )
               ),
             ],
           ),
         ),
+        const SizedBox(height: 40), 
       ],
     );
   }
 
-  Widget _buildRegionCard(dynamic gameState, String name, int requiredLevel, int cost, String venueName, String imagePath, bool isScoutingClosed) {
+  Widget _buildRegionCard(dynamic gameState, String name, int requiredLevel, int cost, String venueName, String imagePath) {
     bool isLockedByVenue = gameState.venueLevel < requiredLevel;
-    bool isCardDisabled = isLockedByVenue || isScoutingClosed;
+    int scoutCount = _scoutCounters[name] ?? 0;
+    bool isDepleted = scoutCount >= 5;
+    
+    // The card is disabled if you don't have the venue, OR if you've already found all 5 guys.
+    bool isCardDisabled = isLockedByVenue || isDepleted;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -219,15 +280,15 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
       decoration: BoxDecoration(
         color: isCardDisabled ? const Color(0xFF151515) : const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black, width: 2), 
+        border: Border.all(color: Colors.white10, width: 1), 
         boxShadow: isCardDisabled ? [] : [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 6, offset: const Offset(0, 3))],
       ),
       child: Row(
         children: [
           Container(
-            width: 90,
+            width: 80,
             decoration: BoxDecoration(
-              borderRadius: const BorderRadius.only(topLeft: Radius.circular(10), bottomLeft: Radius.circular(10)),
+              borderRadius: const BorderRadius.only(topLeft: Radius.circular(11), bottomLeft: Radius.circular(11)),
               image: DecorationImage(
                 image: AssetImage(imagePath),
                 fit: BoxFit.cover,
@@ -243,14 +304,14 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(name.toUpperCase(), style: TextStyle(color: isCardDisabled ? Colors.white30 : Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                  Text(name.toUpperCase(), style: TextStyle(color: isCardDisabled ? Colors.white30 : Colors.white, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
                   const SizedBox(height: 4),
-                  if (isScoutingClosed)
-                    const Text("OFF-SEASON", style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold))
+                  if (isDepleted)
+                    const Text("REGION DEPLETED (5/5)", style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold))
                   else if (isLockedByVenue)
                     Text("REQUIRES: ${venueName.toUpperCase()}", style: const TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold))
                   else
-                    Text("COST: \$$cost", style: const TextStyle(color: Colors.greenAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+                    Text("COST: \$$cost  •  FOUND: $scoutCount/5", style: const TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -267,7 +328,7 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   elevation: 0,
                 ),
-                child: const Text("SCOUT", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                child: const Text("SCOUT", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
                 onPressed: () => _runScoutingLogic(name, cost, gameState), 
               ),
             ),
@@ -276,7 +337,6 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
     );
   }
 
-  // 🚀 ENGINE HOOK: SCOUTING 
   void _runScoutingLogic(String regionName, int cost, dynamic gameState) async {
     HapticFeedback.heavyImpact();
     if (gameState.cash < cost) {
@@ -293,6 +353,12 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
 
     if (mounted) {
       if (newlyScoutedWrestler != null) {
+        
+        // 🛠️ INCREASE THE REGION COUNTER BY 1
+        setState(() {
+          _scoutCounters[regionName] = (_scoutCounters[regionName] ?? 0) + 1;
+        });
+
         String potentialGrade = _getPotentialGrade(newlyScoutedWrestler.potentialSkill);
 
         showDialog(
@@ -305,7 +371,7 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
               children: const [
                 Icon(Icons.public, color: Colors.blueAccent, size: 40),
                 SizedBox(height: 10),
-                Text("NEW PROSPECT FOUND!", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 1.5)),
+                Text("NEW PROSPECT FOUND!", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1.0)),
               ]
             ),
             content: Column(
@@ -313,20 +379,20 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
               children: [
                 Text("Your scouts in $regionName have discovered:", textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70)),
                 const SizedBox(height: 15),
-                Text(newlyScoutedWrestler.name.toUpperCase(), style: const TextStyle(color: Colors.amber, fontSize: 24, fontWeight: FontWeight.bold)),
+                Text(newlyScoutedWrestler.name.toUpperCase(), style: const TextStyle(color: Colors.amber, fontSize: 22, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
                 
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text("POP: ${newlyScoutedWrestler.pop.toInt()} | RING: ${newlyScoutedWrestler.ringSkill.toInt()}", style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold)),
+                    Text("POP: ${newlyScoutedWrestler.pop.toInt()} | RING: ${newlyScoutedWrestler.ringSkill.toInt()}", style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold)),
                     const Text("  •  ", style: TextStyle(color: Colors.white24)),
-                    Text("POTENTIAL: $potentialGrade", style: const TextStyle(color: Colors.greenAccent, fontSize: 14, fontWeight: FontWeight.bold)),
+                    Text("POTENTIAL: $potentialGrade", style: const TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold)),
                   ],
                 ),
                 
                 const SizedBox(height: 20),
-                const Text("You hold exclusive signing rights until Week 26.", textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontStyle: FontStyle.italic, fontSize: 11)),
+                const Text("Sign them to your active roster now, or they will walk to Global Free Agency.", textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontStyle: FontStyle.italic, fontSize: 11)),
               ]
             ),
             actions: [
@@ -334,8 +400,11 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text("DECIDE LATER", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${newlyScoutedWrestler.name} entered Free Agency."), backgroundColor: Colors.grey));
+                    },
+                    child: const Text("FREE AGENCY", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 11)),
                   ),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.greenAccent, foregroundColor: Colors.black),
@@ -352,7 +421,7 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
                         }
                       }
                     },
-                    child: const Text("SIGN NOW", style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: const Text("SIGN NOW", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
                 ],
               )
@@ -365,8 +434,8 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
           builder: (ctx) => AlertDialog(
             backgroundColor: const Color(0xFF1E1E1E),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Colors.grey, width: 2)),
-            title: const Text("REGION DEPLETED", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-            content: const Text("Your scouts scoured the area, but the 5 regional prospects have already been found. Check a different region!", style: TextStyle(color: Colors.white70)),
+            title: const Text("SCOUTING FAILED", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+            content: const Text("Your scouts scoured the area but couldn't find anyone worth signing this week.", style: TextStyle(color: Colors.white70, height: 1.5)),
             actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("OK", style: TextStyle(color: Colors.grey)))],
           )
         );
@@ -382,13 +451,13 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Padding(
-          padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
           child: Text("ROSTER DEVELOPMENT", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
         ),
         Expanded(
           child: ListView.builder(
             itemCount: state.roster.length,
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             itemBuilder: (context, index) {
               final wrestler = state.roster[index];
               return Container(
@@ -396,7 +465,7 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
                 decoration: BoxDecoration(
                   color: const Color(0xFF1E1E1E), 
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.black, width: 2), 
+                  border: Border.all(color: Colors.white10, width: 1), 
                 ),
                 child: Theme(
                   data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -421,10 +490,10 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
                     ),
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(12),
                         decoration: const BoxDecoration(
                           color: Colors.black26,
-                          border: Border(top: BorderSide(color: Colors.black, width: 2)) 
+                          border: Border(top: BorderSide(color: Colors.white10, width: 1)) 
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -461,9 +530,9 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
           ),
           child: Column(
             children: [
-              Text(type, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+              Text(type, style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
               const SizedBox(height: 4),
-              Text("\$$cost", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text("\$$cost", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
             ],
           ),
           onPressed: () => _runTrainingLogic(w, type, cost, gameState, color), 
@@ -506,7 +575,7 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
           children: [
             Icon(Icons.fitness_center, color: color),
             const SizedBox(width: 10),
-            const Text("TRAINING COMPLETE", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text("TRAINING COMPLETE", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
           ]
         ),
         content: Text("${w.name} successfully leveled up their $type!", style: const TextStyle(color: Colors.white70)),
@@ -522,43 +591,43 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
   // ===========================================================================
   Widget _buildSparringTab(dynamic state) {
     return Padding(
-      padding: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.05), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.redAccent.withOpacity(0.3))),
             child: Column(
               children: const [
-                Icon(Icons.sports_mma, color: Colors.redAccent, size: 24),
+                Icon(Icons.sports_mma, color: Colors.redAccent, size: 20),
                 SizedBox(height: 8),
-                Text("PRACTICE MATCH SIMULATOR", style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                Text("PRACTICE MATCH SIMULATOR", style: TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
                 SizedBox(height: 4),
-                Text("Select 2 Wrestlers to spar. They will gain Ring XP but lose Stamina.", style: TextStyle(color: Colors.white70, fontSize: 11), textAlign: TextAlign.center),
+                Text("Select 2 Wrestlers to spar. They gain Ring XP but lose Stamina.", style: TextStyle(color: Colors.white70, fontSize: 10), textAlign: TextAlign.center),
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           Expanded(
             child: Row(
               children: [
                 Expanded(child: _buildSparringList(state, true)),
-                const SizedBox(width: 16),
-                const Text("VS", style: TextStyle(color: Colors.white24, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic, fontSize: 20)),
-                const SizedBox(width: 16),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12.0),
+                  child: Text("VS", style: TextStyle(color: Colors.white24, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic, fontSize: 16)),
+                ),
                 Expanded(child: _buildSparringList(state, false)),
               ],
             ),
           ),
-          const SizedBox(height: 20),
-          
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             height: 60,
             child: ElevatedButton.icon(
-              icon: const Icon(Icons.flash_on, size: 24),
-              label: const Text("START SPARRING SESSION", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5, fontSize: 14)),
+              icon: const Icon(Icons.flash_on, size: 20),
+              label: const Text("START SESSION", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.0, fontSize: 13)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: (_selectedA != null && _selectedB != null && _selectedA != _selectedB) ? Colors.redAccent : const Color(0xFF1A1A1A), 
                 foregroundColor: (_selectedA != null && _selectedB != null && _selectedA != _selectedB) ? Colors.white : Colors.white30,
@@ -583,11 +652,11 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(color: isSideA ? Colors.blue.withOpacity(0.2) : Colors.amber.withOpacity(0.2), borderRadius: const BorderRadius.vertical(top: Radius.circular(8))),
-          child: Text(isSideA ? "CORNER A" : "CORNER B", textAlign: TextAlign.center, style: TextStyle(color: isSideA ? Colors.blueAccent : Colors.amber, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+          child: Text(isSideA ? "CORNER A" : "CORNER B", textAlign: TextAlign.center, style: TextStyle(color: isSideA ? Colors.blueAccent : Colors.amber, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
         ),
         Expanded(
           child: Container(
-            decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)), border: Border.all(color: Colors.black, width: 2)), 
+            decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)), border: Border.all(color: Colors.white10, width: 1)), 
             child: ListView.builder(
               padding: const EdgeInsets.all(8),
               itemCount: state.roster.length,
@@ -611,7 +680,7 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(color: isSelected ? activeColor : Colors.transparent),
                     ),
-                    child: Text(w.name.toUpperCase(), textAlign: TextAlign.center, style: TextStyle(color: isSelected ? activeColor : Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+                    child: Text(w.name.toUpperCase(), textAlign: TextAlign.center, style: TextStyle(color: isSelected ? activeColor : Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
                   ),
                 );
               },

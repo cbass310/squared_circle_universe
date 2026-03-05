@@ -24,7 +24,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   int _activeDraftSlot = 1;
   bool _isTitleMatchToggled = false;
 
-  // 🚨 THE FIX: A dedicated controller to handle the auto-scrolling!
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -40,10 +39,9 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     final rosterState = ref.watch(rosterProvider);
     final gameState = ref.watch(gameProvider); 
 
-    // 🚨 THE FIX: Listen to the live logs. When a new message appears, scroll down!
+    // Auto-scrolling logic for the live ticker
     ref.listen(bookingProvider, (previous, next) {
       if (previous != null && next.liveLogs.length > previous.liveLogs.length) {
-        // Short delay to ensure the UI has time to render the new chat bubble first
         Future.delayed(const Duration(milliseconds: 100), () {
           if (_scrollController.hasClients) {
             _scrollController.animateTo(
@@ -61,41 +59,259 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     if (selectedWrestler1Id != null && !availableRoster.any((w) => w.id == selectedWrestler1Id)) selectedWrestler1Id = null;
     if (selectedWrestler2Id != null && !availableRoster.any((w) => w.id == selectedWrestler2Id)) selectedWrestler2Id = null;
 
-    final bool isDesktop = MediaQuery.of(context).size.width > 800;
+    // 🚨 SMART LAYOUT BUILDER 🚨
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isDesktop = constraints.maxWidth > 800;
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: Text(bookingState.isSimulating ? "LIVE BROADCAST" : "BOOKING: ${widget.segmentLabel.toUpperCase()}", style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.white)),
-        backgroundColor: const Color(0xFF121212),
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.amber),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(3),
-          child: Container(color: Colors.black, height: 3), 
-        ),
-      ),
-      body: bookingState.isSimulating 
-          ? _buildSimulationView(bookingState, bookingNotifier, isDesktop) 
-          : isDesktop 
-              ? Row(
+        if (isDesktop) {
+          // 💻 PC LAYOUT (Wide Side-by-Side)
+          return Scaffold(
+            backgroundColor: Colors.black,
+            appBar: AppBar(
+              title: Text(bookingState.isSimulating ? "LIVE BROADCAST" : "BOOKING: ${widget.segmentLabel.toUpperCase()}", style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.5, color: Colors.white)),
+              backgroundColor: const Color(0xFF121212),
+              elevation: 0,
+              iconTheme: const IconThemeData(color: Colors.amber),
+              bottom: PreferredSize(preferredSize: const Size.fromHeight(3), child: Container(color: Colors.black, height: 3)), 
+            ),
+            body: bookingState.isSimulating 
+              ? _buildSimulationView(bookingState, bookingNotifier, true) 
+              : Row(
                   children: [
                     Expanded(flex: 4, child: _buildLeftRosterPane(availableRoster)),
-                    Expanded(flex: 6, child: _buildRightBookingPane(availableRoster, bookingState, bookingNotifier, gameState)),
+                    Expanded(flex: 6, child: _buildDesktopRightBookingPane(availableRoster, bookingState, bookingNotifier, gameState)),
                   ],
-                )
+                ),
+          );
+        } else {
+          // 📱 MOBILE LAYOUT (40/60 Vertical Split)
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: bookingState.isSimulating
+              ? _buildSimulationView(bookingState, bookingNotifier, false)
               : Column(
                   children: [
-                    Expanded(flex: 6, child: _buildRightBookingPane(availableRoster, bookingState, bookingNotifier, gameState)),
-                    Expanded(flex: 4, child: _buildLeftRosterPane(availableRoster)),
+                    // TOP 40%: Cinematic Arena & Matchup Viewport
+                    Expanded(
+                      flex: 4,
+                      child: _buildMobileMatchupViewport(availableRoster, gameState),
+                    ),
+                    // BOTTOM 60%: Roster & Control Desk
+                    Expanded(
+                      flex: 6,
+                      child: Container(
+                        color: Colors.black,
+                        width: double.infinity,
+                        child: _buildMobileControlDesk(availableRoster, bookingState, bookingNotifier),
+                      ),
+                    ),
                   ],
-                )
+                ),
+          );
+        }
+      }
     );
   }
 
   // =====================================================================
-  // --- LEFT PANE: THE LOCKER ROOM
+  // --- 📱 MOBILE SPECIFIC LAYOUTS
   // =====================================================================
+
+  Widget _buildMobileMatchupViewport(List<Wrestler> roster, GameState gameState) {
+    String venueBackground;
+    switch (gameState.venueLevel) {
+      case 4: venueBackground = "assets/images/venue_stadium.png"; break;
+      case 3: venueBackground = "assets/images/venue_arena.png"; break;
+      case 2: venueBackground = "assets/images/venue_civic.png"; break;
+      case 1: 
+      default: venueBackground = "assets/images/venue_gym.png"; 
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Opacity(
+          opacity: 0.35, 
+          child: Image.asset(venueBackground, fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: Colors.black)),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.black.withOpacity(0.8), Colors.transparent, Colors.black.withOpacity(0.9)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              stops: const [0.0, 0.4, 1.0],
+            ),
+          ),
+        ),
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context)),
+                    Text(widget.segmentLabel.toUpperCase(), style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 2.0)),
+                    const SizedBox(width: 40), // Balance
+                  ],
+                ),
+                const Spacer(),
+                SizedBox(
+                  height: 140, // Scaled down slightly for mobile
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: _buildContenderSlot(1, selectedWrestler1Id, roster)),
+                          const SizedBox(width: 10),
+                          Expanded(child: _buildContenderSlot(2, selectedWrestler2Id, roster)),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: Colors.black, shape: BoxShape.circle, border: Border.all(color: Colors.amber, width: 2), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.8), blurRadius: 10)]),
+                        child: const Text("VS", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.w900, fontSize: 14, fontStyle: FontStyle.italic)),
+                      )
+                    ],
+                  ),
+                ),
+                const Spacer(),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileControlDesk(List<Wrestler> roster, BookingState state, BookingNotifier notifier) {
+    bool canRunMatch = selectedWrestler1Id != null && selectedWrestler2Id != null;
+
+    return Column(
+      children: [
+        // 1. HORIZONTAL ROSTER DRAFT BAR
+        Container(
+          height: 120,
+          decoration: const BoxDecoration(
+            color: Color(0xFF121212),
+            border: Border(bottom: BorderSide(color: Colors.white10, width: 2)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                width: double.infinity,
+                color: Colors.amber.withOpacity(0.1),
+                child: Text("DRAFTING CONTENDER $_activeDraftSlot", textAlign: TextAlign.center, style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.w900, fontSize: 10, letterSpacing: 1.5)),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: roster.length,
+                  itemBuilder: (ctx, index) {
+                    final w = roster[index];
+                    int? otherId = _activeDraftSlot == 1 ? selectedWrestler2Id : selectedWrestler1Id;
+                    if (w.id == otherId) return const SizedBox.shrink(); // Hide if already drafted in other slot
+
+                    bool isSelected = (_activeDraftSlot == 1 && selectedWrestler1Id == w.id) || (_activeDraftSlot == 2 && selectedWrestler2Id == w.id);
+
+                    return GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          if (_activeDraftSlot == 1) {
+                            selectedWrestler1Id = w.id;
+                            if (selectedWrestler2Id == null) _activeDraftSlot = 2;
+                          } else {
+                            selectedWrestler2Id = w.id;
+                          }
+                        });
+                      },
+                      child: Container(
+                        width: 80,
+                        margin: const EdgeInsets.only(right: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.amber.withOpacity(0.1) : const Color(0xFF1E1E1E),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: isSelected ? Colors.amber : Colors.transparent, width: 2),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            WrestlerAvatar(wrestler: w, size: 40),
+                            const SizedBox(height: 4),
+                            Text(w.name, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: isSelected ? Colors.amber : Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // 2. SCROLLABLE AGENT SETTINGS
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (canRunMatch) _buildChemistryMeter(roster),
+                if (canRunMatch) const SizedBox(height: 20),
+                
+                const Text("MATCH STIPULATION", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, fontSize: 10, letterSpacing: 2.0)),
+                const SizedBox(height: 8),
+                _buildDropdownContainer(
+                  child: DropdownButton<MatchType>(
+                    isExpanded: true, dropdownColor: const Color(0xFF1A1A1A), icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.amber),
+                    value: state.selectedType,
+                    items: MatchType.values.map((type) => DropdownMenuItem(value: type, child: Text(type.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12)))).toList(),
+                    onChanged: (val) { if (val != null) { HapticFeedback.lightImpact(); notifier.setMatchType(val); } },
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+                const Text("ROAD AGENT NOTES", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, fontSize: 10, letterSpacing: 2.0)),
+                const SizedBox(height: 8),
+                _buildDropdownContainer(
+                  child: DropdownButton<AgentNote>(
+                    isExpanded: true, dropdownColor: const Color(0xFF1A1A1A), icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.amber),
+                    value: state.selectedNote,
+                    items: [AgentNote.standard, AgentNote.cleanFinish, AgentNote.screwjob].map((note) {
+                      String title = note == AgentNote.standard ? "Call It In The Ring" : note == AgentNote.cleanFinish ? "Clean Finish" : "Screwjob";
+                      return DropdownMenuItem(value: note, child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12)));
+                    }).toList(),
+                    onChanged: (val) { if (val != null) { HapticFeedback.lightImpact(); notifier.setAgentNote(val); } },
+                  ),
+                ),
+                
+                const SizedBox(height: 20),
+                _buildTitleToggle(roster),
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
+        ),
+
+        // 3. STATIC BOOKING BUTTON AT BOTTOM
+        _buildSimulateButton(canRunMatch, roster, notifier),
+      ],
+    );
+  }
+
+  // =====================================================================
+  // --- 💻 DESKTOP SPECIFIC LAYOUTS
+  // =====================================================================
+
   Widget _buildLeftRosterPane(List<Wrestler> roster) {
     int? otherId = _activeDraftSlot == 1 ? selectedWrestler2Id : selectedWrestler1Id;
     List<Wrestler> validRoster = roster.where((w) => w.id != otherId).toList();
@@ -184,20 +400,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     );
   }
 
-  // =====================================================================
-  // --- RIGHT PANE: THE MATCHUP GRAPHIC
-  // =====================================================================
-  Widget _buildRightBookingPane(List<Wrestler> roster, BookingState state, BookingNotifier notifier, GameState gameState) {
+  Widget _buildDesktopRightBookingPane(List<Wrestler> roster, BookingState state, BookingNotifier notifier, GameState gameState) {
     bool canRunMatch = selectedWrestler1Id != null && selectedWrestler2Id != null;
-
-    bool hasChampion = false;
-    if (canRunMatch) {
-      Wrestler w1 = roster.firstWhere((w) => w.id == selectedWrestler1Id);
-      Wrestler w2 = roster.firstWhere((w) => w.id == selectedWrestler2Id);
-      if (w1.isChampion || w1.isTVChampion || w2.isChampion || w2.isTVChampion) {
-        hasChampion = true;
-      }
-    }
 
     String venueBackground;
     switch (gameState.venueLevel) {
@@ -208,21 +412,13 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       default: venueBackground = "assets/images/venue_gym.png"; 
     }
 
-    final agentNotesList = [AgentNote.standard, AgentNote.cleanFinish, AgentNote.screwjob];
-
     return Stack(
       fit: StackFit.expand,
       children: [
         Opacity(
           opacity: 0.35, 
-          child: Image.asset(
-            venueBackground,
-            fit: BoxFit.cover,
-            alignment: Alignment.center,
-            errorBuilder: (c, e, s) => Container(color: Colors.black), 
-          ),
+          child: Image.asset(venueBackground, fit: BoxFit.cover, alignment: Alignment.center, errorBuilder: (c, e, s) => Container(color: Colors.black)),
         ),
-        
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -233,7 +429,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             ),
           ),
         ),
-
         Column(
           children: [
             Expanded(
@@ -259,18 +454,12 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                           ),
                           Container(
                             padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.black,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.amber, width: 3),
-                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.8), blurRadius: 15)],
-                            ),
+                            decoration: BoxDecoration(color: Colors.black, shape: BoxShape.circle, border: Border.all(color: Colors.amber, width: 3), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.8), blurRadius: 15)]),
                             child: const Text("VS", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.w900, fontSize: 20, fontStyle: FontStyle.italic)),
                           )
                         ],
                       ),
                     ),
-                    
                     const SizedBox(height: 30),
 
                     if (canRunMatch) _buildChemistryMeter(roster),
@@ -279,174 +468,101 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                     const Text("MATCH STIPULATION", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 2.0)),
                     const SizedBox(height: 12),
                     
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E1E1E), 
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.black, width: 2),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<MatchType>(
-                          isExpanded: true,
-                          dropdownColor: const Color(0xFF1A1A1A),
-                          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.amber, size: 30),
-                          value: state.selectedType,
-                          items: MatchType.values.map((type) {
-                            return DropdownMenuItem<MatchType>(
-                              value: type,
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.sports_kabaddi, color: Colors.white54, size: 20),
-                                  const SizedBox(width: 16),
-                                  Text(type.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (MatchType? newType) {
-                            if (newType != null) {
-                              HapticFeedback.lightImpact();
-                              notifier.setMatchType(newType);
-                            }
-                          },
-                        ),
+                    _buildDropdownContainer(
+                      child: DropdownButton<MatchType>(
+                        isExpanded: true, dropdownColor: const Color(0xFF1A1A1A), icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.amber, size: 30),
+                        value: state.selectedType,
+                        items: MatchType.values.map((type) => DropdownMenuItem(value: type, child: Row(children: [const Icon(Icons.sports_kabaddi, color: Colors.white54, size: 20), const SizedBox(width: 16), Text(type.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1.0))]))).toList(),
+                        onChanged: (val) { if (val != null) { HapticFeedback.lightImpact(); notifier.setMatchType(val); } },
                       ),
                     ),
 
                     const SizedBox(height: 30),
-                    const Text("ROAD AGENT NOTES (THE FINISH)", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 2.0)),
+                    const Text("ROAD AGENT NOTES", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 2.0)),
                     const SizedBox(height: 12),
 
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E1E1E), 
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.black, width: 2),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<AgentNote>(
-                          isExpanded: true,
-                          itemHeight: 65, 
-                          dropdownColor: const Color(0xFF1A1A1A),
-                          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.amber, size: 30),
-                          value: state.selectedNote,
-                          items: agentNotesList.map((note) {
-                            String title = "";
-                            String subtitle = "";
-                            if (note == AgentNote.standard) { title = "Call It In The Ring"; subtitle = "Standard psychology & risks."; }
-                            else if (note == AgentNote.cleanFinish) { title = "Clean Finish (+Rating)"; subtitle = "Decisive win. Loser loses momentum."; }
-                            else if (note == AgentNote.screwjob) { title = "Screwjob / Interference (++Heat)"; subtitle = "Boosts rivalry heat, risks angering fans."; }
-
-                            return DropdownMenuItem<AgentNote>(
-                              value: note,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
-                                  const SizedBox(height: 2),
-                                  Text(subtitle, style: const TextStyle(color: Colors.white54, fontSize: 10)),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (AgentNote? newNote) {
-                            if (newNote != null) {
-                              HapticFeedback.lightImpact();
-                              notifier.setAgentNote(newNote);
-                            }
-                          },
-                        ),
+                    _buildDropdownContainer(
+                      child: DropdownButton<AgentNote>(
+                        isExpanded: true, itemHeight: 65, dropdownColor: const Color(0xFF1A1A1A), icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.amber, size: 30),
+                        value: state.selectedNote,
+                        items: [AgentNote.standard, AgentNote.cleanFinish, AgentNote.screwjob].map((note) {
+                          String title = note == AgentNote.standard ? "Call It In The Ring" : note == AgentNote.cleanFinish ? "Clean Finish (+Rating)" : "Screwjob / Interference (++Heat)";
+                          String sub = note == AgentNote.standard ? "Standard psychology & risks." : note == AgentNote.cleanFinish ? "Decisive win. Loser loses momentum." : "Boosts rivalry heat, risks angering fans.";
+                          return DropdownMenuItem(value: note, child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1.0)), const SizedBox(height: 2), Text(sub, style: const TextStyle(color: Colors.white54, fontSize: 10))]));
+                        }).toList(),
+                        onChanged: (val) { if (val != null) { HapticFeedback.lightImpact(); notifier.setAgentNote(val); } },
                       ),
                     ),
                     const SizedBox(height: 30),
-
-                    if (hasChampion)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 20),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1E1E1E),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: _isTitleMatchToggled ? Colors.amber : Colors.black, width: 2),
-                        ),
-                        child: SwitchListTile(
-                          activeColor: Colors.black,
-                          activeTrackColor: Colors.amber,
-                          inactiveThumbColor: Colors.grey,
-                          inactiveTrackColor: Colors.black45,
-                          title: Text("PUT CHAMPIONSHIP ON THE LINE", style: TextStyle(color: _isTitleMatchToggled ? Colors.amber : Colors.white54, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
-                          value: _isTitleMatchToggled,
-                          onChanged: (val) {
-                            HapticFeedback.selectionClick();
-                            setState(() => _isTitleMatchToggled = val);
-                          },
-                        ),
-                      ),
-                    const SizedBox(height: 20),
+                    _buildTitleToggle(roster),
                   ],
                 ),
               ),
             ),
-
-            if (hasChampion && _isTitleMatchToggled)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [Colors.amber.shade700, Colors.orangeAccent.shade400]),
-                  boxShadow: [BoxShadow(color: Colors.amber.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, -3))]
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Icon(Icons.workspace_premium, color: Colors.black, size: 24),
-                    SizedBox(width: 10),
-                    Text("CHAMPIONSHIP ON THE LINE!", style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 2.0)),
-                    SizedBox(width: 10),
-                    Icon(Icons.workspace_premium, color: Colors.black, size: 24),
-                  ],
-                ),
-              ),
-
-            // --- THE MASSIVE SIMULATE BUTTON ---
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(color: Colors.black, border: const Border(top: BorderSide(color: Colors.black, width: 3)), boxShadow: [BoxShadow(color: Colors.amber.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, -10))]),
-              child: SizedBox(
-                width: double.infinity,
-                height: 65,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: canRunMatch ? Colors.amber : const Color(0xFF1E1E1E), 
-                    foregroundColor: canRunMatch ? Colors.black : Colors.white30,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
-                  ),
-                  icon: Icon(canRunMatch ? Icons.sports_mma_rounded : Icons.lock),
-                  label: const Text("RING THE BELL", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
-                  onPressed: canRunMatch ? () {
-                    HapticFeedback.heavyImpact();
-                    Wrestler w1 = roster.firstWhere((w) => w.id == selectedWrestler1Id);
-                    Wrestler w2 = roster.firstWhere((w) => w.id == selectedWrestler2Id);
-                    
-                    ref.read(gameProvider.notifier).stageTitleMatch(hasChampion && _isTitleMatchToggled);
-                    
-                    notifier.setWinner(null); 
-                    notifier.startMatchSimulation([w1, w2]); 
-                  } : null,
-                ),
-              ),
-            ),
+            _buildSimulateButton(canRunMatch, roster, notifier),
           ],
         ),
       ],
     );
   }
 
-  // ----------------------------------------------------------------
-  // WIDGET: THE MATCHUP CONTENDER CARD 
-  // ----------------------------------------------------------------
+  // =====================================================================
+  // --- 🧩 SHARED COMPONENTS
+  // =====================================================================
+
+  Widget _buildDropdownContainer({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.black, width: 2)),
+      child: DropdownButtonHideUnderline(child: child),
+    );
+  }
+
+  Widget _buildTitleToggle(List<Wrestler> roster) {
+    bool hasChampion = false;
+    if (selectedWrestler1Id != null && selectedWrestler2Id != null) {
+      Wrestler w1 = roster.firstWhere((w) => w.id == selectedWrestler1Id);
+      Wrestler w2 = roster.firstWhere((w) => w.id == selectedWrestler2Id);
+      if (w1.isChampion || w1.isTVChampion || w2.isChampion || w2.isTVChampion) hasChampion = true;
+    }
+
+    if (!hasChampion) return const SizedBox.shrink();
+
+    return Container(
+      decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(8), border: Border.all(color: _isTitleMatchToggled ? Colors.amber : Colors.black, width: 2)),
+      child: SwitchListTile(
+        activeColor: Colors.black, activeTrackColor: Colors.amber, inactiveThumbColor: Colors.grey, inactiveTrackColor: Colors.black45,
+        title: Text("PUT CHAMPIONSHIP ON THE LINE", style: TextStyle(color: _isTitleMatchToggled ? Colors.amber : Colors.white54, fontWeight: FontWeight.w900, letterSpacing: 1.0, fontSize: 12)),
+        value: _isTitleMatchToggled,
+        onChanged: (val) { HapticFeedback.selectionClick(); setState(() => _isTitleMatchToggled = val); },
+      ),
+    );
+  }
+
+  Widget _buildSimulateButton(bool canRunMatch, List<Wrestler> roster, BookingNotifier notifier) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: Colors.black, border: const Border(top: BorderSide(color: Colors.white10)), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 10, offset: const Offset(0, -5))]),
+      child: SizedBox(
+        width: double.infinity,
+        height: 60,
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(backgroundColor: canRunMatch ? Colors.amber : const Color(0xFF1E1E1E), foregroundColor: canRunMatch ? Colors.black : Colors.white30, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+          icon: Icon(canRunMatch ? Icons.sports_mma_rounded : Icons.lock),
+          label: const Text("RING THE BELL", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+          onPressed: canRunMatch ? () {
+            HapticFeedback.heavyImpact();
+            Wrestler w1 = roster.firstWhere((w) => w.id == selectedWrestler1Id);
+            Wrestler w2 = roster.firstWhere((w) => w.id == selectedWrestler2Id);
+            ref.read(gameProvider.notifier).stageTitleMatch(_isTitleMatchToggled);
+            notifier.setWinner(null); 
+            notifier.startMatchSimulation([w1, w2]); 
+          } : null,
+        ),
+      ),
+    );
+  }
+
   Widget _buildContenderSlot(int slot, int? currentId, List<Wrestler> roster) {
     bool isEmpty = currentId == null;
     bool isActiveSlot = _activeDraftSlot == slot;
@@ -461,7 +577,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         decoration: BoxDecoration(
           color: isEmpty ? (isActiveSlot ? Colors.amber.withOpacity(0.05) : Colors.transparent) : const Color(0xFF1E1E1E), 
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isActiveSlot ? Colors.amber : Colors.black, width: isActiveSlot ? 3 : 2),
+          border: Border.all(color: isActiveSlot ? Colors.amber : Colors.black, width: isActiveSlot ? 2 : 1),
           boxShadow: isActiveSlot ? [BoxShadow(color: Colors.amber.withOpacity(0.2), blurRadius: 10)] : [],
         ),
         child: isEmpty
@@ -469,38 +585,29 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.person_add_alt_1_rounded, color: isActiveSlot ? Colors.amber : Colors.white30, size: 40),
+                    Icon(Icons.person_add_alt_1_rounded, color: isActiveSlot ? Colors.amber : Colors.white30, size: 30),
                     const SizedBox(height: 8),
-                    Text(isActiveSlot ? "SELECT FROM ROSTER" : "TAP TO DRAFT", style: TextStyle(color: isActiveSlot ? Colors.amber : Colors.white30, fontWeight: FontWeight.bold, fontSize: 10, letterSpacing: 1.0)),
+                    Text(isActiveSlot ? "SELECT ROSTER" : "TAP TO DRAFT", style: TextStyle(color: isActiveSlot ? Colors.amber : Colors.white30, fontWeight: FontWeight.bold, fontSize: 9, letterSpacing: 1.0)),
                   ],
                 ),
               )
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  WrestlerAvatar(wrestler: w!, size: 60), 
-                  const SizedBox(height: 12),
-                  Text(w.name.toUpperCase(), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
-                  const SizedBox(height: 4),
-                  
-                  Text("${w.isHeel ? 'HEEL' : 'FACE'} • ${w.style.name.toUpperCase()}", style: const TextStyle(color: Colors.cyanAccent, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                  WrestlerAvatar(wrestler: w!, size: 50), 
                   const SizedBox(height: 8),
-                  
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(4)),
-                    child: Text("POP ${w.pop.toInt()} • STA ${w.stamina.toInt()}%", style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
-                  ),
+                  Text(w.name.toUpperCase(), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13)),
+                  const SizedBox(height: 4),
+                  Text("${w.isHeel ? 'HEEL' : 'FACE'} • ${w.style.name.toUpperCase()}", style: const TextStyle(color: Colors.cyanAccent, fontSize: 9, fontWeight: FontWeight.w900)),
                 ],
               ),
       ),
     );
   }
 
-  // ----------------------------------------------------------------
-  // WIDGET: THE CHEMISTRY METER
-  // ----------------------------------------------------------------
   Widget _buildChemistryMeter(List<Wrestler> roster) {
+    if (selectedWrestler1Id == null || selectedWrestler2Id == null) return const SizedBox.shrink();
+    
     Wrestler w1 = roster.firstWhere((w) => w.id == selectedWrestler1Id);
     Wrestler w2 = roster.firstWhere((w) => w.id == selectedWrestler2Id);
     
@@ -510,7 +617,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     IconData chemIcon = Icons.sentiment_neutral;
 
     if (w1.isHeel != w2.isHeel) chemistryScore += 20;
-
     if (w1.style == w2.style) chemistryScore -= 10; 
     if (w1.style == WrestlingStyle.highFlyer && w2.style == WrestlingStyle.giant) chemistryScore += 30; 
     if (w1.style == WrestlingStyle.technician && w2.style == WrestlingStyle.technician) chemistryScore += 25; 
@@ -519,12 +625,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     else if (chemistryScore <= 40) { chemLabel = "POOR STYLE CLASH"; chemColor = Colors.redAccent; chemIcon = Icons.warning_amber_rounded; }
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E), 
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.black, width: 2),
-      ),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.black, width: 2)),
       child: Row(
         children: [
           Icon(chemIcon, color: chemColor),
@@ -533,12 +635,12 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("AGENT ANALYSIS", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-                Text(chemLabel, style: TextStyle(color: chemColor, fontWeight: FontWeight.w900, fontSize: 16)),
+                const Text("AGENT ANALYSIS", style: TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                Text(chemLabel, style: TextStyle(color: chemColor, fontWeight: FontWeight.w900, fontSize: 13)),
               ],
             ),
           ),
-          Text("${chemistryScore}%", style: TextStyle(color: chemColor, fontWeight: FontWeight.w900, fontSize: 24, fontFamily: "Monospace"))
+          Text("${chemistryScore}%", style: TextStyle(color: chemColor, fontWeight: FontWeight.w900, fontSize: 20, fontFamily: "Monospace"))
         ],
       ),
     );
@@ -552,14 +654,14 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       return Row(
         children: [
           Expanded(flex: 4, child: _buildTickerColumn(state)),
-          Expanded(flex: 6, child: _buildJumbotronColumn(state, notifier)),
+          Expanded(flex: 6, child: _buildJumbotronColumn(state, notifier, isMobile: false)),
         ],
       );
     } else {
       return Column(
         children: [
-          _buildJumbotronColumn(state, notifier, isMobile: true),
-          Expanded(child: _buildTickerColumn(state)),
+          Expanded(flex: 4, child: _buildJumbotronColumn(state, notifier, isMobile: true)),
+          Expanded(flex: 6, child: _buildTickerColumn(state)),
         ],
       );
     }
@@ -567,10 +669,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
 
   Widget _buildTickerColumn(BookingState state) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF121212),
-        border: Border(right: BorderSide(color: Colors.black, width: 3)), 
-      ),
+      decoration: const BoxDecoration(color: Color(0xFF121212), border: Border(right: BorderSide(color: Colors.white10, width: 2))),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -588,18 +687,16 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           ),
           Expanded(
             child: ListView.builder(
-              controller: _scrollController, // 🚨 THE FIX: Attach the scroll controller here!
+              controller: _scrollController, 
               padding: const EdgeInsets.all(20),
               itemCount: state.liveLogs.length,
               itemBuilder: (context, index) {
                 final log = state.liveLogs[index];
                 
-                // 🛠️ CHECK IF IT IS A COMMENTATOR SPEAKING
                 bool isVic = log.speaker.toUpperCase().contains("VIC");
                 bool isCyrus = log.speaker.toUpperCase().contains("CYRUS");
                 bool isDialogue = isVic || isCyrus;
 
-                // --- CHAT BUBBLE UI FOR COMMENTATORS ---
                 if (isDialogue) {
                   String avatarPath = isVic ? 'assets/images/vic.png' : 'assets/images/cyrus.png';
                   Color brandColor = isVic ? Colors.blueAccent : Colors.redAccent;
@@ -609,27 +706,14 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // The Circular Avatar
                         Container(
-                          width: 40, 
-                          height: 40,
+                          width: 40, height: 40,
                           decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: brandColor, width: 2), color: const Color(0xFF1E1E1E)),
                           child: ClipOval(
-                            child: Image.asset(
-                              avatarPath,
-                              fit: BoxFit.cover,
-                              alignment: const Alignment(0.0, -0.6), 
-                              errorBuilder: (context, error, stackTrace) {
-                                return Center(
-                                  child: Text(isVic ? "V" : "C", style: TextStyle(color: brandColor, fontWeight: FontWeight.w900, fontSize: 20)),
-                                );
-                              },
-                            ),
+                            child: Image.asset(avatarPath, fit: BoxFit.cover, alignment: const Alignment(0.0, -0.6), errorBuilder: (c, e, s) => Center(child: Text(isVic ? "V" : "C", style: TextStyle(color: brandColor, fontWeight: FontWeight.w900, fontSize: 20)))),
                           ),
                         ),
                         const SizedBox(width: 12),
-                        
-                        // The Text Bubble
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -639,13 +723,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF1A1A1A),
-                                  border: Border.all(color: Colors.white10),
-                                  borderRadius: const BorderRadius.only(
-                                    topRight: Radius.circular(12),
-                                    bottomLeft: Radius.circular(12),
-                                    bottomRight: Radius.circular(12),
-                                  ),
+                                  color: const Color(0xFF1A1A1A), border: Border.all(color: Colors.white10),
+                                  borderRadius: const BorderRadius.only(topRight: Radius.circular(12), bottomLeft: Radius.circular(12), bottomRight: Radius.circular(12)),
                                 ),
                                 child: Text(log.message, style: const TextStyle(color: Colors.white, height: 1.4, fontSize: 13)),
                               ),
@@ -655,13 +734,9 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                       ],
                     ),
                   );
-                } 
-                
-                // --- SYSTEM & ALERT UI FOR NON-COMMENTATORS ---
-                else {
+                } else {
                   Color iconColor = Colors.white54;
                   IconData icon = Icons.info_outline;
-                  
                   if (log.type == "FINISH") { iconColor = Colors.greenAccent; icon = Icons.sports_score; }
 
                   return Padding(
@@ -693,9 +768,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     );
   }
 
-  Widget _buildJumbotronColumn(BookingState state, BookingNotifier notifier, {bool isMobile = false}) {
+  Widget _buildJumbotronColumn(BookingState state, BookingNotifier notifier, {required bool isMobile}) {
     return Container(
-      height: isMobile ? 300 : null,
       decoration: const BoxDecoration(color: Colors.black),
       child: Stack(
         fit: StackFit.expand,
@@ -708,7 +782,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
               errorBuilder: (c, e, s) => Image.asset("assets/images/crowd_background.png", fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: Colors.black)),
             ),
           ),
-          
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -718,15 +791,14 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
               ),
             ),
           ),
-          
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(),
-              const Icon(Icons.videocam, color: Colors.redAccent, size: 40),
-              const SizedBox(height: 12),
-              Text(state.isFinished ? "FINAL MATCH RATING" : "LIVE BROADCAST RATING", style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
-              const SizedBox(height: 20),
+              const Icon(Icons.videocam, color: Colors.redAccent, size: 30),
+              const SizedBox(height: 8),
+              Text(state.isFinished ? "FINAL MATCH RATING" : "LIVE BROADCAST", style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+              const SizedBox(height: 16),
               
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -739,24 +811,24 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                   } else {
                     starIcon = Icons.star_border;
                   }
-                  return Icon(starIcon, color: Colors.amber, size: isMobile ? 40 : 60, shadows: [Shadow(color: Colors.amber.withOpacity(0.5), blurRadius: 15)]);
+                  return Icon(starIcon, color: Colors.amber, size: isMobile ? 32 : 50, shadows: [Shadow(color: Colors.amber.withOpacity(0.5), blurRadius: 10)]);
                 }),
               ),
-              const SizedBox(height: 12),
-              Text("${state.currentMatchRating.toStringAsFixed(1)} STARS", style: TextStyle(color: Colors.white, fontSize: isMobile ? 32 : 48, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 8),
+              Text("${state.currentMatchRating.toStringAsFixed(1)} STARS", style: TextStyle(color: Colors.white, fontSize: isMobile ? 24 : 40, fontWeight: FontWeight.w900)),
               
               const Spacer(),
               
               if (state.isFinished)
                 Padding(
-                  padding: const EdgeInsets.all(24.0),
+                  padding: const EdgeInsets.all(16.0),
                   child: SizedBox(
                     width: double.infinity,
-                    height: 65,
+                    height: 60,
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                       icon: const Icon(Icons.check_circle),
-                      label: const Text("RETURN TO CARD", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                      label: const Text("RETURN TO CARD", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
                       onPressed: () {
                         HapticFeedback.selectionClick();
                         notifier.reset();

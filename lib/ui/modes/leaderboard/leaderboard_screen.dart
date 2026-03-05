@@ -64,60 +64,133 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isDesktop = MediaQuery.of(context).size.width > 800;
-
     return DefaultTabController(
       length: 2,
-      child: Scaffold(
-        backgroundColor: Colors.black,
-        body: SafeArea(
-          child: isDesktop
-              ? Row(
+      // 🚨 SMART LAYOUT BUILDER 🚨
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final bool isDesktop = constraints.maxWidth > 800;
+
+          if (isDesktop) {
+            // 💻 PC LAYOUT (Wide Side-by-Side)
+            return Scaffold(
+              backgroundColor: Colors.black,
+              body: SafeArea(
+                child: Row(
                   children: [
-                    Expanded(flex: 4, child: _buildLeftDashboard(isDesktop)),
+                    Expanded(flex: 4, child: _buildLeftDashboard(true)),
                     Expanded(flex: 6, child: _buildRightArtworkPane(isMobile: false)),
                   ],
-                )
-              : Column(
-                  children: [
-                    Expanded(flex: 4, child: _buildRightArtworkPane(isMobile: true)),
-                    Expanded(flex: 6, child: _buildLeftDashboard(isDesktop)),
-                  ],
                 ),
-        ),
+              ),
+            );
+          } else {
+            // 📱 MOBILE LAYOUT (40/60 Vertical Split)
+            return Scaffold(
+              backgroundColor: Colors.black,
+              body: Column(
+                children: [
+                  // TOP 40%: The Cinematic Viewport
+                  Expanded(
+                    flex: 4,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _buildRightArtworkPane(isMobile: true),
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Colors.black.withOpacity(0.4), Colors.black],
+                              stops: const [0.5, 1.0],
+                            ),
+                          ),
+                        ),
+                        SafeArea(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                                  onPressed: () => Navigator.pop(context),
+                                  padding: EdgeInsets.zero,
+                                  alignment: Alignment.topLeft,
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: const [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.public, color: Colors.white70, size: 24),
+                                        SizedBox(width: 8),
+                                        Text("GLOBAL NETWORK", style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+                                      ],
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text("HALL OF FAME", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // BOTTOM 60%: The Dashboard Data
+                  Expanded(
+                    flex: 6,
+                    child: Container(
+                      color: Colors.black,
+                      width: double.infinity,
+                      child: _buildLeftDashboard(false),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+        },
       ),
     );
   }
 
   // =====================================================================
-  // --- LEFT PANE: THE DUAL LEADERBOARD DASHBOARD
+  // --- THE DASHBOARD (Shared by Desktop & Mobile)
   // =====================================================================
   Widget _buildLeftDashboard(bool isDesktop) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF121212),
-        // 🛠️ AAA Black Borders
-        border: isDesktop ? const Border(right: BorderSide(color: Colors.black, width: 3)) : const Border(top: BorderSide(color: Colors.black, width: 3)),
+        color: isDesktop ? const Color(0xFF121212) : Colors.black,
+        border: isDesktop ? const Border(right: BorderSide(color: Colors.white10, width: 2)) : null,
       ),
       child: Column(
         children: [
-          // --- HEADER ---
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Row(
-              children: [
-                IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20), onPressed: () => Navigator.pop(context)),
-                const SizedBox(width: 8),
-                const Text("HALL OF FAME", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1.5)),
-              ],
+          // --- HEADER (PC ONLY - Mobile uses the image overlay) ---
+          if (isDesktop)
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Row(
+                  children: [
+                    IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20), onPressed: () => Navigator.pop(context)),
+                    const SizedBox(width: 8),
+                    const Text("HALL OF FAME", style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1.5)),
+                  ],
+                ),
+              ),
             ),
-          ),
           
           // --- TABS ---
           Container(
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Colors.black, width: 3)), 
-              color: Color(0xFF121212),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: isDesktop ? Colors.black : Colors.white10, width: isDesktop ? 3 : 1)), 
+              color: isDesktop ? const Color(0xFF121212) : Colors.black,
             ),
             child: const TabBar(
               dividerColor: Colors.transparent, 
@@ -158,7 +231,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       itemCount: listData.length,
       itemBuilder: (context, index) {
         final entry = listData[index];
@@ -168,9 +241,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
-            color: isTopThree ? rankColor.withOpacity(0.1) : const Color(0xFF1E1E1E),
+            color: isTopThree ? rankColor.withOpacity(0.1) : const Color(0xFF1A1A1A),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isTopThree ? rankColor : Colors.black, width: isTopThree ? 2 : 2),
+            border: Border.all(color: isTopThree ? rankColor : Colors.white10, width: isTopThree ? 2 : 1),
             boxShadow: isTopThree ? [BoxShadow(color: rankColor.withOpacity(0.2), blurRadius: 10)] : [],
           ),
           child: ListTile(
@@ -194,14 +267,16 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                 ),
               ),
             ),
-            // 🛠️ THE FIX: Checking isTycoon to pull the correct name field from the database!
             title: Text(
               isTycoon 
                   ? (entry['promotion_name']?.toString().toUpperCase() ?? "UNKNOWN PROMOTER")
                   : (entry['player_name']?.toString().toUpperCase() ?? "UNKNOWN PLAYER"), 
               style: TextStyle(color: isTopThree ? rankColor : Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1.0, fontSize: 14)
             ),
-            subtitle: Text(isTycoon ? "FRANCHISE LEGACY TIER" : "GLOBAL PREDICTION TIER", style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Text(isTycoon ? "FRANCHISE LEGACY TIER" : "GLOBAL PREDICTION TIER", style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+            ),
             trailing: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -239,9 +314,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   }
 
   // =====================================================================
-  // --- RIGHT PANE: ARTWORK ONLY + WATERMARK
+  // --- ARTWORK PANE (Shared)
   // =====================================================================
-  Widget _buildRightArtworkPane({bool isMobile = false}) {
+  Widget _buildRightArtworkPane({required bool isMobile}) {
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -251,16 +326,17 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           alignment: Alignment.center,
           errorBuilder: (c, e, s) => Image.asset("assets/images/office_background.png", fit: BoxFit.cover, errorBuilder: (c,e,s) => Container(color: const Color(0xFF0A0A0A))),
         ),
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [Colors.black.withOpacity(0.95), Colors.black.withOpacity(0.4), Colors.black.withOpacity(0.8)],
-              stops: const [0.0, 0.5, 1.0],
+        if (!isMobile)
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [Colors.black.withOpacity(0.95), Colors.black.withOpacity(0.4), Colors.black.withOpacity(0.8)],
+                stops: const [0.0, 0.5, 1.0],
+              ),
             ),
           ),
-        ),
 
         // --- THE GLOBAL WATERMARK ---
         TVWatermark(isMobile: isMobile),

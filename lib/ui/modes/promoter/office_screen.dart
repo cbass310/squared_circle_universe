@@ -18,33 +18,91 @@ class OfficeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final gameState = ref.watch(gameProvider);
     final gameNotifier = ref.read(gameProvider.notifier);
-    
-    final bool isDesktop = MediaQuery.of(context).size.width > 800;
     final bool isPPVWeek = gameState.isPPV; 
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: isDesktop
-            ? Row(
+    // 🚨 SMART LAYOUT BUILDER 🚨
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isDesktop = constraints.maxWidth > 800;
+
+        if (isDesktop) {
+          // 💻 PC LAYOUT (Wide Side-by-Side)
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: SafeArea(
+              child: Row(
                 children: [
-                  Expanded(flex: 4, child: _buildLeftMenu(context, gameState, gameNotifier, ref, isPPVWeek, isDesktop)),
-                  Expanded(flex: 6, child: _buildRightArtPane(gameState)),
-                ],
-              )
-            : Stack(
-                children: [
-                  _buildRightArtPane(gameState, isMobile: true),
-                  Container(color: Colors.black.withOpacity(0.85)),
-                  _buildLeftMenu(context, gameState, gameNotifier, ref, isPPVWeek, isDesktop),
+                  Expanded(flex: 4, child: _buildLeftMenu(context, gameState, gameNotifier, ref, isPPVWeek, true)),
+                  Expanded(flex: 6, child: _buildRightArtPane(gameState, isMobile: false)),
                 ],
               ),
-      ),
+            ),
+          );
+        } else {
+          // 📱 MOBILE LAYOUT (40/60 Vertical Split)
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: Column(
+              children: [
+                // TOP 40%: The Cinematic Viewport
+                Expanded(
+                  flex: 4,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _buildRightArtPane(gameState, isMobile: true),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.black.withOpacity(0.3), Colors.black],
+                            stops: const [0.5, 1.0],
+                          ),
+                        ),
+                      ),
+                      SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: const [
+                                  Icon(Icons.business_center, color: Colors.amber, size: 24),
+                                  SizedBox(width: 8),
+                                  Text("EXECUTIVE SUITE", style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              const Text("FRONT OFFICE", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // BOTTOM 60%: The Scrollable Dashboard
+                Expanded(
+                  flex: 6,
+                  child: Container(
+                    color: Colors.black,
+                    width: double.infinity,
+                    child: _buildLeftMenu(context, gameState, gameNotifier, ref, isPPVWeek, false),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+      }
     );
   }
 
   // =====================================================================
-  // --- LEFT PANE: THE UNIFIED CONTROL PANEL
+  // --- THE UNIFIED CONTROL PANEL (Shared by both Layouts)
   // =====================================================================
   Widget _buildLeftMenu(BuildContext context, dynamic gameState, GameNotifier gameNotifier, WidgetRef ref, bool isPPVWeek, bool isDesktop) {
     String formattedCash = "\$${gameState.cash.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}";
@@ -56,23 +114,26 @@ class OfficeScreen extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          SafeArea(
-            child: Padding(
-              padding: EdgeInsets.all(isDesktop ? 24.0 : 16.0),
-              child: Row(
-                children: const [
-                  Icon(Icons.business_center, color: Colors.amber),
-                  SizedBox(width: 10),
-                  Text("FRONT OFFICE", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5)),
-                  Spacer(),
-                ],
+          // HEADER (PC ONLY - Mobile handles this in the top image overlay)
+          if (isDesktop)
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Row(
+                  children: const [
+                    Icon(Icons.business_center, color: Colors.amber),
+                    SizedBox(width: 10),
+                    Text("FRONT OFFICE", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5)),
+                    Spacer(),
+                  ],
+                ),
               ),
             ),
-          ),
 
           Expanded(
             child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(horizontal: isDesktop ? 24.0 : 16.0),
+              padding: EdgeInsets.symmetric(horizontal: isDesktop ? 24.0 : 16.0, vertical: isDesktop ? 0 : 16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -206,7 +267,7 @@ class OfficeScreen extends ConsumerWidget {
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VenueScreen())),
                   ),
 
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 40), // Bottom padding
                 ],
               ),
             ),
@@ -217,31 +278,28 @@ class OfficeScreen extends ConsumerWidget {
   }
 
   // =====================================================================
-  // --- RIGHT PANE: ARTWORK ONLY + WATERMARK
+  // --- RIGHT PANE: ARTWORK ONLY + WATERMARK (Shared)
   // =====================================================================
   Widget _buildRightArtPane(dynamic gameState, {bool isMobile = false}) {
     return Stack(
       fit: StackFit.expand,
       children: [
         Image.asset(
-          "assets/images/office_background.png", // Reverted to original filename
+          "assets/images/office_background.png", 
           fit: BoxFit.cover,
           errorBuilder: (c, e, s) => Container(color: const Color(0xFF0A0A0A)),
         ),
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [Colors.black.withOpacity(0.6), Colors.transparent, Colors.black.withOpacity(0.4)],
-              stops: const [0.0, 0.2, 1.0],
+        if (!isMobile)
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [Colors.black.withOpacity(0.6), Colors.transparent, Colors.black.withOpacity(0.4)],
+                stops: const [0.0, 0.2, 1.0],
+              ),
             ),
           ),
-        ),
-        
-        // --- LOGO AND TEXT BLOCKS REMOVED HERE --- //
-        
-        // --- THE GLOBAL WATERMARK ---
         TVWatermark(isMobile: isMobile),
       ],
     );

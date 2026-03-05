@@ -71,17 +71,24 @@ class _SplashScreenState extends State<SplashScreen> {
                 ),
                 const SizedBox(height: 40),
                 
-                // TYPEWRITER TEXT
-                SizedBox(
-                  height: 50,
-                  child: Text(
-                    _displayText, 
-                    style: const TextStyle(
-                      color: Colors.amber, // Tycoon Amber
-                      fontFamily: 'Monospace', // System fallback for monospace
-                      fontSize: 14, 
-                      letterSpacing: 2.0,
-                      fontWeight: FontWeight.bold
+                // TYPEWRITER TEXT (Adaptive to Screen Width)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: SizedBox(
+                    height: 50,
+                    // 🛠️ THE FIX: FittedBox ensures it scales down to stay on one line!
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        _displayText, 
+                        style: const TextStyle(
+                          color: Colors.amber, 
+                          fontFamily: 'Monospace', 
+                          fontSize: 14, 
+                          letterSpacing: 2.0,
+                          fontWeight: FontWeight.bold
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -123,22 +130,29 @@ class _SplashScreenState extends State<SplashScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.terminal, color: Colors.amber, size: 18),
-                    const SizedBox(width: 8),
-                    const Text(
-                      "TERMINAL SOFTWARE",
-                      style: TextStyle(
-                        color: Colors.amber, 
-                        fontSize: 16, 
-                        fontWeight: FontWeight.w900, 
-                        letterSpacing: 4.0, 
-                        fontFamily: 'Monospace'
-                      ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  // 🛠️ THE FIX: Added FittedBox here as well just to be safe on small phones
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.terminal, color: Colors.amber, size: 18),
+                        const SizedBox(width: 8),
+                        const Text(
+                          "TERMINAL SOFTWARE",
+                          style: TextStyle(
+                            color: Colors.amber, 
+                            fontSize: 16, 
+                            fontWeight: FontWeight.w900, 
+                            letterSpacing: 4.0, 
+                            fontFamily: 'Monospace'
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),

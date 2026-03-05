@@ -207,11 +207,13 @@ const _SponsorshipDealslotTargetEnumValueMap = {
   'turnbuckle': 0,
   'canvas': 1,
   'eventName': 2,
+  'titantron': 3,
 };
 const _SponsorshipDealslotTargetValueEnumMap = {
   0: RealEstateSlot.turnbuckle,
   1: RealEstateSlot.canvas,
   2: RealEstateSlot.eventName,
+  3: RealEstateSlot.titantron,
 };
 
 Id _sponsorshipDealGetId(SponsorshipDeal object) {

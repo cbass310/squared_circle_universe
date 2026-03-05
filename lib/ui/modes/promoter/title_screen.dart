@@ -20,63 +20,134 @@ class TitleScreen extends ConsumerWidget {
     Wrestler? tvChamp;
     try { tvChamp = rosterState.roster.firstWhere((w) => w.isTVChampion); } catch (_) {}
 
-    final bool isDesktop = MediaQuery.of(context).size.width > 800;
-
     return DefaultTabController(
       length: 2, 
-      child: Scaffold(
-        backgroundColor: Colors.black,
-        body: SafeArea(
-          child: isDesktop
-              ? Row(
+      // 🚨 SMART LAYOUT BUILDER 🚨
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final bool isDesktop = constraints.maxWidth > 800;
+
+          if (isDesktop) {
+            // 💻 PC LAYOUT (Wide Side-by-Side)
+            return Scaffold(
+              backgroundColor: Colors.black,
+              body: SafeArea(
+                child: Row(
                   children: [
-                    // 🛠️ THE FIX: Deep Black Borders
-                    Expanded(flex: 4, child: _buildLeftDashboard(context, rosterState, worldChamp, tvChamp, isDesktop)),
+                    Expanded(flex: 4, child: _buildDashboard(context, rosterState, worldChamp, tvChamp, true)),
                     Expanded(flex: 6, child: _buildRightDisplayCase(isMobile: false)),
                   ],
-                )
-              : Column(
-                  children: [
-                    Expanded(flex: 4, child: _buildRightDisplayCase(isMobile: true)),
-                    Expanded(flex: 6, child: _buildLeftDashboard(context, rosterState, worldChamp, tvChamp, isDesktop)),
-                  ],
                 ),
-        ),
+              ),
+            );
+          } else {
+            // 📱 MOBILE LAYOUT (40/60 Vertical Split)
+            return Scaffold(
+              backgroundColor: Colors.black,
+              body: Column(
+                children: [
+                  // TOP 40%: The Cinematic Viewport
+                  Expanded(
+                    flex: 4,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _buildRightDisplayCase(isMobile: true),
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Colors.black.withOpacity(0.4), Colors.black],
+                              stops: const [0.5, 1.0],
+                            ),
+                          ),
+                        ),
+                        // SAFE AREA FOR BACK BUTTON & TITLE
+                        SafeArea(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20), 
+                                  onPressed: () => Navigator.pop(context),
+                                  padding: EdgeInsets.zero,
+                                  alignment: Alignment.topLeft,
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: const [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.emoji_events, color: Colors.amber, size: 24),
+                                        SizedBox(width: 8),
+                                        Text("HALL OF CHAMPIONS", style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+                                      ],
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text("TITLE LINEAGE", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // BOTTOM 60%: The Dashboard Data
+                  Expanded(
+                    flex: 6,
+                    child: Container(
+                      color: Colors.black,
+                      width: double.infinity,
+                      child: _buildDashboard(context, rosterState, worldChamp, tvChamp, false),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+        }
       ),
     );
   }
 
   // =====================================================================
-  // --- LEFT PANE: THE CHAMPIONSHIP DASHBOARD
+  // --- THE CHAMPIONSHIP DASHBOARD (Shared)
   // =====================================================================
-  Widget _buildLeftDashboard(BuildContext context, dynamic rosterState, Wrestler? worldChamp, Wrestler? tvChamp, bool isDesktop) {
+  Widget _buildDashboard(BuildContext context, dynamic rosterState, Wrestler? worldChamp, Wrestler? tvChamp, bool isDesktop) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF121212),
-        // 🛠️ THE FIX: Match the Roster/Power Plant Black Borders
-        border: isDesktop ? const Border(right: BorderSide(color: Colors.black, width: 3)) : const Border(top: BorderSide(color: Colors.black, width: 3)),
+        color: isDesktop ? const Color(0xFF121212) : Colors.black,
+        border: isDesktop ? const Border(right: BorderSide(color: Colors.black, width: 3)) : null,
       ),
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Row(
-              children: [
-                IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20), onPressed: () => Navigator.pop(context)),
-                const SizedBox(width: 8),
-                const Text("CHAMPIONSHIPS", style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-              ],
+          // HEADER (PC ONLY - Mobile handles this in the image overlay)
+          if (isDesktop)
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Row(
+                children: [
+                  IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20), onPressed: () => Navigator.pop(context)),
+                  const SizedBox(width: 8),
+                  const Text("CHAMPIONSHIPS", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                ],
+              ),
             ),
-          ),
           
           // --- TABS ---
           Container(
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Colors.black, width: 3)),
-              color: Color(0xFF121212),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: isDesktop ? Colors.black : Colors.white10, width: isDesktop ? 3 : 1)),
+              color: isDesktop ? const Color(0xFF121212) : Colors.black,
             ),
             child: const TabBar(
-              dividerColor: Colors.transparent, // 🛠️ THE FIX: Kill the white line!
+              dividerColor: Colors.transparent, 
               indicatorColor: Colors.amber,
               indicatorWeight: 3,
               labelColor: Colors.amber,
@@ -95,7 +166,7 @@ class TitleScreen extends ConsumerWidget {
               children: [
                 // TAB 1: ACTIVE CHAMPIONS
                 SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
                       _buildBeltCard(
@@ -115,6 +186,7 @@ class TitleScreen extends ConsumerWidget {
                         color: Colors.grey.shade400, // Silver for TV Title
                         champ: tvChamp
                       ),
+                      const SizedBox(height: 40), // Bottom padding
                     ],
                   ),
                 ),
@@ -123,7 +195,7 @@ class TitleScreen extends ConsumerWidget {
                 rosterState.titleHistory.isEmpty
                   ? const Center(child: Text("No title history established.", style: TextStyle(color: Colors.white54)))
                   : ListView.builder(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(16),
                       itemCount: rosterState.titleHistory.length,
                       itemBuilder: (context, index) {
                         final entry = rosterState.titleHistory[index];
@@ -133,9 +205,9 @@ class TitleScreen extends ConsumerWidget {
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1E1E1E), // 🛠️ THE FIX: Roster Card Background
+                            color: const Color(0xFF1E1E1E), 
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.black, width: 2), // 🛠️ THE FIX: Black Borders
+                            border: Border.all(color: Colors.white10, width: 1), 
                           ),
                           child: ListTile(
                             leading: Container(
@@ -166,7 +238,7 @@ class TitleScreen extends ConsumerWidget {
   }
 
   // =====================================================================
-  // --- RIGHT PANE: THE DISPLAY CASE ARTWORK (WATERMARK ONLY)
+  // --- ARTWORK PANE (Shared)
   // =====================================================================
   Widget _buildRightDisplayCase({bool isMobile = false}) {
     return Stack(
@@ -176,22 +248,19 @@ class TitleScreen extends ConsumerWidget {
           "assets/images/title_case.png", 
           fit: BoxFit.cover,
           alignment: Alignment.centerRight,
-          errorBuilder: (c, e, s) => Image.asset("assets/images/office_background.png", fit: BoxFit.cover, errorBuilder: (c,e,s) => Container(color: const Color(0xFF0A0A0A))),
+          errorBuilder: (c, e, s) => Container(color: const Color(0xFF0A0A0A)),
         ),
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [Colors.black.withOpacity(0.95), Colors.black.withOpacity(0.4), Colors.black.withOpacity(0.8)],
-              stops: const [0.0, 0.5, 1.0],
+        if (!isMobile)
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [Colors.black.withOpacity(0.95), Colors.black.withOpacity(0.4), Colors.black.withOpacity(0.8)],
+                stops: const [0.0, 0.5, 1.0],
+              ),
             ),
           ),
-        ),
-        
-        // --- TEXT BLOCKS REMOVED HERE --- //
-        
-        // --- THE GLOBAL WATERMARK ---
         TVWatermark(isMobile: isMobile),
       ],
     );
@@ -202,9 +271,9 @@ class TitleScreen extends ConsumerWidget {
   Widget _buildBeltCard({required BuildContext context, required String name, required String desc, required String imagePath, required Color color, required Wrestler? champ}) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E), // 🛠️ THE FIX: Roster Card Background
+        color: const Color(0xFF1E1E1E), 
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black, width: 3), // 🛠️ THE FIX: Thick Black Border
+        border: Border.all(color: Colors.white10, width: 1), 
         boxShadow: [BoxShadow(color: color.withOpacity(0.1), blurRadius: 20)],
       ),
       child: Column(
@@ -217,7 +286,7 @@ class TitleScreen extends ConsumerWidget {
               fit: StackFit.expand,
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(14), topRight: Radius.circular(14)),
+                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(15), topRight: Radius.circular(15)),
                   child: Image.asset(
                     imagePath,
                     fit: BoxFit.cover,
@@ -230,7 +299,7 @@ class TitleScreen extends ConsumerWidget {
                   child: Container(
                     height: 80,
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(colors: [Colors.black.withOpacity(0.95), Colors.transparent], begin: Alignment.bottomCenter, end: Alignment.topCenter)
+                      gradient: LinearGradient(colors: [const Color(0xFF1E1E1E), Colors.transparent], begin: Alignment.bottomCenter, end: Alignment.topCenter)
                     ),
                   ),
                 ),
@@ -252,20 +321,22 @@ class TitleScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: Colors.black, width: 2)) // 🛠️ THE FIX: Internal Black Divider
+              border: Border(top: BorderSide(color: Colors.white10, width: 1)) 
             ),
             child: Row(
               children: [
                 if (champ != null) ...[
                   WrestlerAvatar(wrestler: champ, size: 60),
                   const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text("CURRENT CHAMPION", style: TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-                      const SizedBox(height: 4),
-                      Text(champ.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text("CURRENT CHAMPION", style: TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                        const SizedBox(height: 4),
+                        Text(champ.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
                   )
                 ] else ...[
                   Container(
@@ -274,13 +345,15 @@ class TitleScreen extends ConsumerWidget {
                     child: const Icon(Icons.person_off, color: Colors.white30),
                   ),
                   const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text("CURRENT CHAMPION", style: TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-                      SizedBox(height: 4),
-                      Text("VACANT", style: TextStyle(color: Colors.white38, fontSize: 16, fontWeight: FontWeight.bold)),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text("CURRENT CHAMPION", style: TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                        SizedBox(height: 4),
+                        Text("VACANT", style: TextStyle(color: Colors.white38, fontSize: 16, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
                   )
                 ]
               ],

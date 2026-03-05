@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../logic/promoter_provider.dart';
-import '../../logic/game_state_provider.dart'; // Needed to wipe the game stats!
-import '../../logic/settings_provider.dart'; // The new brain we just built!
-import '../modes/promoter/promoter_home_screen.dart';
+import '../../logic/game_state_provider.dart'; 
+import '../../logic/settings_provider.dart'; 
+import 'hub_screen.dart'; // 🛠️ THE FIX: Replaced PromoterHomeScreen with HubScreen
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -20,7 +20,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder( // StatefulBuilder lets us update the text field inside the dialog
+      builder: (ctx) => StatefulBuilder( 
         builder: (context, setState) {
           return AlertDialog(
             backgroundColor: Colors.grey[900],
@@ -66,16 +66,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 style: ElevatedButton.styleFrom(backgroundColor: isConfirmed ? Colors.redAccent : Colors.white10),
                 onPressed: isConfirmed 
                   ? () async {
-                      Navigator.pop(ctx); 
-                      // 🛠️ THE ACTUAL RESET LOGIC (Wipes roster AND game state!)
+                      // 1. Capture the exact navigator BEFORE we wipe the database
+                      final nav = Navigator.of(context, rootNavigator: true);
+                      
+                      // 2. Pop the warning dialog
+                      nav.pop(); 
+
+                      // 3. Nuke the Universe
                       await ref.read(gameProvider.notifier).resetGame();
                       await ref.read(rosterProvider.notifier).factoryReset();
                       
-                      if (mounted) {
-                        Navigator.pop(context);
-                        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const PromoterHomeScreen()));
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Universe Reset Complete.", style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.redAccent));
-                      }
+                      // 4. 🛠️ THE FIX: Safely transport the player back to the main Hub Screen!
+                      nav.pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const HubScreen()), 
+                        (route) => false,
+                      );
                     } 
                   : null,
                 child: const Text("NUKE SAVE", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
@@ -89,7 +94,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 🛠️ Listen to the actual settings provider!
     final settings = ref.watch(settingsProvider);
     final settingsNotifier = ref.read(settingsProvider.notifier);
 

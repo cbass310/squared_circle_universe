@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../logic/game_state_provider.dart';
 import '../../../data/models/sponsorship_deal.dart';
@@ -30,59 +31,141 @@ class _SponsorshipScreenState extends ConsumerState<SponsorshipScreen> with Sing
 
   @override
   Widget build(BuildContext context) {
-    final bool isDesktop = MediaQuery.of(context).size.width > 800;
     final gameState = ref.watch(gameProvider);
     final notifier = ref.read(gameProvider.notifier);
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: isDesktop
-            ? Row(
+    // 🚨 SMART LAYOUT BUILDER 🚨
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 🛠️ THE FIX: Using 600 so Tablets automatically get the PC Layout!
+        final bool isDesktop = constraints.maxWidth > 600;
+
+        if (isDesktop) {
+          // 💻 PC & TABLET LAYOUT (Wide Side-by-Side)
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: SafeArea(
+              child: Row(
                 children: [
-                  Expanded(flex: 4, child: _buildLeftDashboard(gameState, notifier, isDesktop)),
-                  Expanded(flex: 6, child: _buildRightArtworkPane(isMobile: false)),
-                ],
-              )
-            : Column(
-                children: [
-                  Expanded(flex: 4, child: _buildRightArtworkPane(isMobile: true)),
-                  Expanded(flex: 6, child: _buildLeftDashboard(gameState, notifier, isDesktop)),
+                  Expanded(flex: 4, child: _buildDashboard(gameState, notifier, true)),
+                  Expanded(flex: 6, child: _buildArtworkPane(isMobile: false)),
                 ],
               ),
-      ),
+            ),
+          );
+        } else {
+          // 📱 MOBILE LAYOUT (40/60 Vertical Split)
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: Column(
+              children: [
+                // TOP 40%: The Cinematic Viewport
+                Expanded(
+                  flex: 4,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _buildArtworkPane(isMobile: true),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.black.withOpacity(0.4), Colors.black],
+                            stops: const [0.5, 1.0],
+                          ),
+                        ),
+                      ),
+                      SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.tealAccent, size: 20),
+                                onPressed: () => Navigator.pop(context),
+                                padding: EdgeInsets.zero,
+                                alignment: Alignment.topLeft,
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: const [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.handshake_rounded, color: Colors.tealAccent, size: 24),
+                                      SizedBox(width: 8),
+                                      Text("BUSINESS DEALS", style: TextStyle(color: Colors.tealAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+                                    ],
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text("CORPORATE PARTNERS", style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // BOTTOM 60%: The Dashboard Data
+                Expanded(
+                  flex: 6,
+                  child: Container(
+                    color: Colors.black,
+                    width: double.infinity,
+                    child: _buildDashboard(gameState, notifier, false),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+      }
     );
   }
 
-  Widget _buildLeftDashboard(GameState gameState, GameNotifier notifier, bool isDesktop) {
+  // =====================================================================
+  // --- THE DASHBOARD (Shared by Desktop & Mobile)
+  // =====================================================================
+  Widget _buildDashboard(GameState gameState, GameNotifier notifier, bool isDesktop) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF121212),
-        border: isDesktop ? const Border(right: BorderSide(color: Colors.black, width: 3)) : const Border(top: BorderSide(color: Colors.black, width: 3)),
+        color: isDesktop ? const Color(0xFF121212) : Colors.black,
+        border: isDesktop ? const Border(right: BorderSide(color: Colors.white10, width: 2)) : null,
       ),
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Row(
-              children: [
-                IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20), onPressed: () => Navigator.pop(context)),
-                const SizedBox(width: 8),
-                const Text("CORPORATE PARTNERS", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1.5)),
-              ],
+          // HEADER (PC/TABLET ONLY - Mobile uses the image overlay)
+          if (isDesktop)
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Row(
+                  children: [
+                    IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20), onPressed: () => Navigator.pop(context)),
+                    const SizedBox(width: 8),
+                    const Text("CORPORATE PARTNERS", style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1.5)),
+                  ],
+                ),
+              ),
             ),
-          ),
+          
+          // --- TABS ---
           Container(
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Colors.black, width: 3)), 
-              color: Color(0xFF121212),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: isDesktop ? Colors.black : Colors.white10, width: isDesktop ? 3 : 1)), 
+              color: isDesktop ? const Color(0xFF121212) : Colors.black,
             ),
             child: TabBar(
               dividerColor: Colors.transparent, 
               controller: _tabController,
-              indicatorColor: Colors.amber,
+              indicatorColor: Colors.tealAccent,
               indicatorWeight: 3,
-              labelColor: Colors.amber,
+              labelColor: Colors.tealAccent,
               unselectedLabelColor: Colors.white54,
               labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1.5),
               tabs: const [
@@ -91,6 +174,8 @@ class _SponsorshipScreenState extends ConsumerState<SponsorshipScreen> with Sing
               ],
             ),
           ),
+          
+          // --- TAB CONTENT ---
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -105,7 +190,10 @@ class _SponsorshipScreenState extends ConsumerState<SponsorshipScreen> with Sing
     );
   }
 
-  Widget _buildRightArtworkPane({bool isMobile = false}) {
+  // =====================================================================
+  // --- ARTWORK PANE (Shared)
+  // =====================================================================
+  Widget _buildArtworkPane({required bool isMobile}) {
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -115,30 +203,37 @@ class _SponsorshipScreenState extends ConsumerState<SponsorshipScreen> with Sing
           alignment: Alignment.center,
           errorBuilder: (c, e, s) => Image.asset("assets/images/office_background.png", fit: BoxFit.cover, errorBuilder: (c,e,s) => Container(color: const Color(0xFF0A0A0A))),
         ),
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [Colors.black.withOpacity(0.95), Colors.black.withOpacity(0.4), Colors.black.withOpacity(0.8)],
-              stops: const [0.0, 0.5, 1.0],
+        // 🛠️ THE FIX: Only render the dark gradient and the watermark if on PC/Tablet!
+        if (!isMobile) ...[
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [Colors.black.withOpacity(0.95), Colors.black.withOpacity(0.4), Colors.black.withOpacity(0.8)],
+                stops: const [0.0, 0.5, 1.0],
+              ),
             ),
           ),
-        ),
-        TVWatermark(isMobile: isMobile),
+          const TVWatermark(isMobile: false),
+        ]
       ],
     );
   }
 
+  // =====================================================================
+  // --- TAB 1: INVENTORY
+  // =====================================================================
   Widget _buildInventoryTab(GameState gameState) {
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       children: [
         Container(
           padding: const EdgeInsets.all(16),
           margin: const EdgeInsets.only(bottom: 24),
           decoration: BoxDecoration(color: Colors.greenAccent.withOpacity(0.05), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.greenAccent.withOpacity(0.3))),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: const [
               Icon(Icons.info_outline, color: Colors.greenAccent, size: 20),
               SizedBox(width: 12),
@@ -170,7 +265,6 @@ class _SponsorshipScreenState extends ConsumerState<SponsorshipScreen> with Sing
           gameState: gameState,
         ),
 
-        // 🚨 NEW LEVEL 4 SLOT ADDED HERE 🚨
         _buildRealEstateSlot(
           title: "TITANTRON BRANDING",
           slot: RealEstateSlot.titantron,
@@ -178,6 +272,7 @@ class _SponsorshipScreenState extends ConsumerState<SponsorshipScreen> with Sing
           unlockRequirement: "REQUIRES LEVEL 4 VENUE (STADIUM)",
           gameState: gameState,
         ),
+        const SizedBox(height: 40), // Bottom padding
       ],
     );
   }
@@ -193,7 +288,7 @@ class _SponsorshipScreenState extends ConsumerState<SponsorshipScreen> with Sing
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: const Color(0xFF151515), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.black, width: 2)),
+      decoration: BoxDecoration(color: const Color(0xFF151515), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10, width: 1)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -201,7 +296,7 @@ class _SponsorshipScreenState extends ConsumerState<SponsorshipScreen> with Sing
             children: [
               const Icon(Icons.lock, color: Colors.white24, size: 20),
               const SizedBox(width: 10),
-              Text(title, style: const TextStyle(color: Colors.white30, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+              Text(title, style: const TextStyle(color: Colors.white30, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
             ],
           ),
           const SizedBox(height: 8),
@@ -215,11 +310,11 @@ class _SponsorshipScreenState extends ConsumerState<SponsorshipScreen> with Sing
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.black, width: 2)),
+      decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10, width: 1)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+          Text(title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
           const SizedBox(height: 8),
           const Text("AVAILABLE REAL ESTATE", style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 10, letterSpacing: 1.0)),
           const SizedBox(height: 4),
@@ -232,31 +327,31 @@ class _SponsorshipScreenState extends ConsumerState<SponsorshipScreen> with Sing
   Widget _buildOccupiedSlot(String title, SponsorshipDeal deal) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.greenAccent, width: 2)),
+      decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.greenAccent.withOpacity(0.5), width: 1)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(color: Colors.greenAccent.withOpacity(0.15), borderRadius: const BorderRadius.only(topLeft: Radius.circular(10), topRight: Radius.circular(10))),
+            decoration: BoxDecoration(color: Colors.greenAccent.withOpacity(0.15), borderRadius: const BorderRadius.only(topLeft: Radius.circular(11), topRight: Radius.circular(11))),
             child: Text("$title - SOLD", style: const TextStyle(color: Colors.greenAccent, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
           ),
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(deal.sponsorName.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+                    Expanded(child: Text(deal.sponsorName.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900))),
                     _buildArchetypeBadge(deal.archetype),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text("${deal.weeksLeft} WEEKS REMAINING", style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-                const Divider(color: Colors.white10, height: 30, thickness: 2),
+                const Divider(color: Colors.white10, height: 30, thickness: 1),
                 
                 _buildDealDetailRow("WEEKLY PAYOUT", "\$${deal.weeklyPayout}", Colors.greenAccent),
                 if (deal.archetype == SponsorArchetype.performance)
@@ -274,13 +369,16 @@ class _SponsorshipScreenState extends ConsumerState<SponsorshipScreen> with Sing
     );
   }
 
+  // =====================================================================
+  // --- TAB 2: MARKET
+  // =====================================================================
   Widget _buildMarketTab(GameState gameState, GameNotifier notifier) {
     if (gameState.availableOffers.isEmpty) {
       return const Center(child: Text("No corporate sponsors are currently bidding.", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold)));
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       itemCount: gameState.availableOffers.length,
       itemBuilder: (context, index) {
         final deal = gameState.availableOffers[index];
@@ -288,7 +386,7 @@ class _SponsorshipScreenState extends ConsumerState<SponsorshipScreen> with Sing
         bool hasVenueLevel = true;
         if (deal.slotTarget == RealEstateSlot.canvas && gameState.venueLevel < 2) hasVenueLevel = false;
         if (deal.slotTarget == RealEstateSlot.eventName && gameState.venueLevel < 3) hasVenueLevel = false;
-        if (deal.slotTarget == RealEstateSlot.titantron && gameState.venueLevel < 4) hasVenueLevel = false; // 🚨 LEVEL 4 CHECK ADDED
+        if (deal.slotTarget == RealEstateSlot.titantron && gameState.venueLevel < 4) hasVenueLevel = false; 
 
         bool slotTaken = gameState.activeSponsors.any((s) => s.slotTarget == deal.slotTarget);
 
@@ -302,23 +400,23 @@ class _SponsorshipScreenState extends ConsumerState<SponsorshipScreen> with Sing
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.black, width: 2)),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10, width: 1)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(child: Text(deal.sponsorName.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 1.0))),
+              Expanded(child: Text(deal.sponsorName.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.0))),
               _buildArchetypeBadge(deal.archetype),
             ],
           ),
           const SizedBox(height: 8),
           Text("TARGET REAL ESTATE: ${_getSlotName(deal.slotTarget).toUpperCase()}", style: const TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
           const SizedBox(height: 8),
-          Text(deal.description, style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.5)),
-          const Divider(color: Colors.white10, height: 30, thickness: 2),
+          Text(deal.description, style: const TextStyle(color: Colors.white70, fontSize: 11, height: 1.4)),
+          const Divider(color: Colors.white10, height: 30, thickness: 1),
           
           if (deal.upfrontBonus > 0) _buildDealDetailRow("SIGNING BONUS (UPFRONT)", "\$${deal.upfrontBonus}", Colors.greenAccent),
           _buildDealDetailRow("WEEKLY BASE PAY", "\$${deal.weeklyPayout}", Colors.white),
@@ -333,14 +431,23 @@ class _SponsorshipScreenState extends ConsumerState<SponsorshipScreen> with Sing
           else
             SizedBox(
               width: double.infinity,
-              height: 45,
+              // 🛠️ THE FIX: Removed the strict height constraint and added a FittedBox
               child: ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.greenAccent, foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.greenAccent, 
+                  foregroundColor: Colors.black, 
+                  padding: const EdgeInsets.symmetric(vertical: 16), // Let the padding dictate the height naturally
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))
+                ),
                 onPressed: () {
+                  HapticFeedback.lightImpact();
                   notifier.signSponsor(deal);
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Signed ${deal.sponsorName}!"), backgroundColor: Colors.green));
                 },
-                child: const Text("SIGN CONTRACT", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0, fontSize: 12)),
+                child: const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text("SIGN CONTRACT", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0, fontSize: 12))
+                ),
               ),
             )
         ],
@@ -348,6 +455,7 @@ class _SponsorshipScreenState extends ConsumerState<SponsorshipScreen> with Sing
     );
   }
 
+  // --- HELPERS ---
   Widget _buildDealDetailRow(String label, String value, Color valueColor) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -355,7 +463,7 @@ class _SponsorshipScreenState extends ConsumerState<SponsorshipScreen> with Sing
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-          Text(value, style: TextStyle(color: valueColor, fontWeight: FontWeight.w900, fontSize: 14)),
+          Text(value, style: TextStyle(color: valueColor, fontWeight: FontWeight.w900, fontSize: 12)),
         ],
       ),
     );
@@ -379,6 +487,6 @@ class _SponsorshipScreenState extends ConsumerState<SponsorshipScreen> with Sing
     if (slot == RealEstateSlot.turnbuckle) return "Turnbuckle Pads";
     if (slot == RealEstateSlot.canvas) return "Ring Canvas";
     if (slot == RealEstateSlot.eventName) return "Event Naming Rights";
-    return "Titantron Branding"; // 🚨 NEW NAME TRANSLATION ADDED
+    return "Titantron Branding"; 
   }
 }
