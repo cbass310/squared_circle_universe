@@ -645,7 +645,7 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
         
         const Text("PREMIUM LIVE EVENTS", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, letterSpacing: 1.5, fontSize: 12)),
         const SizedBox(height: 6),
-        const Text("Tap the number icon to assign your Premier Showcase (WrestleMania) for a massive revenue boost!", style: TextStyle(color: Colors.white54, fontSize: 11, fontStyle: FontStyle.italic)),
+        const Text("Tap the number icon to assign your Premier Showcase for a massive revenue boost!", style: TextStyle(color: Colors.white54, fontSize: 11, fontStyle: FontStyle.italic)),
         const SizedBox(height: 16),
         
         ...List.generate(12, (index) {

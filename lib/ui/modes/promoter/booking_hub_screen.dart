@@ -15,6 +15,7 @@ import 'booking_screen.dart';
 import 'post_show_recap_screen.dart';
 import 'season_recap_screen.dart'; 
 import 'end_game_screen.dart'; 
+import 'bankruptcy_screen.dart'; // 🚨 The new Game Over screen!
 
 class BookingHubScreen extends ConsumerStatefulWidget {
   const BookingHubScreen({super.key});
@@ -51,10 +52,10 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final bool isDesktop = constraints.maxWidth > 600; // 🛠️ Tablet Fix
+        final bool isDesktop = constraints.maxWidth > 600;
 
         if (isDesktop) {
-          // 💻 PC LAYOUT: Wide Side-by-Side
+          // 💻 PC LAYOUT
           return Scaffold(
             backgroundColor: Colors.black,
             body: Stack(
@@ -85,12 +86,11 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
             ),
           );
         } else {
-          // 📱 MOBILE LAYOUT: 40/60 Split
+          // 📱 MOBILE LAYOUT
           return Scaffold(
             backgroundColor: Colors.black,
             body: Column(
               children: [
-                // TOP 40%: The Desk/Arena View
                 Expanded(
                   flex: 4,
                   child: Stack(
@@ -120,7 +120,6 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
                     ],
                   ),
                 ),
-                // BOTTOM 60%: The Scrollable Content
                 Expanded(
                   flex: 6,
                   child: Container(
@@ -134,7 +133,7 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
                           _buildPreShowEnterButton(gameState, context),
                           const SizedBox(height: 24),
                           ..._buildExpertQuotes(),
-                          const SizedBox(height: 40), // Bottom padding
+                          const SizedBox(height: 40),
                         ],
                       ),
                     ),
@@ -251,7 +250,7 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final bool isDesktop = constraints.maxWidth > 600; // 🛠️ Tablet Fix
+        final bool isDesktop = constraints.maxWidth > 600; 
 
         if (isDesktop) {
           // 💻 PC LAYOUT
@@ -275,7 +274,7 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
             ),
           );
         } else {
-          // 📱 MOBILE LAYOUT: 40/60 Split
+          // 📱 MOBILE LAYOUT
           return Scaffold(
             backgroundColor: Colors.black,
             body: Column(
@@ -289,7 +288,6 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
                       Image.asset(venueBackground, fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: Colors.grey[900])),
                       Container(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black.withOpacity(0.3), Colors.black], stops: const [0.5, 1.0]))),
                       
-                      // 🛠️ THE FIX: Title cleanly overlaid on the image for mobile
                       SafeArea(
                         child: Padding(
                           padding: const EdgeInsets.all(16.0),
@@ -335,7 +333,6 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 🛠️ PC Title remains inside the left column. On Mobile it hides so space is freed up!
         if (isDesktop)
           SafeArea(
             bottom: false,
@@ -353,7 +350,6 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
           
         Expanded(
           child: SingleChildScrollView(
-            // 🛠️ Added top padding for mobile since the header is gone
             padding: EdgeInsets.only(left: 16.0, right: 16.0, top: isDesktop ? 0 : 16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -366,8 +362,8 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
                 const SizedBox(height: 10),
                 _buildMatchSlot(context, gameState, 3, "MAIN EVENT", 2),
                 const SizedBox(height: 30),
-                if (isCardFull) _buildGoLiveButton(gameState),
-                const SizedBox(height: 40), // Bottom safe area padding
+                if (isCardFull) _buildGoLiveButton(gameState), 
+                const SizedBox(height: 40), 
               ],
             ),
           ),
@@ -379,7 +375,6 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
   Widget _buildLiveBroadcastBanner(bool isDesktop) {
     return SafeArea(
       child: Align(
-        // 🛠️ Placed Top Left on Mobile to stay out of the way of the Header and the Network Button
         alignment: isDesktop ? Alignment.bottomRight : Alignment.topLeft,
         child: Padding(
           padding: isDesktop ? const EdgeInsets.all(40.0) : const EdgeInsets.only(top: 16.0, left: 16.0),
@@ -420,44 +415,79 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
     );
   }
 
+  // 🛠️ THE FIX: Added return; and mounted checks!
   Future<void> _executeShow(dynamic gameState) async {
     HapticFeedback.heavyImpact();
     ref.read(soundProvider).playSound("bell.mp3");
 
+    if (!context.mounted) return;
+    
+    final rosterState = ref.watch(rosterProvider);
+    final notifier = ref.read(gameProvider.notifier);
+    final rosterNotifier = ref.read(rosterProvider.notifier);
+    
+    bool isSeasonFinale = gameState.week == 52;
+    bool isCareerFinale = gameState.year == 3 && gameState.week == 52; 
+    
+    // Grab a hard copy of the completely simulated card so we can pass it to the GM Screen
+    final completedCardToPass = List<Match>.from(gameState.currentCard); 
+    final socialFeed = SocialFeedGenerator.generateLivingFeed(gameState.currentCard, gameState);
+
+    // 1. Show the Social Feed Dialog and wait for the user to close it
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _buildSocialFeedDialog(context, socialFeed),
+    );
+    
+    // 2. The user clicked "View Official Results" and the dialog closed. Show a quick loader!
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator(color: Colors.redAccent)),
+    );
+
+    // 3. Run all the end-of-week logic updates
+    await rosterNotifier.decayRivalries();
+    await rosterNotifier.processContracts(); 
+    await ref.read(rivalProvider.notifier).runAIWeeklyLogic();
+    await ref.read(newsProvider.notifier).generateWeeklyNews(completedCardToPass, rosterState.roster);
+    
+    // This officially pays you and advances to the next week!
+    await notifier.processWeek(rosterState.roster);
+    
+    final newWeek = ref.read(gameProvider).week;
+    ref.read(communicationsProvider.notifier).generateWeeklyContent(newWeek);
+
+    // 🚨 Grab the brand-new state to check our bank account!
+    final updatedGameState = ref.read(gameProvider);
+
+    // 4. Close the loader and navigate away
     if (context.mounted) {
-      final rosterState = ref.watch(rosterProvider);
-      final notifier = ref.read(gameProvider.notifier);
-      final rosterNotifier = ref.read(rosterProvider.notifier);
-      bool isSeasonFinale = gameState.week == 52;
-      bool isCareerFinale = gameState.year == 3 && gameState.week == 52; 
-      
-      final socialFeed = SocialFeedGenerator.generateLivingFeed(gameState.currentCard, gameState);
-      final completedCardToPass = List<Match>.from(gameState.currentCard); 
+      Navigator.pop(context); // Pop the loader
 
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => _buildSocialFeedDialog(context, socialFeed),
-      );
+      // 🚨 If we are in the red, trigger GAME OVER!
+      if (updatedGameState.cash < 0) {
+        await Navigator.pushAndRemoveUntil(
+            context, 
+            MaterialPageRoute(builder: (_) => const BankruptcyScreen()), 
+            (route) => false // This destroys the back button so they can't cheat!
+        );
+        // 🚨 THE FIX: Force the function to stop right here so it doesn't crash on setState!
+        return; 
+      } 
+      // Otherwise, proceed as normal
+      else if (isCareerFinale) {
+        await Navigator.push(context, MaterialPageRoute(builder: (_) => const EndGameScreen()));
+      } else if (isSeasonFinale) {
+        await Navigator.push(context, MaterialPageRoute(builder: (_) => const SeasonRecapScreen()));
+      } else {
+        await Navigator.push(context, MaterialPageRoute(builder: (_) => PostShowRecapScreen(completedCard: completedCardToPass)));
+      }
 
-      await rosterNotifier.decayRivalries();
-      await rosterNotifier.processContracts(); 
-      await ref.read(rivalProvider.notifier).runAIWeeklyLogic();
-      await ref.read(newsProvider.notifier).generateWeeklyNews(gameState.currentCard, rosterState.roster);
-      await notifier.processWeek(rosterState.roster);
-      
-      final newWeek = ref.read(gameProvider).week;
-      ref.read(communicationsProvider.notifier).generateWeeklyContent(newWeek);
-
-      if (context.mounted) {
-        if (isCareerFinale) {
-          await Navigator.push(context, MaterialPageRoute(builder: (_) => const EndGameScreen()));
-        } else if (isSeasonFinale) {
-          await Navigator.push(context, MaterialPageRoute(builder: (_) => const SeasonRecapScreen()));
-        } else {
-          await Navigator.push(context, MaterialPageRoute(builder: (_) => PostShowRecapScreen(completedCard: completedCardToPass)));
-        }
-
+      // Reset pre-show flag so next week starts fresh when you come back
+      if (mounted) {
         setState(() { _hasPassedPreShow = false; });
       }
     }

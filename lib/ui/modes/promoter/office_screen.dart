@@ -191,9 +191,14 @@ class OfficeScreen extends ConsumerWidget {
                                   ],
                                 ),
                                 const SizedBox(height: 4),
-                                Text(
-                                  isPPVWeek ? gameState.nextPPVName.toUpperCase() : gameState.tvShowName.toUpperCase(), 
-                                  style: TextStyle(color: isPPVWeek ? Colors.amberAccent : Colors.white, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 1.0)
+                                // We wrap this in a FittedBox to solve the tablet overlap issue here too!
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    isPPVWeek ? gameState.nextPPVName.toUpperCase() : gameState.tvShowName.toUpperCase(), 
+                                    style: TextStyle(color: isPPVWeek ? Colors.amberAccent : Colors.white, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 1.0)
+                                  ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
@@ -216,7 +221,8 @@ class OfficeScreen extends ConsumerWidget {
                                 const SizedBox(height: 4),
                                 const Text("WAR ROOM", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                                 const SizedBox(height: 2),
-                                Text("${gameState.playerWins} - ${gameState.rivalWins}", style: const TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.w900)), 
+                                // 🚨 THE FIX: Removed spaces between hyphens to match the Home Dashboard perfectly!
+                                Text("${gameState.playerWins}-${gameState.rivalWins}-${gameState.draws}", style: const TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.w900)), 
                               ],
                             ),
                           ),

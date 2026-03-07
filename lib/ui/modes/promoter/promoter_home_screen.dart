@@ -373,7 +373,8 @@ class _DashboardTabState extends ConsumerState<DashboardTab> with SingleTickerPr
                                 const SizedBox(height: 4),
                                 const Text("WAR ROOM", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                                 const SizedBox(height: 2),
-                                Text("${gameState.playerWins} - ${gameState.rivalWins}", style: const TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.w900)), 
+                                // 🚨 THE FIX: Added the Draws variable directly to this widget!
+                                Text("${gameState.playerWins}-${gameState.rivalWins}-${gameState.draws}", style: const TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.w900)), 
                               ],
                             ),
                           ),

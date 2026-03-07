@@ -15,8 +15,9 @@ import 'report_screen.dart';
 import 'season_recap_screen.dart'; 
 import 'end_game_screen.dart'; 
 import 'venue_screen.dart';       
-import 'broadcasting_hub_screen.dart'; // <-- FIX: Imported the new Hub!
+import 'broadcasting_hub_screen.dart'; 
 import 'sponsorship_screen.dart'; 
+import 'bankruptcy_screen.dart'; // 🚨 ADDED THE GAME OVER SCREEN!
 
 class PromoterDashboard extends ConsumerWidget {
   const PromoterDashboard({super.key});
@@ -110,13 +111,24 @@ class PromoterDashboard extends ConsumerWidget {
                       // E. Process Week (Calculates finances, clears card, saves history)
                       await notifier.processWeek(rosterState.roster);
                       
+                      // 🚨 BANKRUPTCY CHECK 🚨
+                      final updatedGameState = ref.read(gameProvider);
+
                       // F. Navigate to appropriate screen
-                      if (isCareerFinale) {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const EndGameScreen()));
-                      } else if (isSeasonFinale) {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const SeasonRecapScreen()));
-                      } else {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen()));
+                      if (context.mounted) {
+                        if (updatedGameState.cash < 0) {
+                          Navigator.pushAndRemoveUntil(
+                            context, 
+                            MaterialPageRoute(builder: (_) => const BankruptcyScreen()), 
+                            (route) => false // Destroys back button
+                          );
+                        } else if (isCareerFinale) {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const EndGameScreen()));
+                        } else if (isSeasonFinale) {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const SeasonRecapScreen()));
+                        } else {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportScreen()));
+                        }
                       }
                     }
                   },
@@ -156,7 +168,6 @@ class PromoterDashboard extends ConsumerWidget {
                 
                 _buildActionCard(context, "VENUE", Icons.stadium, Colors.orange, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VenueScreen()))),
                 
-                // --- FIX: UPDATED THIS BUTTON TO ROUTE TO THE BROADCASTING HUB ---
                 _buildActionCard(context, "BROADCASTING", Icons.cell_tower, Colors.teal, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BroadcastingHubScreen()))),
                 
                 _buildActionCard(context, "SPONSORS", Icons.monetization_on, Colors.green, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SponsorshipScreen()))),

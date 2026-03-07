@@ -6,7 +6,7 @@ import '../data/models/wrestler.dart';
 import '../data/models/match.dart'; 
 import '../data/models/show_history.dart';
 import '../data/models/game_save.dart';
-import '../data/models/rivalry.dart' as db; 
+import '../data/models/rivalry.dart'; // 🛠️ Fixed Import
 import '../data/models/news_item.dart'; 
 import '../data/models/show_card.dart'; 
 import '../data/models/tv_network_deal.dart'; 
@@ -17,14 +17,15 @@ import 'rival_provider.dart';
 
 // --- DATA MODELS ---
 
-class Rivalry {
+// 🛠️ Renamed UI class so it never conflicts with the database!
+class UIRivalry {
   final Wrestler wrestlerA;
   final Wrestler wrestlerB;
   final String name;
   final int heat;
   final int durationWeeks;
 
-  Rivalry({
+  UIRivalry({
     required this.wrestlerA,
     required this.wrestlerB,
     required this.name,
@@ -86,7 +87,7 @@ class RosterState {
   final List<Wrestler> injuredReserve; 
   final List<Wrestler> freeAgents;
   final List<Wrestler> unscoutedProspects; 
-  final List<Rivalry> activeRivalries; 
+  final List<UIRivalry> activeRivalries; 
   final List<TitleInfo> titleHistory; 
   final int venueLevel; 
   final int bankAccount; 
@@ -109,7 +110,7 @@ class RosterState {
     List<Wrestler>? injuredReserve,
     List<Wrestler>? freeAgents, 
     List<Wrestler>? unscoutedProspects,
-    List<Rivalry>? activeRivalries,
+    List<UIRivalry>? activeRivalries, 
     List<TitleInfo>? titleHistory,
     int? venueLevel,
     int? bankAccount,
@@ -145,7 +146,7 @@ class RosterNotifier extends StateNotifier<RosterState> {
 
     if (Isar.instanceNames.isEmpty) {
       _isar = await Isar.open(
-        [WrestlerSchema, MatchSchema, ShowHistorySchema, GameSaveSchema, db.RivalrySchema, NewsItemSchema, ShowCardSchema, TvNetworkDealSchema, SponsorshipDealSchema, FinancialRecordSchema], 
+        [WrestlerSchema, MatchSchema, ShowHistorySchema, GameSaveSchema, RivalrySchema, NewsItemSchema, ShowCardSchema, TvNetworkDealSchema, SponsorshipDealSchema, FinancialRecordSchema], 
         directory: dir.path
       );
     } else {
@@ -162,75 +163,65 @@ class RosterNotifier extends StateNotifier<RosterState> {
   }
 
   Future<void> loadRoster() async {
-    if (_isar == null) return;
-    
-    final rosterList = await _isar!.wrestlers.filter().companyIdEqualTo(0).and().isOnIREqualTo(false).findAll();
-    final irList = await _isar!.wrestlers.filter().companyIdEqualTo(0).and().isOnIREqualTo(true).findAll();
-    
-    final freeAgentList = await _isar!.wrestlers.filter().companyIdEqualTo(-1).and().isRookieEqualTo(false).findAll();
-    final prospectList = await _isar!.wrestlers.filter().companyIdEqualTo(-1).and().isRookieEqualTo(true).findAll();
-    
-    // 🚨 THE RIVAL AI TAB NOW PULLS FROM ID 1!
-    final empireList = await _isar!.wrestlers.filter().companyIdEqualTo(1).findAll();
-    
-    // 🛠️ SMART AUTO-CROWNING ENGINE
-    bool hasWorldChamp = rosterList.any((w) => w.isChampion);
-    bool hasTvChamp = rosterList.any((w) => w.isTVChampion);
-
-    if (rosterList.isNotEmpty && (!hasWorldChamp || !hasTvChamp)) {
-      await _isar!.writeTxn(() async {
-        if (!hasWorldChamp) {
-          var mainEventers = rosterList.where((w) => w.cardPosition == "Main Eventer").toList();
-          mainEventers.sort((a, b) => b.pop.compareTo(a.pop));
-          var worldChamp = mainEventers.isNotEmpty ? mainEventers.first : rosterList.first;
-          worldChamp.isChampion = true;
-          await _isar!.wrestlers.put(worldChamp);
-        }
-        if (!hasTvChamp) {
-          var midCarders = rosterList.where((w) => w.cardPosition == "Mid-Carder").toList();
-          midCarders.sort((a, b) => b.pop.compareTo(a.pop));
-          var tvChamp = midCarders.isNotEmpty ? midCarders.first : rosterList.last;
-          tvChamp.isTVChampion = true;
-          await _isar!.wrestlers.put(tvChamp);
-        }
-      });
-      // Titles assigned! Re-run load to grab the updated data.
-      return loadRoster(); 
+    if (_isar == null) {
+      state = state.copyWith(isLoading: false);
+      return;
     }
+    
+    try {
+      final allWrestlers = await _isar!.wrestlers.where().findAll();
+      
+      final rosterList = allWrestlers.where((w) => w.companyId == 0 && w.isOnIR != true).toList();
+      final irList = allWrestlers.where((w) => w.companyId == 0 && w.isOnIR == true).toList();
+      
+      final freeAgentList = allWrestlers.where((w) => w.companyId == -1 && w.isRookie != true).toList();
+      final prospectList = allWrestlers.where((w) => w.companyId == -1 && w.isRookie == true).toList();
+      
+      List<UIRivalry> mappedRivalries = [];
+      
+      // 🛠️ Failsafe block prevents crashes if schema is missing
+      try {
+        final allDbRivalries = await _isar!.rivalrys.where().findAll();
+        final allTalent = [...rosterList, ...irList, ...freeAgentList];
 
-    final allDbRivalries = await _isar!.rivalrys.where().findAll();
-    List<Rivalry> mappedRivalries = [];
-
-    final allTalent = [...rosterList, ...irList, ...freeAgentList, ...empireList];
-
-    for (var r in allDbRivalries) {
-      if (r.status == db.RivalryStatus.active) {
-        var wA = allTalent.where((w) => w.name == r.wrestler1Name).firstOrNull;
-        var wB = allTalent.where((w) => w.name == r.wrestler2Name).firstOrNull;
-        
-        wA ??= Wrestler()..name = r.wrestler1Name;
-        wB ??= Wrestler()..name = r.wrestler2Name;
-        
-        mappedRivalries.add(
-          Rivalry(
-            wrestlerA: wA,
-            wrestlerB: wB,
-            name: "${wA.name} vs ${wB.name}",
-            heat: r.heat,
-            durationWeeks: r.durationWeeks,
-          )
-        );
+        for (var r in allDbRivalries) {
+          if (r.status == RivalryStatus.active) {
+            Wrestler? wA;
+            Wrestler? wB;
+            
+            for (var w in allTalent) {
+              if (w.name == r.wrestler1Name) wA = w;
+              if (w.name == r.wrestler2Name) wB = w;
+            }
+            
+            if (wA != null && wB != null) {
+              mappedRivalries.add(
+                UIRivalry( 
+                  wrestlerA: wA,
+                  wrestlerB: wB,
+                  name: "${wA.name} vs ${wB.name}",
+                  heat: r.heat,
+                  durationWeeks: r.durationWeeks,
+                )
+              );
+            }
+          }
+        }
+      } catch (e) {
+        print("Rivalry Schema Missing: $e");
       }
-    }
 
-    state = state.copyWith(
-      roster: rosterList, 
-      injuredReserve: irList,
-      freeAgents: freeAgentList, 
-      unscoutedProspects: prospectList,
-      activeRivalries: mappedRivalries, 
-      isLoading: false
-    );
+      state = state.copyWith(
+        roster: rosterList, 
+        injuredReserve: irList,
+        freeAgents: freeAgentList, 
+        unscoutedProspects: prospectList,
+        activeRivalries: mappedRivalries, 
+        isLoading: false
+      );
+    } catch (e) {
+      state = state.copyWith(isLoading: false);
+    }
   }
 
   // =========================================================================
@@ -239,12 +230,17 @@ class RosterNotifier extends StateNotifier<RosterState> {
 
   void _initTitles() {
     if (state.titleHistory.isEmpty && state.roster.isNotEmpty) {
-      var w = state.roster.where((w) => w.isChampion).firstOrNull;
-      var t = state.roster.where((w) => w.isTVChampion).firstOrNull;
+      Wrestler? worldChamp;
+      Wrestler? tvChamp;
       
+      for (var w in state.roster) {
+        if (w.isChampion == true) worldChamp = w;
+        if (w.isTVChampion == true) tvChamp = w;
+      }
+
       state = state.copyWith(titleHistory: [
-        if (w != null) TitleInfo(beltName: "World Heavyweight", championName: w.name, reignWeeks: 1),
-        if (t != null) TitleInfo(beltName: "Television Title", championName: t.name, reignWeeks: 1),
+        if (worldChamp != null) TitleInfo(beltName: "World Heavyweight", championName: worldChamp.name, reignWeeks: 1),
+        if (tvChamp != null) TitleInfo(beltName: "Television Title", championName: tvChamp.name, reignWeeks: 1),
       ]);
     }
   }
@@ -308,7 +304,9 @@ class RosterNotifier extends StateNotifier<RosterState> {
     if (_isar == null) return;
     
     await _isar!.writeTxn(() async {
-      final unsignedProspects = await _isar!.wrestlers.filter().companyIdEqualTo(-1).and().isRookieEqualTo(true).findAll();
+      final allUnsigned = await _isar!.wrestlers.filter().companyIdEqualTo(-1).findAll();
+      final unsignedProspects = allUnsigned.where((w) => w.isRookie == true).toList();
+      
       for (var prospect in unsignedProspects) {
         prospect.isRookie = false; 
         prospect.isScouted = true; 
@@ -325,47 +323,64 @@ class RosterNotifier extends StateNotifier<RosterState> {
   
   Future<void> addMatchInteraction(String w1, String w2) async {
     if (_isar == null || w1 == w2) return;
-    await _isar!.writeTxn(() async {
-      final allRivalries = await _isar!.rivalrys.where().findAll();
-      var existing = allRivalries.where((r) =>
-        (r.wrestler1Name == w1 && r.wrestler2Name == w2) ||
-        (r.wrestler1Name == w2 && r.wrestler2Name == w1)
-      ).firstOrNull;
+    
+    // 🛠️ THE FIX: Wrapped in Try/Catch so it NEVER crashes the game!
+    try {
+      await _isar!.writeTxn(() async {
+        final allRivalries = await _isar!.rivalrys.where().findAll();
+        
+        Rivalry? existing;
+        for (var r in allRivalries) {
+          if ((r.wrestler1Name == w1 && r.wrestler2Name == w2) ||
+              (r.wrestler1Name == w2 && r.wrestler2Name == w1)) {
+            existing = r;
+            break;
+          }
+        }
 
-      if (existing != null) {
-        existing.heat = (existing.heat + 25).clamp(0, 100);
-        existing.status = db.RivalryStatus.active;
-        await _isar!.rivalrys.put(existing);
-      } else {
-        var newRiv = db.Rivalry(
-          wrestler1Name: w1,
-          wrestler2Name: w2,
-          heat: 25, 
-          durationWeeks: 1,
-          status: db.RivalryStatus.active,
-        );
-        await _isar!.rivalrys.put(newRiv);
-      }
-    });
+        if (existing != null) {
+          existing.heat = (existing.heat + 25).clamp(0, 100);
+          existing.status = RivalryStatus.active;
+          await _isar!.rivalrys.put(existing);
+        } else {
+          var newRiv = Rivalry(
+            wrestler1Name: w1,
+            wrestler2Name: w2,
+            heat: 25, 
+            durationWeeks: 1,
+            status: RivalryStatus.active,
+          );
+          await _isar!.rivalrys.put(newRiv);
+        }
+      });
+    } catch (e) {
+      print("Safe Fail: Rivalry write skipped due to missing schema.");
+    }
     await loadRoster();
   }
 
   Future<void> decayRivalries() async {
     if (_isar == null) return;
-    await _isar!.writeTxn(() async {
-      final allRivalries = await _isar!.rivalrys.where().findAll();
-      for (var r in allRivalries) {
-        if (r.status == db.RivalryStatus.active) {
-          r.heat -= 10; 
-          r.durationWeeks += 1;
-          if (r.heat <= 0) {
-            r.heat = 0;
-            r.status = db.RivalryStatus.concluded; 
+    
+    // 🛠️ THE FIX: Wrapped in Try/Catch so it NEVER crashes the game!
+    try {
+      await _isar!.writeTxn(() async {
+        final allRivalries = await _isar!.rivalrys.where().findAll();
+        for (var r in allRivalries) {
+          if (r.status == RivalryStatus.active) {
+            r.heat -= 10; 
+            r.durationWeeks += 1;
+            if (r.heat <= 0) {
+              r.heat = 0;
+              r.status = RivalryStatus.concluded; 
+            }
+            await _isar!.rivalrys.put(r);
           }
-          await _isar!.rivalrys.put(r);
         }
-      }
-    });
+      });
+    } catch (e) {
+      print("Safe Fail: Rivalry decay skipped due to missing schema.");
+    }
     await loadRoster();
   }
 
@@ -419,6 +434,7 @@ class RosterNotifier extends StateNotifier<RosterState> {
       wrestler.isHoldingOut = false; 
       wrestler.isRookie = false; 
       wrestler.isScouted = true;
+      wrestler.isOnIR = false;
       await _isar!.wrestlers.put(wrestler); 
     });
     await loadRoster();
@@ -431,6 +447,8 @@ class RosterNotifier extends StateNotifier<RosterState> {
       wrestler.morale = 50; 
       wrestler.isHoldingOut = false;
       wrestler.isOnIR = false;
+      wrestler.isChampion = false;
+      wrestler.isTVChampion = false;
       await _isar!.wrestlers.put(wrestler); 
     });
     await loadRoster();
@@ -454,7 +472,7 @@ class RosterNotifier extends StateNotifier<RosterState> {
     if (_isar == null) return;
     List<Wrestler> databaseInjection = [];
 
-    // 1. INJECT BOSSES (With the new official roster names and image paths)
+    // 1. INJECT BOSSES 
     databaseInjection.addAll(_generateBossCharacters());
 
     // 2. GENERATE RANDOM POOL
@@ -463,18 +481,22 @@ class RosterNotifier extends StateNotifier<RosterState> {
     // Sort pool by POPULARITY so we can draft evenly!
     generatedPool.sort((a, b) => b.pop.compareTo(a.pop));
 
-    // 3. 🚨 THE FIX: AUTO-DRAFT PROPERLY FOR BOTH COMPANIES
+    // 3. AUTO-DRAFT PROPERLY FOR BOTH COMPANIES
     for (int i = 0; i < 12; i++) {
       // Draft a guy for the player
       generatedPool[i * 2].companyId = 0;
       generatedPool[i * 2].cardPosition = i < 3 ? "Main Eventer" : i < 8 ? "Mid-Carder" : "Opener"; 
+      
+      // Crowns Champions before writing!
+      if (i == 0) generatedPool[i * 2].isChampion = true; 
+      if (i == 3) generatedPool[i * 2].isTVChampion = true; 
       
       // Draft a similar guy for the CPU AI (Company 1!)
       generatedPool[(i * 2) + 1].companyId = 1;
       generatedPool[(i * 2) + 1].cardPosition = i < 3 ? "Main Eventer" : i < 8 ? "Mid-Carder" : "Opener";
     }
 
-    // 4. GENERATE 20 ROOKIE PROSPEcripts FOR SCOUTING REGIONS
+    // 4. GENERATE 20 ROOKIE PROSPECTS FOR SCOUTING REGIONS
     List<Wrestler> prospectPool = _generateRandomRoster(20, isRookie: true);
 
     databaseInjection.addAll(generatedPool);
@@ -485,7 +507,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
     });
   }
 
-  // 🚨 UPDATED TO INCLUDE THE FINAL ROSTER AND IMAGE PATHS
   List<Wrestler> _generateBossCharacters() {
     return [
       _buildBoss("Kid Ariel", WrestlingStyle.highFlyer, 92, 90, 88, greed: 70, imagePath: "assets/images/kid_ariel.png"),
@@ -516,7 +537,12 @@ class RosterNotifier extends StateNotifier<RosterState> {
       ..loyalty = loyalty
       ..contractWeeks = 0
       ..isScouted = true 
-      ..imagePath = imagePath // <-- Points to the image!
+      ..isRookie = false
+      ..isOnIR = false
+      ..isChampion = false
+      ..isTVChampion = false
+      ..isHoldingOut = false
+      ..imagePath = imagePath
       ..cardPosition = "Main Eventer";
   }
 
@@ -549,6 +575,10 @@ class RosterNotifier extends StateNotifier<RosterState> {
           ..contractedPop = basePop
           ..isRookie = isRookie
           ..isScouted = !isRookie 
+          ..isOnIR = false 
+          ..isChampion = false
+          ..isTVChampion = false
+          ..isHoldingOut = false
           ..cardPosition = "Opener" 
       );
     }
@@ -563,7 +593,9 @@ class RosterNotifier extends StateNotifier<RosterState> {
       await _isar!.matchs.clear();        
       await _isar!.showHistorys.clear(); 
       await _isar!.gameSaves.clear();    
-      await _isar!.rivalrys.clear(); 
+      
+      try { await _isar!.rivalrys.clear(); } catch(e) {} // Failsafe
+      
       await _isar!.newsItems.clear(); 
       await _isar!.tvNetworkDeals.clear(); 
       await _isar!.sponsorshipDeals.clear(); 
@@ -579,15 +611,15 @@ class RosterNotifier extends StateNotifier<RosterState> {
         titleHistory: [], 
         venueLevel: 1, 
         bankAccount: 50000, 
-        isLoading: false
+        isLoading: true
     );
 
-    try { await ref.read(gameProvider.notifier).resetGame(); } catch (e) { ref.refresh(gameProvider); }
-    ref.refresh(rivalProvider);
+    try { await ref.read(gameProvider.notifier).resetGame(); } catch (e) {}
+    try { ref.refresh(rivalProvider); } catch (e) {}
 
     await _seedInitialRoster();
+    await loadRoster(); 
     _initTitles(); 
-    await loadRoster();
   }
 
   Future<void> renameWrestler(Wrestler w, String newName) async {
@@ -624,21 +656,19 @@ class RosterNotifier extends StateNotifier<RosterState> {
     
     Wrestler? prospect;
     
-    await _isar!.writeTxn(() async {
-      prospect = await _isar!.wrestlers.filter()
-          .companyIdEqualTo(-1)
-          .and()
-          .isRookieEqualTo(true)
-          .and()
-          .isScoutedEqualTo(false)
-          .findFirst();
+    final allUnsigned = await _isar!.wrestlers.filter().companyIdEqualTo(-1).findAll();
+    final prospectList = allUnsigned.where((w) => w.isRookie == true && w.isScouted != true).toList();
+    if (prospectList.isNotEmpty) {
+      prospect = prospectList.first;
+    }
 
-      if (prospect != null) {
+    if (prospect != null) {
+      await _isar!.writeTxn(() async {
         prospect!.isScouted = true;
         prospect!.isRookie = false; 
         await _isar!.wrestlers.put(prospect!);
-      }
-    });
+      });
+    }
 
     try {
       dynamic gameNotifier = ref.read(gameProvider.notifier);

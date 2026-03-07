@@ -10,6 +10,7 @@ import '../../logic/game_state_provider.dart';
 
 // --- SCREEN IMPORTS ---
 import '../modes/promoter/promoter_home_screen.dart';
+import '../modes/promoter/welcome_letter_screen.dart'; // 🚨 IMPORTED THE NEW WELCOME LETTER!
 import 'show_history_screen.dart';
 import '../modes/leaderboard/leaderboard_screen.dart';
 import '../modes/network/player_pick_sheet_screen.dart'; 
@@ -413,14 +414,29 @@ class _HubScreenState extends ConsumerState<HubScreen> {
     );
   }
 
-  // 🛠️ The Direct Launch Function (Skips Dialog)
+  // 🚨 THE FIX: Now routes to the Welcome Letter before the Dashboard!
   Future<void> _startFreshGame() async {
     HapticFeedback.heavyImpact();
-    await ref.read(rosterProvider.notifier).factoryReset(); 
+    
+    // 1. Show a quick loading spinner so the user knows something is happening
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator(color: Colors.amber)),
+    );
+
+    // 2. Wipe the universe and await the new game state
     await ref.read(gameProvider.notifier).resetGame(); 
     
+    // 3. Wipe the roster and crucially AWAIT the generation of the new wrestlers
+    await ref.read(rosterProvider.notifier).factoryReset(); 
+    
     if (context.mounted) { 
-      Navigator.push(context, MaterialPageRoute(builder: (_) => const PromoterHomeScreen())); 
+      // 4. Pop the loading spinner
+      Navigator.pop(context);
+      
+      // 5. Safely push into the Welcome Letter! 
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const WelcomeLetterScreen())); 
     } 
   }
 
@@ -438,7 +454,7 @@ class _HubScreenState extends ConsumerState<HubScreen> {
             child: const Text("START NEW GAME", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)), 
             onPressed: () { 
               Navigator.pop(ctx); 
-              _startFreshGame(); // Calls the same logic cleanly
+              _startFreshGame(); 
             }
           ),
         ],

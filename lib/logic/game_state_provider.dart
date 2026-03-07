@@ -12,6 +12,7 @@ import '../data/models/tv_network_deal.dart';
 import '../data/models/sponsorship_deal.dart'; 
 import '../data/models/financial_record.dart'; 
 import '../data/models/news_item.dart';
+import '../data/models/rivalry.dart'; 
 
 import 'rival_provider.dart'; 
 import 'promoter_provider.dart'; 
@@ -75,10 +76,10 @@ class GameState {
     this.titleMatchFlags = const [], 
     this.ledger = const [],
     this.ppvNames = const [
-      "New Year's Revolution", "Valentine's Vengeance", "March Massacre",
-      "Spring Stampede", "Mayhem", "June Justice", "Heatwave",
-      "Summer Showdown", "September Slam", "Halloween Havoc",
-      "November Nightmare", "Starrcade"
+      "Winter Warfare", "Valentine's Vengeance", "March Massacre",
+      "Spring Spectacular", "Total Anarchy", "June Justice", "Summer Scorcher",
+      "August Armageddon", "September Slam", "Fright Night",
+      "November Nightmare", "Squared Circle Summit"
     ],
     this.venueCustomNames = const ["High School Gym", "Civic Center", "City Arena", "Global Stadium"],
     this.activeSponsors = const [],
@@ -157,7 +158,7 @@ class GameState {
 
 class GameNotifier extends StateNotifier<GameState> {
   final Ref ref;
-  Isar? _isarInstance; // 🚨 Internal cache
+  Isar? _isarInstance; 
   final Random _rng = Random(); 
   
   bool _stagedTitleMatchFlag = false;
@@ -167,7 +168,7 @@ class GameNotifier extends StateNotifier<GameState> {
   }
 
   // =========================================================================
-  // 🚨 THE MAGIC FIX: A Smart Getter that NEVER fails on physical phones
+  // 🚨 SECURE DATABASE GETTER
   // =========================================================================
   Future<Isar> _getDb() async {
     if (_isarInstance != null) return _isarInstance!;
@@ -179,14 +180,14 @@ class GameNotifier extends StateNotifier<GameState> {
     
     final dir = await getApplicationDocumentsDirectory();
     _isarInstance = await Isar.open(
-      [WrestlerSchema, MatchSchema, ShowHistorySchema, GameSaveSchema, TvNetworkDealSchema, SponsorshipDealSchema, FinancialRecordSchema, NewsItemSchema], 
+      [WrestlerSchema, MatchSchema, ShowHistorySchema, GameSaveSchema, TvNetworkDealSchema, SponsorshipDealSchema, FinancialRecordSchema, NewsItemSchema, RivalrySchema], 
       directory: dir.path
     );
     return _isarInstance!;
   }
 
   Future<void> _initDb() async {
-    final db = await _getDb(); // Forces the code to wait until the Android folder is open
+    final db = await _getDb(); 
     
     final networkCount = await db.tvNetworkDeals.count();
     if (networkCount == 0) await _seedNetworks();
@@ -264,10 +265,18 @@ class GameNotifier extends StateNotifier<GameState> {
     final db = await _getDb();
     bool slotTaken = state.activeSponsors.any((s) => s.slotTarget == deal.slotTarget);
     if (slotTaken) return; 
+    
     int newCash = state.cash + deal.upfrontBonus;
-    await db.writeTxn(() async { deal.promotionId = 0; await db.sponsorshipDeals.put(deal); });
-    state = state.copyWith(cash: newCash, activeSponsors: [...state.activeSponsors, deal], availableOffers: state.availableOffers.where((d) => d.id != deal.id).toList());
-    _saveGame();
+    deal.promotionId = 0; 
+    
+    await db.writeTxn(() async { await db.sponsorshipDeals.put(deal); });
+    
+    state = state.copyWith(
+      cash: newCash, 
+      activeSponsors: [...state.activeSponsors, deal], 
+      availableOffers: state.availableOffers.where((d) => d.id != deal.id).toList()
+    );
+    await _saveGame(); 
   }
 
   Future<void> signTvDeal(TvNetworkDeal deal) async {
@@ -275,9 +284,12 @@ class GameNotifier extends StateNotifier<GameState> {
     await db.writeTxn(() async {
       final oldDeals = await db.tvNetworkDeals.filter().promotionIdEqualTo(0).findAll();
       for (var d in oldDeals) { d.promotionId = -1; await db.tvNetworkDeals.put(d); }
-      deal.promotionId = 0; await db.tvNetworkDeals.put(deal);
+      deal.promotionId = 0; 
+      await db.tvNetworkDeals.put(deal);
     });
+    
     state = state.copyWith(activeTvDeal: deal, isBiddingWarActive: false);
+    await _saveGame(); 
   }
 
   void buyTechUpgrade(String type, int cost) {
@@ -348,7 +360,7 @@ class GameNotifier extends StateNotifier<GameState> {
   // 🚀 PROCESS WEEK ENGINE 
   // =========================================================================
   Future<void> processWeek(List<Wrestler> roster) async {
-    final db = await _getDb(); // 🚨 GUARANTEES DATABASE IS READY BEFORE PROCESSING
+    final db = await _getDb(); 
 
     int sal = roster.fold(0, (sum, w) => sum + w.salary);
     int prod = 0;
@@ -411,6 +423,16 @@ class GameNotifier extends StateNotifier<GameState> {
       totalRatingScore += matchScore;
     }
 
+    // 🛠️ THE FIX: Uses elementAt() instead of square brackets to read from IsarLinks safely!
+    for (var match in state.currentCard) {
+      if (match.wrestlers.length >= 2) {
+        await ref.read(rosterProvider.notifier).addMatchInteraction(
+            match.wrestlers.elementAt(0).name, 
+            match.wrestlers.elementAt(1).name
+        );
+      }
+    }
+
     double rawRating = state.currentCard.isEmpty ? 0 : (totalRatingScore / state.currentCard.length);
     double rating = rawRating;
     if (state.techBroadcast == 1 && rawRating > 3.5) rating = 3.5; 
@@ -430,7 +452,9 @@ class GameNotifier extends StateNotifier<GameState> {
         if (state.activeTvDeal!.cannibalizesPPVs) tvPayout = (state.activeTvDeal!.weeklyPayout * 2 * prestigeBonus).toInt(); 
         else ppvPayout = (state.fans * 30 * state.activeTvDeal!.ppvBonusMultiplier * prestigeBonus).toInt();
       }
-    } else tvPayout = 1000;
+    } else {
+        tvPayout = 1000; 
+    }
 
     int sponPay = 0; List<SponsorshipDeal> dealsToKeep = [];
     double mainEventRating = state.currentCard.isNotEmpty ? state.currentCard.last.rating : 0.0;
@@ -647,7 +671,7 @@ class GameNotifier extends StateNotifier<GameState> {
     );
 
     _generateInitialSponsors();
-    await _saveGame(); // 🚨 Will correctly save now!
+    await _saveGame(); 
     
     ref.read(rosterProvider.notifier).advanceTitleReigns();
     ref.read(rosterProvider.notifier).loadRoster(); 
@@ -657,7 +681,7 @@ class GameNotifier extends StateNotifier<GameState> {
   // 🚨 SECURE SAVING ENGINE
   // =========================================================================
   Future<void> _saveGame() async {
-      final db = await _getDb(); // 🚨 NO MORE SILENT FAILS. This waits for Isar.
+      final db = await _getDb(); 
       final save = GameSave()..id = 1..week = state.week..year = state.year..cash = state.cash..fans = state.fans..reputation = state.reputation..promotionName = state.promotionName..tvShowName = state.tvShowName..venueLevel = state.venueLevel..techBroadcast = state.techBroadcast..techPyro = state.techPyro..techAudio = state.techAudio..techMedical = state.techMedical..premierPpvIndex = state.premierPpvIndex; 
       await db.writeTxn(() async { await db.gameSaves.put(save); });
   }
