@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../logic/communications_provider.dart'; 
+// 🚨 NEW: Updated to point to the correct Inbox Provider we just built
+import '../../../logic/inbox_provider.dart'; 
+import '../../../data/models/news_item.dart';
 
 // --- IMPORT FOR THE WATERMARK ---
 import '../../components/tv_watermark.dart';
@@ -19,7 +21,7 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
 
   void _openMessage(NewsItem msg, bool isDesktop) {
     HapticFeedback.selectionClick();
-    ref.read(communicationsProvider.notifier).markAsRead(msg.id);
+    ref.read(inboxProvider.notifier).markAsRead(msg.id); // 🚨 Pointed to the new provider
     
     if (isDesktop) {
       setState(() => _selectedMessage = msg);
@@ -37,7 +39,8 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFF151515),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-              border: Border(top: BorderSide(color: msg.color, width: 2)),
+              // 🚨 Quick fallback color just in case
+              border: Border(top: BorderSide(color: _getCategoryColor(msg.type), width: 2)),
             ),
             child: Column(
               children: [
@@ -58,20 +61,40 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
           ),
         ),
       ).whenComplete(() {
-        // Optional: clear selection when closing sheet
         setState(() => _selectedMessage = null);
       });
     }
   }
 
+  // 🎨 HELPER: Defines colors based on the category!
+  Color _getCategoryColor(String type) {
+    switch (type) {
+      case "EMAIL": return Colors.blueAccent;
+      case "DIRT_SHEET": return Colors.redAccent;
+      case "SOCIAL": return Colors.purpleAccent;
+      default: return Colors.orangeAccent;
+    }
+  }
+
+  IconData _getCategoryIcon(String type) {
+    switch (type) {
+      case "EMAIL": return Icons.email;
+      case "DIRT_SHEET": return Icons.newspaper;
+      case "SOCIAL": return Icons.tag;
+      default: return Icons.message;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // 🔌 READ THE LIVE MESSAGES FROM THE ENGINE
-    final allMessages = ref.watch(communicationsProvider);
+    // 🔌 READ THE LIVE MESSAGES FROM THE NEW ENGINE
+    final inboxState = ref.watch(inboxProvider);
 
-    // Filter messages based on selected tab
-    final currentCategory = _selectedTabIndex == 0 ? "inbox" : _selectedTabIndex == 1 ? "dirtsheet" : "social";
-    final filteredMessages = allMessages.where((msg) => msg.category == currentCategory).toList();
+    // 🚨 Filter messages based on selected tab directly from the provider!
+    List<NewsItem> filteredMessages = [];
+    if (_selectedTabIndex == 0) filteredMessages = inboxState.emails;
+    if (_selectedTabIndex == 1) filteredMessages = inboxState.dirtSheets;
+    if (_selectedTabIndex == 2) filteredMessages = inboxState.socialPosts;
 
     // 🚨 SMART LAYOUT BUILDER 🚨
     return LayoutBuilder(
@@ -136,14 +159,14 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               IconButton(
-                                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20),
+                                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20), 
                                 onPressed: () => Navigator.pop(context),
                                 padding: EdgeInsets.zero,
                                 alignment: Alignment.topLeft,
                               ),
-                              Column(
+                              const Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                children: const [
+                                children: [
                                   Row(
                                     children: [
                                       Icon(Icons.cell_tower_rounded, color: Colors.orangeAccent, size: 24),
@@ -216,15 +239,36 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
               children: [
                 _buildTab(0, "INBOX"),
                 _buildTab(1, "DIRT SHEET"),
-                _buildTab(2, "SOCIAL"),
+                _buildTab(2, "SOCIAL"), // 🚨 The third tab is now active!
               ],
             ),
           ),
           
+          // 🚨 THE NEW QUALITY OF LIFE BATCH BUTTONS!
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton.icon(
+                  icon: const Icon(Icons.done_all, color: Colors.white54, size: 16),
+                  label: const Text("MARK ALL READ", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
+                  onPressed: () => ref.read(inboxProvider.notifier).markAllAsRead(),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  icon: const Icon(Icons.delete_sweep, color: Colors.redAccent, size: 16),
+                  label: const Text("CLEAR READ", style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                  onPressed: () => ref.read(inboxProvider.notifier).clearAllReadMessages(),
+                ),
+              ],
+            ),
+          ),
+
           // INBOX LIST
           Expanded(
             child: messages.isEmpty
-                ? const Center(child: Text("No new messages.", style: TextStyle(color: Colors.white54)))
+                ? const Center(child: Text("No new messages in this folder.", style: TextStyle(color: Colors.white54)))
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     itemCount: messages.length,
@@ -232,13 +276,15 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
                       final msg = messages[index];
                       final isSelected = _selectedMessage?.id == msg.id;
 
+                      Color msgColor = _getCategoryColor(msg.type);
+
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         decoration: BoxDecoration(
-                          color: isSelected ? msg.color.withOpacity(0.05) : const Color(0xFF1A1A1A),
+                          color: isSelected ? msgColor.withOpacity(0.05) : const Color(0xFF1A1A1A),
                           borderRadius: BorderRadius.circular(12),
                           border: isSelected 
-                            ? Border.all(color: msg.color, width: 2)
+                            ? Border.all(color: msgColor, width: 2)
                             : Border.all(color: Colors.white10, width: 1),
                         ),
                         child: Material(
@@ -253,8 +299,8 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(color: msg.color.withOpacity(0.15), shape: BoxShape.circle),
-                                    child: Icon(msg.icon, color: msg.color, size: 20),
+                                    decoration: BoxDecoration(color: msgColor.withOpacity(0.15), shape: BoxShape.circle),
+                                    child: Icon(_getCategoryIcon(msg.type), color: msgColor, size: 20),
                                   ),
                                   const SizedBox(width: 16),
                                   Expanded(
@@ -264,17 +310,18 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                           children: [
-                                            Text(msg.sender.toUpperCase(), style: TextStyle(color: msg.isRead ? Colors.white54 : msg.color, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-                                            Text(msg.date, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10)),
+                                            Text(msg.sender.toUpperCase(), style: TextStyle(color: msg.isRead ? Colors.white54 : msgColor, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                                            // Format the raw DateTime if you don't have a getter
+                                            Text("${msg.timestamp.month}/${msg.timestamp.day}", style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10)),
                                           ],
                                         ),
                                         const SizedBox(height: 6),
-                                        Text(msg.title, style: TextStyle(color: msg.isRead ? Colors.white70 : Colors.white, fontSize: 14, fontWeight: msg.isRead ? FontWeight.normal : FontWeight.w800)),
+                                        Text(msg.subject, style: TextStyle(color: msg.isRead ? Colors.white70 : Colors.white, fontSize: 14, fontWeight: msg.isRead ? FontWeight.normal : FontWeight.w800)),
                                       ],
                                     ),
                                   ),
                                   if (!msg.isRead)
-                                    Container(margin: const EdgeInsets.only(left: 8, top: 6), width: 8, height: 8, decoration: BoxDecoration(color: msg.color, shape: BoxShape.circle)),
+                                    Container(margin: const EdgeInsets.only(left: 8, top: 6), width: 8, height: 8, decoration: BoxDecoration(color: msgColor, shape: BoxShape.circle)),
                                 ],
                               ),
                             ),
@@ -344,25 +391,27 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
   // --- THE MESSAGE CONTENT (Displayed in PC Right Pane or Mobile Modal)
   // =====================================================================
   Widget _buildMessageContent(NewsItem msg) {
+    Color msgColor = _getCategoryColor(msg.type);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: msg.color.withOpacity(0.1), shape: BoxShape.circle), child: Icon(msg.icon, color: msg.color, size: 30)),
+            Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: msgColor.withOpacity(0.1), shape: BoxShape.circle), child: Icon(_getCategoryIcon(msg.type), color: msgColor, size: 30)),
             const SizedBox(width: 20),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(msg.title, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, height: 1.2)),
+                  Text(msg.subject, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, height: 1.2)),
                   const SizedBox(height: 8),
                   Row(
                     children: [
                       Text("From: ", style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12, fontWeight: FontWeight.bold)),
-                      Text(msg.sender.toUpperCase(), style: TextStyle(color: msg.color, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                      Text(msg.sender.toUpperCase(), style: TextStyle(color: msgColor, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
                       const Spacer(),
-                      Text(msg.date, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 10, fontWeight: FontWeight.bold)),
+                      Text("${msg.timestamp.month}/${msg.timestamp.day}/${msg.timestamp.year}", style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 10, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ],

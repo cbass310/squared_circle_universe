@@ -61,22 +61,22 @@ class OfficeScreen extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      SafeArea(
+                      const SafeArea(
                         child: Padding(
-                          padding: const EdgeInsets.all(16.0),
+                          padding: EdgeInsets.all(16.0),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.end,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                children: const [
+                                children: [
                                   Icon(Icons.business_center, color: Colors.amber, size: 24),
                                   SizedBox(width: 8),
                                   Text("EXECUTIVE SUITE", style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
                                 ],
                               ),
-                              const SizedBox(height: 4),
-                              const Text("FRONT OFFICE", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                              SizedBox(height: 4),
+                              Text("FRONT OFFICE", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
                             ],
                           ),
                         ),
@@ -116,12 +116,12 @@ class OfficeScreen extends ConsumerWidget {
         children: [
           // HEADER (PC ONLY - Mobile handles this in the top image overlay)
           if (isDesktop)
-            SafeArea(
+            const SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: EdgeInsets.all(24.0),
                 child: Row(
-                  children: const [
+                  children: [
                     Icon(Icons.business_center, color: Colors.amber),
                     SizedBox(width: 10),
                     Text("FRONT OFFICE", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5)),

@@ -13,6 +13,9 @@ class InboxState {
 
   List<NewsItem> get emails => messages.where((m) => m.type == "EMAIL").toList();
   List<NewsItem> get dirtSheets => messages.where((m) => m.type == "DIRT_SHEET").toList();
+  
+  // 🚨 NEW: Added Social Posts filter for the third tab
+  List<NewsItem> get socialPosts => messages.where((m) => m.type == "SOCIAL").toList();
 }
 
 class InboxNotifier extends StateNotifier<InboxState> {
@@ -36,6 +39,7 @@ class InboxNotifier extends StateNotifier<InboxState> {
     }
   }
 
+  // 🚨 UPGRADED: A bustling, alive inbox on Day 1!
   Future<void> _injectWelcomeMessages(Isar isar) async {
     final welcomeEmail = NewsItem()
       ..sender = "Alex O'Cannon (Asst. GM)"
@@ -44,6 +48,15 @@ class InboxNotifier extends StateNotifier<InboxState> {
       ..timestamp = DateTime.now()
       ..isRead = false
       ..actionRequired = true // <-- Will block "GO LIVE" until read!
+      ..type = "EMAIL";
+
+    final financeEmail = NewsItem()
+      ..sender = "Accounting Dept."
+      ..subject = "Initial Budget Report"
+      ..body = "Boss, our roster payroll is going to eat into our cash quickly. I highly recommend heading to the 'Sponsors' tab immediately to secure an upfront cash bonus."
+      ..timestamp = DateTime.now().subtract(const Duration(minutes: 2))
+      ..isRead = false
+      ..actionRequired = false
       ..type = "EMAIL";
 
     final welcomeRumor = NewsItem()
@@ -55,8 +68,17 @@ class InboxNotifier extends StateNotifier<InboxState> {
       ..actionRequired = false
       ..type = "DIRT_SHEET";
 
+    final socialTrend = NewsItem()
+      ..sender = "@SmarkyMark"
+      ..subject = "Trending Topic"
+      ..body = "Just bought my tickets for week 1! Let's see if the new promoter actually knows what they're doing. #ProWrestling"
+      ..timestamp = DateTime.now().subtract(const Duration(hours: 2)) 
+      ..isRead = false
+      ..actionRequired = false
+      ..type = "SOCIAL";
+
     await isar.writeTxn(() async {
-      await isar.newsItems.putAll([welcomeEmail, welcomeRumor]);
+      await isar.newsItems.putAll([welcomeEmail, financeEmail, welcomeRumor, socialTrend]);
     });
   }
 
@@ -86,10 +108,28 @@ class InboxNotifier extends StateNotifier<InboxState> {
 
     await isar.writeTxn(() async {
       final item = await isar.newsItems.get(id);
-      if (item != null) {
+      if (item != null && !item.isRead) {
         item.isRead = true;
+        if (item.actionRequired) item.actionRequired = false; // Clear action required
         await isar.newsItems.put(item);
       }
+    });
+
+    _loadInbox();
+  }
+
+  // 🚨 NEW: BATCH ACTIONS FOR UI
+  Future<void> markAllAsRead() async {
+    final isar = Isar.getInstance();
+    if (isar == null) return;
+
+    await isar.writeTxn(() async {
+      final unreadItems = await isar.newsItems.filter().isReadEqualTo(false).findAll();
+      for (var item in unreadItems) {
+        item.isRead = true;
+        item.actionRequired = false;
+      }
+      await isar.newsItems.putAll(unreadItems);
     });
 
     _loadInbox();
@@ -101,6 +141,20 @@ class InboxNotifier extends StateNotifier<InboxState> {
 
     await isar.writeTxn(() async {
       await isar.newsItems.delete(id);
+    });
+
+    _loadInbox();
+  }
+
+  // 🚨 NEW: BATCH DELETE FOR UI
+  Future<void> clearAllReadMessages() async {
+    final isar = Isar.getInstance();
+    if (isar == null) return;
+
+    await isar.writeTxn(() async {
+      final readItems = await isar.newsItems.filter().isReadEqualTo(true).findAll();
+      final idsToDelete = readItems.map((e) => e.id).toList();
+      await isar.newsItems.deleteAll(idsToDelete);
     });
 
     _loadInbox();

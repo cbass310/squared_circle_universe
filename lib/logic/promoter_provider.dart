@@ -6,7 +6,7 @@ import '../data/models/wrestler.dart';
 import '../data/models/match.dart'; 
 import '../data/models/show_history.dart';
 import '../data/models/game_save.dart';
-import '../data/models/rivalry.dart'; // 🛠️ Fixed Import
+import '../data/models/rivalry.dart'; 
 import '../data/models/news_item.dart'; 
 import '../data/models/show_card.dart'; 
 import '../data/models/tv_network_deal.dart'; 
@@ -15,9 +15,6 @@ import '../data/models/financial_record.dart';
 import 'game_state_provider.dart'; 
 import 'rival_provider.dart';      
 
-// --- DATA MODELS ---
-
-// 🛠️ Renamed UI class so it never conflicts with the database!
 class UIRivalry {
   final Wrestler wrestlerA;
   final Wrestler wrestlerB;
@@ -130,8 +127,6 @@ class RosterState {
   }
 }
 
-// --- PROVIDER LOGIC ---
-
 class RosterNotifier extends StateNotifier<RosterState> {
   final Ref ref;
   Isar? _isar;
@@ -179,7 +174,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
       
       List<UIRivalry> mappedRivalries = [];
       
-      // 🛠️ Failsafe block prevents crashes if schema is missing
       try {
         final allDbRivalries = await _isar!.rivalrys.where().findAll();
         final allTalent = [...rosterList, ...irList, ...freeAgentList];
@@ -224,10 +218,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
     }
   }
 
-  // =========================================================================
-  // 🛠️ THE NEW LINEAGE ENGINE
-  // =========================================================================
-
   void _initTitles() {
     if (state.titleHistory.isEmpty && state.roster.isNotEmpty) {
       Wrestler? worldChamp;
@@ -267,10 +257,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
     state = state.copyWith(titleHistory: updated);
   }
 
-  // =========================================================================
-  // --- INJURED RESERVE LOGIC ---
-  // =========================================================================
-
   Future<void> moveToIR(Wrestler w) async {
     if (_isar == null) return;
     if (state.injuredReserve.length >= 3) return; 
@@ -296,10 +282,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
     await loadRoster();
   }
 
-  // =========================================================================
-  // --- WEEK 27 SCOUTING DUMP TRIGGER ---
-  // =========================================================================
-
   Future<void> triggerWeek27FreeAgencyDump() async {
     if (_isar == null) return;
     
@@ -317,14 +299,9 @@ class RosterNotifier extends StateNotifier<RosterState> {
     await loadRoster();
   }
 
-  // =========================================================================
-  // --- RIVALRY ENGINE ---
-  // =========================================================================
-  
   Future<void> addMatchInteraction(String w1, String w2) async {
     if (_isar == null || w1 == w2) return;
     
-    // 🛠️ THE FIX: Wrapped in Try/Catch so it NEVER crashes the game!
     try {
       await _isar!.writeTxn(() async {
         final allRivalries = await _isar!.rivalrys.where().findAll();
@@ -362,7 +339,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
   Future<void> decayRivalries() async {
     if (_isar == null) return;
     
-    // 🛠️ THE FIX: Wrapped in Try/Catch so it NEVER crashes the game!
     try {
       await _isar!.writeTxn(() async {
         final allRivalries = await _isar!.rivalrys.where().findAll();
@@ -383,14 +359,17 @@ class RosterNotifier extends StateNotifier<RosterState> {
     }
     await loadRoster();
   }
-
-  // =========================================================================
-  // --- UNIVERSAL CONTRACT ENGINE ---
-  // =========================================================================
   
+  // 🚨 THE FIX: GENERATE NEWS WHEN A WRESTLER HOLDS OUT OR LEAVES THE COMPANY
   Future<void> processContracts() async {
     if (_isar == null) return;
     
+    List<String> playerExpired = [];
+    List<String> rivalExpired = [];
+    List<String> playerHoldouts = [];
+    bool worldVacated = false;
+    bool tvVacated = false;
+
     await _isar!.writeTxn(() async {
       final allWrestlers = await _isar!.wrestlers.where().findAll();
       List<Wrestler> toUpdate = [];
@@ -400,6 +379,14 @@ class RosterNotifier extends StateNotifier<RosterState> {
           w.contractWeeks -= 1;
 
           if (w.contractWeeks <= 0) {
+            if (w.companyId == 0) {
+              playerExpired.add(w.name);
+              if (w.isChampion) worldVacated = true;
+              if (w.isTVChampion) tvVacated = true;
+            } else if (w.companyId == 1) {
+              rivalExpired.add(w.name);
+            }
+
             w.companyId = -1; 
             w.morale = 50;
             w.isHoldingOut = false;
@@ -410,6 +397,7 @@ class RosterNotifier extends StateNotifier<RosterState> {
           else {
             if (!w.isHoldingOut && w.pop >= (w.contractedPop + 15) && w.greed >= 75) {
               w.isHoldingOut = true; 
+              if (w.companyId == 0) playerHoldouts.add(w.name);
             }
           }
           toUpdate.add(w);
@@ -418,6 +406,15 @@ class RosterNotifier extends StateNotifier<RosterState> {
       await _isar!.wrestlers.putAll(toUpdate);
     });
     
+    final gameNotifier = ref.read(gameProvider.notifier);
+    
+    // TRIGGER THE NEWS
+    for (String name in playerExpired) { await gameNotifier.generatePlayerRosterNews(name, false); }
+    for (String name in rivalExpired) { await gameNotifier.generateAiReleaseNews(name); }
+    for (String name in playerHoldouts) { await gameNotifier.generateHoldoutNews(name); }
+    if (worldVacated) await gameNotifier.generateVacantTitleNews("World Heavyweight");
+    if (tvVacated) await gameNotifier.generateVacantTitleNews("Television");
+
     await loadRoster();
   }
 
@@ -437,6 +434,8 @@ class RosterNotifier extends StateNotifier<RosterState> {
       wrestler.isOnIR = false;
       await _isar!.wrestlers.put(wrestler); 
     });
+    
+    await ref.read(gameProvider.notifier).generatePlayerRosterNews(wrestler.name, true);
     await loadRoster();
   }
 
@@ -451,6 +450,8 @@ class RosterNotifier extends StateNotifier<RosterState> {
       wrestler.isTVChampion = false;
       await _isar!.wrestlers.put(wrestler); 
     });
+
+    await ref.read(gameProvider.notifier).generatePlayerRosterNews(wrestler.name, false);
     await loadRoster();
   }
 
@@ -464,39 +465,25 @@ class RosterNotifier extends StateNotifier<RosterState> {
     state = state.copyWith(bankAccount: state.bankAccount - amount);
   }
 
-  // =========================================================================
-  // --- THE AUTO-DRAFT & SPECIAL ATTRACTIONS ENGINE ---
-  // =========================================================================
-
   Future<void> _seedInitialRoster() async {
     if (_isar == null) return;
     List<Wrestler> databaseInjection = [];
 
-    // 1. INJECT BOSSES 
     databaseInjection.addAll(_generateBossCharacters());
-
-    // 2. GENERATE RANDOM POOL
     List<Wrestler> generatedPool = _generateRandomRoster(60);
-    
-    // Sort pool by POPULARITY so we can draft evenly!
     generatedPool.sort((a, b) => b.pop.compareTo(a.pop));
 
-    // 3. AUTO-DRAFT PROPERLY FOR BOTH COMPANIES
     for (int i = 0; i < 12; i++) {
-      // Draft a guy for the player
       generatedPool[i * 2].companyId = 0;
       generatedPool[i * 2].cardPosition = i < 3 ? "Main Eventer" : i < 8 ? "Mid-Carder" : "Opener"; 
       
-      // Crowns Champions before writing!
       if (i == 0) generatedPool[i * 2].isChampion = true; 
       if (i == 3) generatedPool[i * 2].isTVChampion = true; 
       
-      // Draft a similar guy for the CPU AI (Company 1!)
       generatedPool[(i * 2) + 1].companyId = 1;
       generatedPool[(i * 2) + 1].cardPosition = i < 3 ? "Main Eventer" : i < 8 ? "Mid-Carder" : "Opener";
     }
 
-    // 4. GENERATE 20 ROOKIE PROSPECTS FOR SCOUTING REGIONS
     List<Wrestler> prospectPool = _generateRandomRoster(20, isRookie: true);
 
     databaseInjection.addAll(generatedPool);
@@ -594,7 +581,7 @@ class RosterNotifier extends StateNotifier<RosterState> {
       await _isar!.showHistorys.clear(); 
       await _isar!.gameSaves.clear();    
       
-      try { await _isar!.rivalrys.clear(); } catch(e) {} // Failsafe
+      try { await _isar!.rivalrys.clear(); } catch(e) {} 
       
       await _isar!.newsItems.clear(); 
       await _isar!.tvNetworkDeals.clear(); 
@@ -647,10 +634,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
 
   RandomEvent? checkForRandomEvent() { return null; }
 
-  // ===========================================================================
-  // 🚀 RESTORED DEVELOPMENT SCREEN HOOKS 
-  // ===========================================================================
-
   Future<Wrestler?> scoutRegion(String region, int cost) async { 
     if (_isar == null) return null;
     
@@ -665,8 +648,8 @@ class RosterNotifier extends StateNotifier<RosterState> {
     if (prospect != null) {
       await _isar!.writeTxn(() async {
         prospect!.isScouted = true;
-        prospect!.isRookie = false; 
-        await _isar!.wrestlers.put(prospect!);
+        prospect.isRookie = false; 
+        await _isar!.wrestlers.put(prospect);
       });
     }
 
@@ -699,6 +682,7 @@ class RosterNotifier extends StateNotifier<RosterState> {
     await loadRoster();
   }
 
+  // 🚨 THE FIX: Added the "BONUS" logic so it correctly clears contract holdouts and resets morale!
   Future<void> trainingAction(Wrestler w, String type, int cost) async {
     if (_isar == null) return;
     
@@ -706,7 +690,12 @@ class RosterNotifier extends StateNotifier<RosterState> {
       if (type == "MIC" || type == "MIC SKILL") w.micSkill = (w.micSkill + 2).clamp(0, w.potentialSkill); 
       if (type == "POP" || type == "POPULARITY") w.pop = (w.pop + 1).clamp(0, 100);
       if (type == "RING" || type == "RING SKILL") w.ringSkill = (w.ringSkill + 2).clamp(0, w.potentialSkill); 
-      if (type == "HEAL") { w.stamina = 100; w.condition = 100; } 
+      if (type == "HEAL" || type == "MEDICAL") { w.stamina = 100; w.condition = 100; } 
+      if (type == "BONUS" || type == "MORALE") { 
+        w.morale = 100; 
+        w.isHoldingOut = false; 
+        w.contractedPop = w.pop; // Reset baseline so they don't hold out again tomorrow!
+      }
       await _isar!.wrestlers.put(w);
     });
 
@@ -736,8 +725,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
     await loadRoster();
     return "${a.name} and ${b.name} completed a grueling sparring session!"; 
   }
-  
-  // ===========================================================================
 
   Future<void> turnHeelFace(Wrestler w) async {
     if (_isar == null) return;

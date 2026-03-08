@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../logic/game_state_provider.dart';
-import '../../data/models/show_history.dart';
 
 class ShowHistoryScreen extends ConsumerWidget {
   const ShowHistoryScreen({super.key});

@@ -89,9 +89,9 @@ class _SponsorshipScreenState extends ConsumerState<SponsorshipScreen> with Sing
                                 padding: EdgeInsets.zero,
                                 alignment: Alignment.topLeft,
                               ),
-                              Column(
+                              const Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                children: const [
+                                children: [
                                   Row(
                                     children: [
                                       Icon(Icons.handshake_rounded, color: Colors.tealAccent, size: 24),
@@ -232,9 +232,9 @@ class _SponsorshipScreenState extends ConsumerState<SponsorshipScreen> with Sing
           padding: const EdgeInsets.all(16),
           margin: const EdgeInsets.only(bottom: 24),
           decoration: BoxDecoration(color: Colors.greenAccent.withOpacity(0.05), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.greenAccent.withOpacity(0.3))),
-          child: Row(
+          child: const Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
+            children: [
               Icon(Icons.info_outline, color: Colors.greenAccent, size: 20),
               SizedBox(width: 12),
               Expanded(child: Text("Sell physical space on your broadcast to corporate partners. Upgrade your Home Venue to unlock premium real estate!", style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.5))),

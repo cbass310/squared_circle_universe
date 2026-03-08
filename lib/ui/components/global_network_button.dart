@@ -61,7 +61,7 @@ class GlobalNetworkButton extends ConsumerWidget {
                     style: TextStyle(color: isLoggedIn ? Colors.cyanAccent : Colors.white54, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1.0),
                   ),
                   Text(
-                    isLoggedIn ? (user?.email?.split('@')[0].toUpperCase() ?? "PLAYER") : "CONNECT PROFILE",
+                    isLoggedIn ? (user.email?.split('@')[0].toUpperCase() ?? "PLAYER") : "CONNECT PROFILE",
                     style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 0.5),
                   ),
                 ],

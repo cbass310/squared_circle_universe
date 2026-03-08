@@ -73,9 +73,9 @@ class CalendarScreen extends ConsumerWidget {
                                 padding: EdgeInsets.zero,
                                 alignment: Alignment.topLeft,
                               ),
-                              Column(
+                              const Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                children: const [
+                                children: [
                                   Row(
                                     children: [
                                       Icon(Icons.calendar_month_rounded, color: Colors.amber, size: 24),

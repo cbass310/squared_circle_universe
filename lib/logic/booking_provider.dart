@@ -276,8 +276,11 @@ class BookingNotifier extends StateNotifier<BookingState> {
        try {
          ref.read(soundProvider).playSound("bell.mp3"); 
          Future.delayed(const Duration(milliseconds: 600), () {
-           if (winner.isHeel) ref.read(soundProvider).playCrowd("BOO"); 
-           else ref.read(soundProvider).playCrowd("POP");
+           if (winner.isHeel) {
+             ref.read(soundProvider).playCrowd("BOO");
+           } else {
+             ref.read(soundProvider).playCrowd("POP");
+           }
          });
        } catch(e) {}
     }

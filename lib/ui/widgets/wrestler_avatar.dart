@@ -6,10 +6,10 @@ class WrestlerAvatar extends StatelessWidget {
   final double radius;
 
   const WrestlerAvatar({
-    Key? key,
+    super.key,
     required this.wrestler,
     this.radius = 20.0,
-  }) : super(key: key);
+  });
 
   String get initials {
     if (wrestler.name.isEmpty) return "?";

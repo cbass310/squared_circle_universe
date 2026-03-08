@@ -150,9 +150,9 @@ class _TalentRelationsScreenState extends ConsumerState<TalentRelationsScreen> w
                                 padding: EdgeInsets.zero,
                                 alignment: Alignment.topLeft,
                               ),
-                              Column(
+                              const Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                children: const [
+                                children: [
                                   Row(
                                     children: [
                                       Icon(Icons.handshake_rounded, color: Colors.cyanAccent, size: 24),

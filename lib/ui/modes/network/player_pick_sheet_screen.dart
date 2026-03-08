@@ -193,9 +193,9 @@ class _PlayerPickSheetScreenState extends State<PlayerPickSheetScreen> {
                                 padding: EdgeInsets.zero,
                                 alignment: Alignment.topLeft,
                               ),
-                              Column(
+                              const Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                children: const [
+                                children: [
                                   Row(
                                     children: [
                                       Icon(Icons.online_prediction, color: Colors.cyanAccent, size: 24),
@@ -290,9 +290,9 @@ class _PlayerPickSheetScreenState extends State<PlayerPickSheetScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 decoration: BoxDecoration(color: Colors.cyanAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.cyanAccent)),
-                                child: Row(
+                                child: const Row(
                                   mainAxisSize: MainAxisSize.min,
-                                  children: const [
+                                  children: [
                                     Icon(Icons.lock, color: Colors.cyanAccent, size: 16),
                                     SizedBox(width: 8),
                                     Text("YOUR PICKS ARE LOCKED IN", style: TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.w900, fontSize: 10, letterSpacing: 1.0)),

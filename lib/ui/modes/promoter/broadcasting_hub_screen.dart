@@ -365,7 +365,7 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
               child: const Row(children: [Icon(Icons.warning_amber_rounded, color: Colors.amber), SizedBox(width: 12), Expanded(child: Text("BIDDING WAR! The Rival promotion will take whichever network you leave behind.", style: TextStyle(color: Colors.white)))]),
             ),
             const SizedBox(height: 20),
-            ...deals.map((deal) => _buildNetworkListTile(deal, false)).toList(),
+            ...deals.map((deal) => _buildNetworkListTile(deal, false)),
           ],
         );
       },

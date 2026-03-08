@@ -200,9 +200,9 @@ class _DashboardTabState extends ConsumerState<DashboardTab> with SingleTickerPr
                                 alignment: Alignment.topLeft,
                                 padding: EdgeInsets.zero,
                               ),
-                              Column(
+                              const Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                children: const [
+                                children: [
                                   Row(
                                     children: [
                                       Icon(Icons.dashboard, color: Colors.amber, size: 20),

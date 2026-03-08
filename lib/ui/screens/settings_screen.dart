@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../logic/promoter_provider.dart';
 import '../../logic/game_state_provider.dart'; 
 import '../../logic/settings_provider.dart'; 
-import 'hub_screen.dart'; // 🛠️ THE FIX: Replaced PromoterHomeScreen with HubScreen
+import 'hub_screen.dart'; 
+import '../modes/promoter/trophy_room_screen.dart'; // 🚨 FIXED: Added ../ to the path
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -25,8 +27,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           return AlertDialog(
             backgroundColor: Colors.grey[900],
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Colors.redAccent, width: 2)),
-            title: Row(
-              children: const [
+            title: const Row(
+              children: [
                 Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 28),
                 SizedBox(width: 8),
                 Text("FACTORY RESET", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
@@ -76,7 +78,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       await ref.read(gameProvider.notifier).resetGame();
                       await ref.read(rosterProvider.notifier).factoryReset();
                       
-                      // 4. 🛠️ THE FIX: Safely transport the player back to the main Hub Screen!
+                      // 4. Safely transport the player back to the main Hub Screen!
                       nav.pushAndRemoveUntil(
                         MaterialPageRoute(builder: (_) => const HubScreen()), 
                         (route) => false,
@@ -150,6 +152,84 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
             const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Divider(color: Colors.white10, thickness: 2)),
 
+            // --- DATA MANAGEMENT ---
+            const Text("DATA MANAGEMENT", style: TextStyle(color: Colors.blueAccent, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 2.0)),
+            const SizedBox(height: 16),
+            
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.save, color: Colors.white),
+                label: const Text("MANUAL SAVE", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.0, color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueAccent.shade700,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: () async {
+                  HapticFeedback.lightImpact();
+                  await ref.read(gameProvider.notifier).saveGame();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Game Progress Saved!"), backgroundColor: Colors.greenAccent)
+                    );
+                  }
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.exit_to_app, color: Colors.white),
+                label: const Text("SAVE & QUIT TO MENU", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.0, color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey.shade800,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: () async {
+                  HapticFeedback.heavyImpact();
+                  // 1. Force the database to save right now
+                  await ref.read(gameProvider.notifier).saveGame();
+                  
+                  // 2. Safely boot the player back to the title screen
+                  if (context.mounted) {
+                    Navigator.pushAndRemoveUntil(
+                      context, 
+                      MaterialPageRoute(builder: (_) => const HubScreen()), 
+                      (route) => false
+                    );
+                  }
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // 🚨 THE NEW TROPHY BUTTON 🚨
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.emoji_events, color: Colors.black),
+                label: const Text("VIEW PROMOTER MILESTONES", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0, color: Colors.black)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber, 
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.push(
+                    context, 
+                    MaterialPageRoute(builder: (_) => const TrophyRoomScreen())
+                  );
+                },
+              ),
+            ),
+
+            const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Divider(color: Colors.white10, thickness: 2)),
+
             // --- DANGER ZONE ---
             const Text("DANGER ZONE", style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 2.0)),
             const SizedBox(height: 16),
@@ -173,6 +253,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               style: TextStyle(color: Colors.white30, fontSize: 10, fontWeight: FontWeight.bold, height: 1.5),
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 40),
           ],
         ),
       ),

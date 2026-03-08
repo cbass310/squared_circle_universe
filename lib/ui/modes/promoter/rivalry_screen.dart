@@ -76,9 +76,9 @@ class RivalryScreen extends ConsumerWidget {
                                   padding: EdgeInsets.zero,
                                   alignment: Alignment.topLeft,
                                 ),
-                                Column(
+                                const Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: const [
+                                  children: [
                                     Row(
                                       children: [
                                         Icon(Icons.lightbulb, color: Colors.amber, size: 24),
@@ -209,10 +209,10 @@ class RivalryScreen extends ConsumerWidget {
   // =====================================================================
   Widget _buildRivalriesTab(dynamic rosterState) {
     if (rosterState.activeRivalries.isEmpty) {
-      return Center(
+      return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
+          children: [
             Icon(Icons.people_outline, size: 60, color: Colors.white24),
             SizedBox(height: 16),
             Text("THE WHITEBOARD IS EMPTY", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
@@ -385,7 +385,7 @@ class RivalryScreen extends ConsumerWidget {
                             String slot = parts.length > 1 ? parts[0].trim() : "MATCH";
                             String desc = parts.length > 1 ? parts.sublist(1).join(':').trim() : highlightStr;
                             return _buildArchivedMatchRow(slot, desc);
-                          }).toList(),
+                          }),
                         ],
                       ),
                     )
@@ -466,15 +466,15 @@ class RivalryScreen extends ConsumerWidget {
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.blueAccent.withOpacity(0.5)),
             ),
-            child: Row(
+            child: const Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.smart_toy, color: Colors.blueAccent, size: 24),
-                const SizedBox(width: 12),
+                Icon(Icons.smart_toy, color: Colors.blueAccent, size: 24),
+                SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text("ASSISTANT GM PROJECTION", style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
                       SizedBox(height: 4),
                       Text("Based on your active roster and active heat, here is the optimal 3-match card.", style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.4)),

@@ -130,9 +130,9 @@ class _CommunityRostersScreenState extends ConsumerState<CommunityRostersScreen>
                                 padding: EdgeInsets.zero,
                                 alignment: Alignment.topLeft,
                               ),
-                              Column(
+                              const Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                children: const [
+                                children: [
                                   Row(
                                     children: [
                                       Icon(Icons.download, color: Colors.cyanAccent, size: 24),

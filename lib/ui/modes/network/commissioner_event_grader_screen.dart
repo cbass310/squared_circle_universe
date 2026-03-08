@@ -218,9 +218,9 @@ class _CommissionerEventGraderScreenState extends State<CommissionerEventGraderS
                                 padding: EdgeInsets.zero,
                                 alignment: Alignment.topLeft,
                               ),
-                              Column(
+                              const Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                children: const [
+                                children: [
                                   Row(
                                     children: [
                                       Icon(Icons.fact_check, color: Colors.purpleAccent, size: 24),

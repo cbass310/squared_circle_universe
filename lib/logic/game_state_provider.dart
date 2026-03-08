@@ -1,4 +1,5 @@
 import 'dart:math'; 
+import 'package:flutter/material.dart'; // 🚨 Added for IconData
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
@@ -13,6 +14,7 @@ import '../data/models/sponsorship_deal.dart';
 import '../data/models/financial_record.dart'; 
 import '../data/models/news_item.dart';
 import '../data/models/rivalry.dart'; 
+import '../data/models/milestone.dart'; // 🚨 NEW: Trophy Data Model
 
 import 'rival_provider.dart'; 
 import 'promoter_provider.dart'; 
@@ -167,9 +169,6 @@ class GameNotifier extends StateNotifier<GameState> {
     _initDb();
   }
 
-  // =========================================================================
-  // 🚨 SECURE DATABASE GETTER
-  // =========================================================================
   Future<Isar> _getDb() async {
     if (_isarInstance != null) return _isarInstance!;
     
@@ -180,7 +179,7 @@ class GameNotifier extends StateNotifier<GameState> {
     
     final dir = await getApplicationDocumentsDirectory();
     _isarInstance = await Isar.open(
-      [WrestlerSchema, MatchSchema, ShowHistorySchema, GameSaveSchema, TvNetworkDealSchema, SponsorshipDealSchema, FinancialRecordSchema, NewsItemSchema, RivalrySchema], 
+      [WrestlerSchema, MatchSchema, ShowHistorySchema, GameSaveSchema, TvNetworkDealSchema, SponsorshipDealSchema, FinancialRecordSchema, NewsItemSchema, RivalrySchema, MilestoneSchema], // 🚨 NEW SCHEMA
       directory: dir.path
     );
     return _isarInstance!;
@@ -191,6 +190,8 @@ class GameNotifier extends StateNotifier<GameState> {
     
     final networkCount = await db.tvNetworkDeals.count();
     if (networkCount == 0) await _seedNetworks();
+    
+    await _seedMilestones(); // 🚨 SEED TROPHIES
 
     final currentDeal = await db.tvNetworkDeals.filter().promotionIdEqualTo(0).findFirst();
     final currentSponsors = await db.sponsorshipDeals.filter().promotionIdEqualTo(0).findAll();
@@ -209,6 +210,51 @@ class GameNotifier extends StateNotifier<GameState> {
     }
     _generateInitialSponsors();
   }
+
+  // =========================================================================
+  // 🏆 THE TROPHY ENGINE
+  // =========================================================================
+  Future<void> _seedMilestones() async {
+    final db = await _getDb();
+    final count = await db.milestones.count();
+    if (count == 0) {
+      List<Milestone> badges = [
+        Milestone()..key = "first_show"..title = "Curtain Jerker"..description = "Book and run your very first show."..iconCode = Icons.theater_comedy.codePoint,
+        Milestone()..key = "tv_deal"..title = "Prime Time"..description = "Sign your first Television Broadcasting Deal."..iconCode = Icons.tv.codePoint,
+        Milestone()..key = "sponsor"..title = "Corporate Backing"..description = "Sign your first Corporate Sponsorship."..iconCode = Icons.handshake.codePoint,
+        Milestone()..key = "five_star"..title = "Five Star Classic"..description = "Book a 5-Star Match."..iconCode = Icons.star.codePoint,
+        Milestone()..key = "win_war"..title = "Ratings Winner"..description = "Beat the Rival Promotion in the weekly TV ratings."..iconCode = Icons.trending_up.codePoint,
+        Milestone()..key = "rich"..title = "Million Dollar Man"..description = "Accumulate \$1,000,000 in your bank account."..iconCode = Icons.attach_money.codePoint,
+        Milestone()..key = "stadium"..title = "Stadium Stampede"..description = "Upgrade your arena to the Global Stadium (Level 4)."..iconCode = Icons.stadium.codePoint,
+      ];
+      await db.writeTxn(() async { await db.milestones.putAll(badges); });
+    }
+  }
+
+  Future<void> unlockMilestone(String key) async {
+    final db = await _getDb();
+    final badge = await db.milestones.filter().keyEqualTo(key).findFirst();
+    if (badge != null && !badge.isUnlocked) {
+      await db.writeTxn(() async {
+        badge.isUnlocked = true;
+        badge.unlockDate = DateTime.now();
+        await db.milestones.put(badge);
+      });
+      
+      // 🚨 Shoot an email to the inbox to notify the player!
+      final item = NewsItem()
+        ..timestamp = DateTime.now()
+        ..isRead = false
+        ..actionRequired = false
+        ..sender = "System Alert"
+        ..type = "EMAIL"
+        ..subject = "🏆 MILESTONE UNLOCKED: ${badge.title}"
+        ..body = "Congratulations! You have unlocked a Promoter Milestone:\n\n'${badge.description}'\n\nCheck the Trophy Room on your Home Dashboard to view your accomplishments.";
+      
+      await db.writeTxn(() async { await db.newsItems.put(item); });
+    }
+  }
+  // =========================================================================
 
   Future<void> _seedNetworks() async {
     final db = await _getDb();
@@ -233,6 +279,7 @@ class GameNotifier extends StateNotifier<GameState> {
       await db.sponsorshipDeals.clear(); 
       await db.financialRecords.clear(); 
       await db.newsItems.clear(); 
+      await db.milestones.clear(); // 🚨 Reset Trophies!
       
       final deals = await db.tvNetworkDeals.where().findAll();
       for (var d in deals) { d.promotionId = -1; }
@@ -248,17 +295,18 @@ class GameNotifier extends StateNotifier<GameState> {
     final networkCount = await db.tvNetworkDeals.count();
     if (networkCount == 0) await _seedNetworks();
 
+    await _seedMilestones();
     _generateInitialSponsors();
-    await _saveGame();
+    await saveGame(); 
   }
 
   void startNewSeason() => state = state.copyWith(week: 1, year: state.year + 1, currentCard: [], titleMatchFlags: []);
-  void renamePromotion(String name) { state = state.copyWith(promotionName: name); _saveGame(); }
-  void renameTVShow(String name) { state = state.copyWith(tvShowName: name); _saveGame(); }
-  void setPremierPpv(int index) { state = state.copyWith(premierPpvIndex: index); _saveGame(); }
+  void renamePromotion(String name) { state = state.copyWith(promotionName: name); saveGame(); } 
+  void renameTVShow(String name) { state = state.copyWith(tvShowName: name); saveGame(); } 
+  void setPremierPpv(int index) { state = state.copyWith(premierPpvIndex: index); saveGame(); } 
   void renamePPV(int i, String n) {
     final list = List<String>.from(state.ppvNames); list[i] = n;
-    state = state.copyWith(ppvNames: list); _saveGame();
+    state = state.copyWith(ppvNames: list); saveGame(); 
   }
 
   Future<void> signSponsor(SponsorshipDeal deal) async {
@@ -274,9 +322,11 @@ class GameNotifier extends StateNotifier<GameState> {
     state = state.copyWith(
       cash: newCash, 
       activeSponsors: [...state.activeSponsors, deal], 
-      availableOffers: state.availableOffers.where((d) => d.id != deal.id).toList()
+      availableOffers: state.availableOffers.where((d) => d.slotTarget != deal.slotTarget).toList()
     );
-    await _saveGame(); 
+
+    await unlockMilestone("sponsor"); // 🚨 TROPHY HOOK
+    await saveGame(); 
   }
 
   Future<void> signTvDeal(TvNetworkDeal deal) async {
@@ -289,7 +339,9 @@ class GameNotifier extends StateNotifier<GameState> {
     });
     
     state = state.copyWith(activeTvDeal: deal, isBiddingWarActive: false);
-    await _saveGame(); 
+    
+    await unlockMilestone("tv_deal"); // 🚨 TROPHY HOOK
+    await saveGame(); 
   }
 
   void buyTechUpgrade(String type, int cost) {
@@ -299,7 +351,7 @@ class GameNotifier extends StateNotifier<GameState> {
     if (type == "PYRO") state = state.copyWith(cash: cash, techPyro: state.techPyro + 1);
     if (type == "AUDIO") state = state.copyWith(cash: cash, techAudio: state.techAudio + 1);
     if (type == "MEDICAL") state = state.copyWith(cash: cash, techMedical: state.techMedical + 1);
-    _saveGame();
+    saveGame(); 
   }
 
   bool purchaseVenueUpgrade() {
@@ -308,12 +360,14 @@ class GameNotifier extends StateNotifier<GameState> {
     if (state.cash >= cost && next <= 4) {
       state = state.copyWith(cash: state.cash - cost, venueLevel: next, isBiddingWarActive: true); 
       _generateInitialSponsors(); 
-      _saveGame(); return true;
+      if (next == 4) unlockMilestone("stadium"); // 🚨 TROPHY HOOK
+      saveGame(); 
+      return true;
     }
     return false;
   }
 
-  void spendCash(int amount) { state = state.copyWith(cash: state.cash - amount); _saveGame(); }
+  void spendCash(int amount) { state = state.copyWith(cash: state.cash - amount); saveGame(); } 
 
   void stageTitleMatch(bool isTitle) {
     _stagedTitleMatchFlag = isTitle;
@@ -356,6 +410,63 @@ class GameNotifier extends StateNotifier<GameState> {
     state = state.copyWith(availableOffers: newOffers);
   }
 
+  Future<void> generatePlayerRosterNews(String wrestlerName, bool isSigning) async {
+    final db = await _getDb();
+    final item = NewsItem()..timestamp = DateTime.now()..isRead = false..actionRequired = false;
+      
+    if (isSigning) {
+      item.sender = "Social Media";
+      item.type = "SOCIAL";
+      item.subject = "Trending: #Welcome${wrestlerName.replaceAll(' ', '')}";
+      item.body = "Fans are losing their minds online! $wrestlerName just signed a massive deal with ${state.promotionName}! The landscape has officially changed.";
+    } else {
+      item.sender = "Dirt Sheet";
+      item.type = "DIRT_SHEET";
+      item.subject = "$wrestlerName Released by ${state.promotionName}";
+      item.body = "Confirmed: ${state.promotionName} has officially come to terms with the release of $wrestlerName. Sources say budget cuts were the primary factor.";
+    }
+    await db.writeTxn(() async { await db.newsItems.put(item); });
+  }
+
+  Future<void> generateAiReleaseNews(String wrestlerName) async {
+    final db = await _getDb();
+    final item = NewsItem()
+      ..timestamp = DateTime.now()
+      ..isRead = false
+      ..actionRequired = false
+      ..sender = "Wrestling Observer"
+      ..type = "DIRT_SHEET"
+      ..subject = "Contract Expired: $wrestlerName"
+      ..body = "The Rival Promotion failed to reach a new deal with $wrestlerName. They are officially a Free Agent!";
+    await db.writeTxn(() async { await db.newsItems.put(item); });
+  }
+
+  Future<void> generateHoldoutNews(String wrestlerName) async {
+    final db = await _getDb();
+    final item = NewsItem()
+      ..timestamp = DateTime.now()
+      ..isRead = false
+      ..actionRequired = false
+      ..sender = wrestlerName
+      ..type = "EMAIL"
+      ..subject = "Pay Me What I'm Worth!"
+      ..body = "Boss, my popularity has skyrocketed since I signed my last deal. I'm officially holding out. Pay me a Cash Bonus to renegotiate, or I'm sitting out!";
+    await db.writeTxn(() async { await db.newsItems.put(item); });
+  }
+
+  Future<void> generateVacantTitleNews(String beltName) async {
+    final db = await _getDb();
+    final item = NewsItem()
+      ..timestamp = DateTime.now()
+      ..isRead = false
+      ..actionRequired = false
+      ..sender = "Assistant GM"
+      ..type = "EMAIL"
+      ..subject = "URGENT: $beltName Vacated!"
+      ..body = "Disaster! Our champion's contract expired and they walked out! The $beltName Title is now VACANT. Book a Championship Match immediately to crown a new champion.";
+    await db.writeTxn(() async { await db.newsItems.put(item); });
+  }
+
   // =========================================================================
   // 🚀 PROCESS WEEK ENGINE 
   // =========================================================================
@@ -391,9 +502,9 @@ class GameNotifier extends StateNotifier<GameState> {
       String loserName = match.loserName;
 
       if (winnerName == "Draw" || winnerName.isEmpty) {
-        weeklyHighlights.add("$matchPosition: Match ended in a Draw (${matchScore} ⭐)");
+        weeklyHighlights.add("$matchPosition: Match ended in a Draw ($matchScore ⭐)");
       } else {
-        weeklyHighlights.add("$matchPosition: $winnerName defeated $loserName (${matchScore} ⭐)");
+        weeklyHighlights.add("$matchPosition: $winnerName defeated $loserName ($matchScore ⭐)");
       }
       
       bool isTitleMatch = state.titleMatchFlags.length > i ? state.titleMatchFlags[i] : false;
@@ -417,13 +528,27 @@ class GameNotifier extends StateNotifier<GameState> {
               winner.isTVChampion = true;
               ref.read(rosterProvider.notifier).recordTitleChange("Television Title", winner.name);
             }
+            else {
+              bool worldExists = roster.any((w) => w.isChampion && w.companyId == 0);
+              bool tvExists = roster.any((w) => w.isTVChampion && w.companyId == 0);
+              
+              if (!worldExists) {
+                winner.isChampion = true;
+                ref.read(rosterProvider.notifier).recordTitleChange("World Heavyweight", winner.name);
+              } else if (!tvExists) {
+                winner.isTVChampion = true;
+                ref.read(rosterProvider.notifier).recordTitleChange("Television Title", winner.name);
+              }
+            }
           }
         }
       }
       totalRatingScore += matchScore;
+      
+      // 🚨 TROPHY HOOK: 5 STAR MATCH
+      if (matchScore >= 5.0) await unlockMilestone("five_star");
     }
 
-    // 🛠️ THE FIX: Uses elementAt() instead of square brackets to read from IsarLinks safely!
     for (var match in state.currentCard) {
       if (match.wrestlers.length >= 2) {
         await ref.read(rosterProvider.notifier).addMatchInteraction(
@@ -435,8 +560,9 @@ class GameNotifier extends StateNotifier<GameState> {
 
     double rawRating = state.currentCard.isEmpty ? 0 : (totalRatingScore / state.currentCard.length);
     double rating = rawRating;
-    if (state.techBroadcast == 1 && rawRating > 3.5) rating = 3.5; 
-    else if (state.techBroadcast == 2 && rawRating > 4.2) rating = 4.2; 
+    if (state.techBroadcast == 1 && rawRating > 3.5) {
+      rating = 3.5;
+    } else if (state.techBroadcast == 2 && rawRating > 4.2) rating = 4.2; 
     rating = double.parse(rating.toStringAsFixed(1));
 
     int tvPayout = 0; int ppvPayout = 0; int gate = (state.fans * 15); int merch = (state.fans * 8); 
@@ -449,8 +575,11 @@ class GameNotifier extends StateNotifier<GameState> {
         bool isPremier = currentPpvIndex == state.premierPpvIndex;
         double prestigeBonus = isPremier ? 1.5 : 1.0; 
 
-        if (state.activeTvDeal!.cannibalizesPPVs) tvPayout = (state.activeTvDeal!.weeklyPayout * 2 * prestigeBonus).toInt(); 
-        else ppvPayout = (state.fans * 30 * state.activeTvDeal!.ppvBonusMultiplier * prestigeBonus).toInt();
+        if (state.activeTvDeal!.cannibalizesPPVs) {
+          tvPayout = (state.activeTvDeal!.weeklyPayout * 2 * prestigeBonus).toInt();
+        } else {
+          ppvPayout = (state.fans * 30 * state.activeTvDeal!.ppvBonusMultiplier * prestigeBonus).toInt();
+        }
       }
     } else {
         tvPayout = 1000; 
@@ -461,7 +590,11 @@ class GameNotifier extends StateNotifier<GameState> {
 
     for (var s in state.activeSponsors) {
       bool voidContract = false;
-      if (s.archetype == SponsorArchetype.consistency) { if (rating < 2.5) voidContract = true; else sponPay += s.weeklyPayout; } 
+      if (s.archetype == SponsorArchetype.consistency) { if (rating < 2.5) {
+        voidContract = true;
+      } else {
+        sponPay += s.weeklyPayout;
+      } } 
       else if (s.archetype == SponsorArchetype.performance) { sponPay += s.weeklyPayout; if (mainEventRating >= s.performanceBonusThreshold) sponPay += s.performanceBonusAmount; }
       else if (s.archetype == SponsorArchetype.upfrontCash) sponPay += s.weeklyPayout; 
 
@@ -488,7 +621,9 @@ class GameNotifier extends StateNotifier<GameState> {
     for (var w in roster) {
         if (w.isInjured) {
             w.injuryWeeks -= 1;
-            if (w.injuryWeeks <= 0) { w.isInjured = false; w.injuryWeeks = 0; w.stamina = 50; } else w.stamina += 10; 
+            if (w.injuryWeeks <= 0) { w.isInjured = false; w.injuryWeeks = 0; w.stamina = 50; } else {
+              w.stamina += 10;
+            } 
         } else {
             if (bookedNames.contains(w.name)) {
                 w.stamina -= 15; w.morale += 5;
@@ -541,7 +676,7 @@ class GameNotifier extends StateNotifier<GameState> {
     
     double signChance = 0.10; 
     int releasePopThreshold = 20;
-    int maxRivalRosterSize = 15;
+    int maxRivalRosterSize = 12;
 
     switch (currentDifficultyForAI) {
       case "EASY":
@@ -551,12 +686,10 @@ class GameNotifier extends StateNotifier<GameState> {
       case "HARD":
         signChance = 0.25; 
         releasePopThreshold = 35; 
-        maxRivalRosterSize = 18;
         break;
       case "TYCOON":
         signChance = 0.50; 
         releasePopThreshold = 50; 
-        maxRivalRosterSize = 20;
         break;
       case "NORMAL":
       default:
@@ -565,27 +698,45 @@ class GameNotifier extends StateNotifier<GameState> {
 
     List<Wrestler> rivalRoster = roster.where((w) => w.companyId == 1).toList();
     List<Wrestler> freeAgents = roster.where((w) => w.companyId == -1).toList();
+    List<Wrestler> newlySignedByAI = [];
+    List<Wrestler> newlyReleasedByAI = [];
+
+    rivalRoster.sort((a, b) => a.pop.compareTo(b.pop));
 
     for (var w in rivalRoster.toList()) {
-      if (w.pop < releasePopThreshold && rivalRoster.length > 10) {
+      if (w.pop < releasePopThreshold || rivalRoster.length > maxRivalRosterSize) {
         w.companyId = -1; 
         w.morale = 50; 
+        newlyReleasedByAI.add(w);
         rivalRoster.remove(w);
       }
     }
 
-    if (rivalRoster.length < maxRivalRosterSize) {
-      freeAgents.sort((a, b) => b.pop.compareTo(a.pop));
-      
-      for (var fa in freeAgents) {
-        if (fa.pop > 65) {
-          if (_rng.nextDouble() < signChance) {
-            fa.companyId = 1; 
-            fa.contractWeeks = 48;
-            fa.morale = 100;
-            rivalRoster.add(fa);
-            break; 
-          }
+    freeAgents.sort((a, b) => b.pop.compareTo(a.pop));
+    
+    for (var fa in freeAgents) {
+      if (rivalRoster.length < maxRivalRosterSize) {
+        if (fa.pop > 65 && _rng.nextDouble() < signChance) {
+          fa.companyId = 1; 
+          fa.contractWeeks = 48;
+          fa.morale = 100;
+          rivalRoster.add(fa);
+          newlySignedByAI.add(fa);
+        }
+      } else if (rivalRoster.length == maxRivalRosterSize) {
+        var worstGuy = rivalRoster.first;
+        if (fa.pop >= 80 && fa.pop > worstGuy.pop + 15 && _rng.nextDouble() < signChance) {
+          worstGuy.companyId = -1;
+          worstGuy.morale = 50;
+          newlyReleasedByAI.add(worstGuy);
+          rivalRoster.remove(worstGuy);
+
+          fa.companyId = 1;
+          fa.contractWeeks = 48;
+          fa.morale = 100;
+          rivalRoster.add(fa);
+          newlySignedByAI.add(fa);
+          rivalRoster.sort((a, b) => a.pop.compareTo(b.pop));
         }
       }
     }
@@ -632,6 +783,9 @@ class GameNotifier extends StateNotifier<GameState> {
     if (diff > 0) {
       fChange += (diff * 200 * state.venueLevel).toInt(); 
       if (diff >= 1.0) repChange += 1; 
+      
+      // 🚨 TROPHY HOOK: Win the TV Rating
+      await unlockMilestone("win_war"); 
     } else if (diff < 0) {
       fChange += (diff * 75 * state.venueLevel).toInt(); 
     }
@@ -657,7 +811,15 @@ class GameNotifier extends StateNotifier<GameState> {
       await db.writeTxn(() async { await db.showHistorys.put(historyEntry); });
     }
 
-    await _generateWeeklyCommunications(rating, rival, roster, state.currentCard);
+    // 🚨 TROPHY HOOK: Complete a Show
+    await unlockMilestone("first_show");
+
+    // 🚨 TROPHY HOOK: Millionaire
+    if (state.cash + prof >= 1000000) {
+      await unlockMilestone("rich");
+    }
+
+    await _generateWeeklyCommunications(rating, rival, roster, state.currentCard, newlySignedByAI, newlyReleasedByAI);
 
     state = state.copyWith(
       cash: state.cash + prof, 
@@ -671,16 +833,13 @@ class GameNotifier extends StateNotifier<GameState> {
     );
 
     _generateInitialSponsors();
-    await _saveGame(); 
+    await saveGame(); 
     
     ref.read(rosterProvider.notifier).advanceTitleReigns();
     ref.read(rosterProvider.notifier).loadRoster(); 
   }
   
-  // =========================================================================
-  // 🚨 SECURE SAVING ENGINE
-  // =========================================================================
-  Future<void> _saveGame() async {
+  Future<void> saveGame() async {
       final db = await _getDb(); 
       final save = GameSave()..id = 1..week = state.week..year = state.year..cash = state.cash..fans = state.fans..reputation = state.reputation..promotionName = state.promotionName..tvShowName = state.tvShowName..venueLevel = state.venueLevel..techBroadcast = state.techBroadcast..techPyro = state.techPyro..techAudio = state.techAudio..techMedical = state.techMedical..premierPpvIndex = state.premierPpvIndex; 
       await db.writeTxn(() async { await db.gameSaves.put(save); });
@@ -704,10 +863,10 @@ class GameNotifier extends StateNotifier<GameState> {
     }
 
     state = state.copyWith(week: 1, year: state.year + 1, ledger: []);
-    await _saveGame();
+    await saveGame();
   }
 
-  Future<void> _generateWeeklyCommunications(double showRating, double rivalRating, List<Wrestler> roster, List<Match> card) async {
+  Future<void> _generateWeeklyCommunications(double showRating, double rivalRating, List<Wrestler> roster, List<Match> card, List<Wrestler> aiSignings, List<Wrestler> aiReleases) async {
     final db = await _getDb();
     List<NewsItem> newMessages = [];
 
@@ -717,6 +876,21 @@ class GameNotifier extends StateNotifier<GameState> {
       newMessages.add(NewsItem()..sender = "Assistant GM"..subject = "PPV Approaching!"..body = "Just a heads up—our first Pay-Per-View is next week! PPVs generate massive revenue, but only if the matches are hot. Use the Creative Hub to build up Rivalry Heat before the big show!"..timestamp = DateTime.now()..isRead = false..actionRequired = false..type = "EMAIL");
     } else if (state.week == 10) {
       newMessages.add(NewsItem()..sender = "HR Department"..subject = "Contract Expirations"..body = "Keep an eye on the Roster screen. Some of our talent's contracts are expiring soon. If they hit Free Agency, the Rival AI might snatch them up!"..timestamp = DateTime.now()..isRead = false..actionRequired = false..type = "EMAIL");
+    }
+
+    if (state.week == 12 || state.week == 24 || state.week == 36) {
+      String performance = "";
+      if (state.playerWins > state.rivalWins && state.cash >= 100000) {
+        performance = "Excellent work, Boss. You are dominating the rival promotion in the TV ratings and our profit margins are fantastic. Keep this momentum going into the next quarter.";
+      } else if (state.playerWins > state.rivalWins) {
+        performance = "We are very pleased that we are winning the ratings war against the competition. However, keep a close eye on the budget. Ratings don't matter if we go bankrupt.";
+      } else if (state.cash >= 100000) {
+        performance = "Financially, the company is in a great spot and your budget management is commendable. But we are getting absolutely crushed in the TV ratings! You need to book hotter storylines and better matches.";
+      } else {
+        performance = "UNACCEPTABLE. We are losing the ratings war AND bleeding cash. This company is a sinking ship. If you don't turn this around by the end of the year, the Board will find someone else who can.";
+      }
+
+      newMessages.add(NewsItem()..sender = "Board of Directors"..subject = "Q${state.week ~/ 12} Performance Review"..body = performance..timestamp = DateTime.now()..isRead = false..actionRequired = false..type = "EMAIL");
     }
 
     if (state.cash < 15000 && state.week > 2) {
@@ -735,6 +909,21 @@ class GameNotifier extends StateNotifier<GameState> {
 
     if (rivalRating > showRating && state.week > 1 && _rng.nextDouble() < 0.4) {
       newMessages.add(NewsItem()..sender = "Wrestling Observer"..subject = "Rival Promotion Wins The Week"..body = "The Rival Promotion crushed it in the TV ratings this week. Sources say their Main Event drew massive numbers. Your promotion needs a hotter Main Event next week!"..timestamp = DateTime.now()..isRead = false..actionRequired = false..type = "DIRT_SHEET");
+    }
+
+    for(var w in aiSignings) {
+      if (w.pop >= 85) {
+        newMessages.add(NewsItem()..sender = "Wrestling Observer"..subject = "MAJOR SIGNING: ${w.name} to Rival Promo!"..body = "The wrestling world is shocked! The Rival Promotion just backed up the Brinks truck to sign ${w.name} to an exclusive deal. This shifts the balance of power!"..timestamp = DateTime.now()..isRead = false..actionRequired = false..type = "DIRT_SHEET");
+        newMessages.add(NewsItem()..sender = "Assistant GM"..subject = "Boss, did you see this?!"..body = "They just signed ${w.name}! We completely missed out on a top star. We need to counter-program this immediately."..timestamp = DateTime.now()..isRead = false..actionRequired = false..type = "EMAIL");
+      } else if (w.pop >= 70) {
+        newMessages.add(NewsItem()..sender = "Wrestling Observer"..subject = "Rival Promo signs ${w.name}"..body = "Solid mid-card acquisition for the competition as they pick up ${w.name} from free agency."..timestamp = DateTime.now()..isRead = false..actionRequired = false..type = "DIRT_SHEET");
+      }
+    }
+
+    for(var w in aiReleases) {
+      if (w.pop >= 75) {
+        newMessages.add(NewsItem()..sender = "Wrestling Observer"..subject = "SHOCKING RELEASE: ${w.name}"..body = "We can confirm the Rival Promotion has officially released ${w.name}. Management cited 'budget cuts', but rumors say there was backstage heat. Could be a huge pickup for us!"..timestamp = DateTime.now()..isRead = false..actionRequired = false..type = "DIRT_SHEET");
+      }
     }
 
     if (newMessages.isNotEmpty) {

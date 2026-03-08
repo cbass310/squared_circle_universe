@@ -77,9 +77,9 @@ class TitleScreen extends ConsumerWidget {
                                   padding: EdgeInsets.zero,
                                   alignment: Alignment.topLeft,
                                 ),
-                                Column(
+                                const Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: const [
+                                  children: [
                                     Row(
                                       children: [
                                         Icon(Icons.emoji_events, color: Colors.amber, size: 24),
@@ -298,8 +298,8 @@ class TitleScreen extends ConsumerWidget {
                   bottom: 0, left: 0, right: 0,
                   child: Container(
                     height: 80,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(colors: [const Color(0xFF1E1E1E), Colors.transparent], begin: Alignment.bottomCenter, end: Alignment.topCenter)
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(colors: [Color(0xFF1E1E1E), Colors.transparent], begin: Alignment.bottomCenter, end: Alignment.topCenter)
                     ),
                   ),
                 ),
@@ -345,10 +345,10 @@ class TitleScreen extends ConsumerWidget {
                     child: const Icon(Icons.person_off, color: Colors.white30),
                   ),
                   const SizedBox(width: 16),
-                  Expanded(
+                  const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Text("CURRENT CHAMPION", style: TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
                         SizedBox(height: 4),
                         Text("VACANT", style: TextStyle(color: Colors.white38, fontSize: 16, fontWeight: FontWeight.bold)),

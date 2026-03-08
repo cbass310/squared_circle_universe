@@ -120,9 +120,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                                   padding: EdgeInsets.zero,
                                   alignment: Alignment.topLeft,
                                 ),
-                                Column(
+                                const Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: const [
+                                  children: [
                                     Row(
                                       children: [
                                         Icon(Icons.public, color: Colors.white70, size: 24),

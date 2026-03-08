@@ -229,7 +229,7 @@ class _ContractNegotiationDialogState extends ConsumerState<ContractNegotiationD
                     title: const Text("Creative Control (Veto Power)", style: TextStyle(color: Colors.white)),
                     subtitle: const Text("Lowers asking price by 15%, but wrestler cannot be booked to lose.", style: TextStyle(color: Colors.grey, fontSize: 10)),
                     value: _creativeControl,
-                    activeColor: Colors.purpleAccent,
+                    activeThumbColor: Colors.purpleAccent,
                     onChanged: _isNegotiating ? (val) => setState(() => _creativeControl = val) : null,
                   ),
 

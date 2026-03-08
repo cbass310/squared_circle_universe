@@ -114,13 +114,13 @@ class _SplashScreenState extends State<SplashScreen> {
           ),
 
           // --- TERMINAL SOFTWARE STUDIO BRANDING ---
-          Positioned(
+          const Positioned(
             bottom: 40,
             left: 0,
             right: 0,
             child: Column(
               children: [
-                const Text(
+                Text(
                   "A STUDIO PRODUCTION BY",
                   style: TextStyle(
                     color: Colors.white30, 
@@ -129,18 +129,18 @@ class _SplashScreenState extends State<SplashScreen> {
                     fontWeight: FontWeight.bold
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  padding: EdgeInsets.symmetric(horizontal: 24.0),
                   // 🛠️ THE FIX: Added FittedBox here as well just to be safe on small phones
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.terminal, color: Colors.amber, size: 18),
-                        const SizedBox(width: 8),
-                        const Text(
+                        Icon(Icons.terminal, color: Colors.amber, size: 18),
+                        SizedBox(width: 8),
+                        Text(
                           "TERMINAL SOFTWARE",
                           style: TextStyle(
                             color: Colors.amber, 

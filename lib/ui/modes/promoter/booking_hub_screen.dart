@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:math'; 
 import '../../widgets/wrestler_avatar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../logic/game_state_provider.dart';
@@ -9,13 +10,15 @@ import '../../../logic/rival_provider.dart';
 import '../../../logic/sound_manager.dart'; 
 import '../../../logic/social_feed_generator.dart';
 import '../../../logic/communications_provider.dart'; 
+import '../../../logic/booking_provider.dart'; 
 import '../../../data/models/match.dart';
+import '../../../data/models/wrestler.dart';
 import '../../../data/models/sponsorship_deal.dart';
 import 'booking_screen.dart'; 
 import 'post_show_recap_screen.dart';
 import 'season_recap_screen.dart'; 
 import 'end_game_screen.dart'; 
-import 'bankruptcy_screen.dart'; // 🚨 The new Game Over screen!
+import 'bankruptcy_screen.dart';
 
 class BookingHubScreen extends ConsumerStatefulWidget {
   const BookingHubScreen({super.key});
@@ -26,13 +29,15 @@ class BookingHubScreen extends ConsumerStatefulWidget {
 
 class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
   bool _hasPassedPreShow = false;
+  bool _isAutoBooking = false; 
 
   @override
   Widget build(BuildContext context) {
     final gameState = ref.watch(gameProvider);
+    final rosterState = ref.watch(rosterProvider);
 
     if (gameState.isPPV && !_hasPassedPreShow && gameState.currentCard.isEmpty) {
-      return _buildPreShowPanel(gameState);
+      return _buildPreShowPanel(gameState, rosterState);
     }
 
     return _buildBookingInterface(gameState);
@@ -41,7 +46,7 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
   // ========================================================================
   // 🎙️ THE DYNAMIC PRE-SHOW DESK PANEL (RESPONSIVE)
   // ========================================================================
-  Widget _buildPreShowPanel(dynamic gameState) {
+  Widget _buildPreShowPanel(dynamic gameState, dynamic rosterState) {
     SponsorshipDeal? eventSponsor;
     try {
       final matchingSponsors = gameState.activeSponsors.where((s) => s.slotTarget == RealEstateSlot.eventName);
@@ -55,7 +60,6 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
         final bool isDesktop = constraints.maxWidth > 600;
 
         if (isDesktop) {
-          // 💻 PC LAYOUT
           return Scaffold(
             backgroundColor: Colors.black,
             body: Stack(
@@ -76,7 +80,7 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
                         padding: const EdgeInsets.only(right: 32.0, top: 40.0, bottom: 32.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
-                          children: _buildExpertQuotes(),
+                          children: _buildExpertQuotes(gameState, rosterState), 
                         ),
                       ),
                     ),
@@ -86,7 +90,6 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
             ),
           );
         } else {
-          // 📱 MOBILE LAYOUT
           return Scaffold(
             backgroundColor: Colors.black,
             body: Column(
@@ -132,7 +135,7 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
                         children: [
                           _buildPreShowEnterButton(gameState, context),
                           const SizedBox(height: 24),
-                          ..._buildExpertQuotes(),
+                          ..._buildExpertQuotes(gameState, rosterState), 
                           const SizedBox(height: 40),
                         ],
                       ),
@@ -162,9 +165,9 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), border: const Border(left: BorderSide(color: Colors.amber, width: 4))),
-            child: Column(
+            child: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text("THE STAKES TONIGHT:", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
                 SizedBox(height: 8),
                 Text("Premium Live Event", style: TextStyle(color: Colors.amber, fontSize: 20, fontWeight: FontWeight.bold)),
@@ -218,7 +221,49 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
     );
   }
 
-  List<Widget> _buildExpertQuotes() {
+  // 🚨 THE NEW DYNAMIC EXPERT QUOTES ENGINE 🚨
+  List<Widget> _buildExpertQuotes(dynamic gameState, dynamic rosterState) {
+    final rng = Random();
+
+    // 1. Host Dynamic Quote (Reacts to Venue Name)
+    String venueName = gameState.currentVenueDetails['name'] ?? "arena";
+    String hostQuote = "Welcome to the ${gameState.nextPPVName} Kickoff! The crowd here at the $venueName is filling in, and anticipation is at an all-time high. Gentlemen, what are we expecting tonight?";
+
+    // 2. Dave Delta Dynamic Quote (Reacts to active Rivalries)
+    dynamic topFeud;
+    if (rosterState.activeRivalries.isNotEmpty) {
+      final sortedFeuds = List<dynamic>.from(rosterState.activeRivalries);
+      sortedFeuds.sort((dynamic a, dynamic b) => (b.heat as num).compareTo(a.heat as num));
+      topFeud = sortedFeuds.first;
+    }
+    String deltaQuote;
+    if (topFeud != null && topFeud.heat >= 40) {
+      deltaQuote = "The build to ${topFeud.wrestlerA.name} vs ${topFeud.wrestlerB.name} has been mechanically sound. It absolutely has to headline tonight, and if the psychology holds up, we are looking at 5 stars.";
+    } else {
+      deltaQuote = "To be honest, the storylines coming into this event are a bit cold. The promoter is going to have to rely on pure in-ring workrate to justify the pay-per-view price.";
+    }
+
+    // 3. The NY Smark Dynamic Quote (Reacts to Economy & Infrastructure)
+    List<String> smarkQuotes = [
+      "Look, I paid good money for these seats. If they don't deliver a clean finish tonight, me and the boys in section 104 are hijacking this show!",
+      "If I see one more meaningless draw on this card, I'm canceling my streaming subscription. Give the fans what they want!",
+    ];
+    if (gameState.venueLevel == 4) {
+      smarkQuotes.add("I can't believe they booked a stadium this big. The acoustics are terrible for chants. Better be a good show.");
+    }
+    if (gameState.cash < 20000) {
+      smarkQuotes.add("Rumor on Reddit is management is bouncing checks. They better go all out tonight before the company folds.");
+    }
+    String smarkQuote = smarkQuotes[rng.nextInt(smarkQuotes.length)];
+
+    // 4. King T Dynamic Quote (Hype variations)
+    List<String> kingQuotes = [
+      "SHUCKY DUCKY QUACK QUACK! The electricity in this building is off the charts! It's time to book some magic, boss!",
+      "I just walked out of the locker room, and let me tell you, these athletes are ready for WAR tonight! Awwww yeah!",
+      "It's Pay-Per-View time! The lights are bright, the stakes are high, and reputations are on the line!"
+    ];
+    String kingQuote = kingQuotes[rng.nextInt(kingQuotes.length)];
+
     return [
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -226,10 +271,10 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
         decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(4)),
         child: const Text("THE EXPERTS PREDICT:", style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 2.0)),
       ),
-      _buildExpertAvatarQuote("assets/images/host.png", "Sarah Styles", "Host", "Welcome to the Kickoff! The crowd is filling in, and anticipation is at an all-time high. Let's get right to our panel—gentlemen, what are we expecting tonight?", Colors.blueAccent),
-      _buildExpertAvatarQuote("assets/images/delta.png", "Dave Delta", "Analyst", "The build to this event has been mechanically sound. Now it's on the promoter to execute. If the Main Event psychology holds up, we are looking at 5 stars.", Colors.greenAccent),
-      _buildExpertAvatarQuote("assets/images/smirk.png", "The NY Smark", "Superfan", "Look, I paid good money for these seats. If they don't deliver a clean finish tonight, me and the boys in section 104 are hijacking this show!", Colors.redAccent),
-      _buildExpertAvatarQuote("assets/images/king_t.png", "King T", "Legend", "SHUCKY DUCKY QUACK QUACK! The electricity in this building is off the charts! It's time to book some magic, boss!", Colors.amber),
+      _buildExpertAvatarQuote("assets/images/host.png", "Sarah Styles", "Host", hostQuote, Colors.blueAccent),
+      _buildExpertAvatarQuote("assets/images/delta.png", "Dave Delta", "Analyst", deltaQuote, Colors.greenAccent),
+      _buildExpertAvatarQuote("assets/images/smirk.png", "The NY Smark", "Superfan", smarkQuote, Colors.redAccent),
+      _buildExpertAvatarQuote("assets/images/king_t.png", "King T", "Legend", kingQuote, Colors.amber),
     ];
   }
 
@@ -253,7 +298,6 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
         final bool isDesktop = constraints.maxWidth > 600; 
 
         if (isDesktop) {
-          // 💻 PC LAYOUT
           return Scaffold(
             backgroundColor: Colors.black,
             body: Row(
@@ -274,12 +318,10 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
             ),
           );
         } else {
-          // 📱 MOBILE LAYOUT
           return Scaffold(
             backgroundColor: Colors.black,
             body: Column(
               children: [
-                // TOP 40%: The Venue Image
                 Expanded(
                   flex: 4,
                   child: Stack(
@@ -288,13 +330,13 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
                       Image.asset(venueBackground, fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: Colors.grey[900])),
                       Container(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black.withOpacity(0.3), Colors.black], stops: const [0.5, 1.0]))),
                       
-                      SafeArea(
+                      const SafeArea(
                         child: Padding(
-                          padding: const EdgeInsets.all(16.0),
+                          padding: EdgeInsets.all(16.0),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.end,
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
+                            children: [
                               Row(
                                 children: [
                                   Icon(Icons.tv, color: Colors.amber, size: 20),
@@ -312,7 +354,6 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
                     ],
                   ),
                 ),
-                // BOTTOM 60%: The Match List
                 Expanded(
                   flex: 6,
                   child: Container(
@@ -329,17 +370,128 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
     );
   }
 
+  // 🚨 THE FIXED GM AUTO-BOOK ALGORITHM 🚨
+  Future<void> _autoBookShow() async {
+    if (_isAutoBooking) return; 
+    setState(() => _isAutoBooking = true);
+    
+    HapticFeedback.lightImpact();
+    final rosterState = ref.read(rosterProvider);
+    final gameNotifier = ref.read(gameProvider.notifier);
+    final bookingNotifier = ref.read(bookingProvider.notifier);
+
+    // 1. Get healthy roster
+    List<Wrestler> activeRoster = List<Wrestler>.from(
+      rosterState.roster.where((w) => w.companyId == 0 && !w.isOnIR && !w.isInjured)
+    );
+
+    if (activeRoster.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Not enough healthy wrestlers to Auto-Book! (Need 6)"), backgroundColor: Colors.redAccent)
+      );
+      setState(() => _isAutoBooking = false);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator(color: Colors.cyanAccent)),
+    );
+
+    // 2. Sort by Popularity
+    activeRoster.sort((a, b) => b.pop.compareTo(a.pop));
+    
+    dynamic topFeud;
+    if (rosterState.activeRivalries.isNotEmpty) {
+      final sortedFeuds = List<dynamic>.from(rosterState.activeRivalries);
+      sortedFeuds.sort((dynamic a, dynamic b) => (b.heat as num).compareTo(a.heat as num));
+      topFeud = sortedFeuds.first;
+    }
+
+    // 3. Define the 3 Matchups
+    List<List<Wrestler>> suggestedMatches = [];
+
+    // --- OPENER ---
+    var opener1 = activeRoster[activeRoster.length - 3];
+    var opener2 = activeRoster[activeRoster.length - 2];
+    suggestedMatches.add([opener1, opener2]);
+
+    // --- MID-CARD ---
+    var champ = activeRoster.firstWhere((w) => w.isTVChampion, orElse: () => activeRoster[1]);
+    var challenger = activeRoster.firstWhere((w) => 
+      w.id != champ.id && 
+      (topFeud == null || (w.id != topFeud.wrestlerA.id && w.id != topFeud.wrestlerB.id)), 
+      orElse: () => activeRoster[2]
+    );
+    suggestedMatches.add([champ, challenger]);
+
+    // --- MAIN EVENT ---
+    if (topFeud != null) {
+      Wrestler me1 = activeRoster.firstWhere((w) => w.id == topFeud.wrestlerA.id, orElse: () => activeRoster[0]);
+      Wrestler me2 = activeRoster.firstWhere((w) => w.id == topFeud.wrestlerB.id, orElse: () => activeRoster[1]);
+      suggestedMatches.add([me1, me2]);
+    } else {
+      suggestedMatches.add([activeRoster[0], activeRoster[1]]);
+    }
+
+    // 4. Silently Simulate the Matches (With Local Winner Logic!)
+    final rng = Random();
+    for (int i = 0; i < 3; i++) {
+      await Future.delayed(const Duration(milliseconds: 300)); 
+      
+      // Randomize match types (IronMan removed!)
+      MatchType type = MatchType.standard;
+      if (rng.nextDouble() > 0.7) {
+        List<MatchType> altTypes = [MatchType.hardcore, MatchType.submission];
+        type = altTypes[rng.nextInt(altTypes.length)];
+      }
+
+      bookingNotifier.setMatchType(type);
+      bookingNotifier.startMatchSimulation(suggestedMatches[i]); 
+      
+      await Future.delayed(const Duration(milliseconds: 100)); 
+      final resultState = ref.read(bookingProvider);
+      
+      Wrestler p1 = suggestedMatches[i][0];
+      Wrestler p2 = suggestedMatches[i][1];
+      double p1Score = p1.pop + (p1.ringSkill * 0.5) + rng.nextInt(20);
+      double p2Score = p2.pop + (p2.ringSkill * 0.5) + rng.nextInt(20);
+
+      Wrestler simWinner = p1Score >= p2Score ? p1 : p2;
+      Wrestler simLoser = simWinner == p1 ? p2 : p1;
+
+      final completedMatch = Match()
+        ..wrestlers.addAll(suggestedMatches[i])
+        ..type = resultState.selectedType
+        ..rating = resultState.currentMatchRating
+        ..winnerName = simWinner.name
+        ..loserName = simLoser.name;
+
+      gameNotifier.addMatchToCard(completedMatch);
+      bookingNotifier.reset(); 
+    }
+
+    if (mounted) {
+      Navigator.pop(context); // Close loader
+      setState(() => _isAutoBooking = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Assistant GM Auto-Booked the Show!"), backgroundColor: Colors.cyanAccent)
+      );
+    }
+  }
+
   Widget _buildMatchList(dynamic gameState, bool isCardFull, bool isDesktop) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (isDesktop)
-          SafeArea(
+          const SafeArea(
             bottom: false,
             child: Padding(
-              padding: const EdgeInsets.all(24.0),
+              padding: EdgeInsets.all(24.0),
               child: Row(
-                children: const [
+                children: [
                   Icon(Icons.tv, color: Colors.amber),
                   SizedBox(width: 10),
                   Text("BROADCAST HUB", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5)),
@@ -354,7 +506,26 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("OFFICIAL CARD", style: TextStyle(color: Colors.amber[700], fontWeight: FontWeight.bold, letterSpacing: 1.5, fontSize: 11)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text("OFFICIAL CARD", style: TextStyle(color: Colors.amber[700], fontWeight: FontWeight.bold, letterSpacing: 1.5, fontSize: 11)),
+                    
+                    if (!isCardFull)
+                      TextButton.icon(
+                        icon: const Icon(Icons.auto_awesome, color: Colors.cyanAccent, size: 16),
+                        label: const Text("DELEGATE TO GM", style: TextStyle(color: Colors.cyanAccent, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          backgroundColor: Colors.cyanAccent.withOpacity(0.1),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.cyanAccent)),
+                        ),
+                        onPressed: _autoBookShow,
+                      ),
+                  ],
+                ),
                 const SizedBox(height: 15),
                 _buildMatchSlot(context, gameState, 1, "OPENING CONTEST", 0),
                 const SizedBox(height: 10),
@@ -382,9 +553,9 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: isDesktop ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             children: [
-              Row(
+              const Row(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
+                children: [
                   Icon(Icons.videocam, size: 24, color: Colors.redAccent),
                   SizedBox(width: 8),
                   Text("READY TO AIR", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.redAccent, letterSpacing: 1.5)),
@@ -415,7 +586,6 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
     );
   }
 
-  // 🛠️ THE FIX: Added return; and mounted checks!
   Future<void> _executeShow(dynamic gameState) async {
     HapticFeedback.heavyImpact();
     ref.read(soundProvider).playSound("bell.mp3");
@@ -429,18 +599,15 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
     bool isSeasonFinale = gameState.week == 52;
     bool isCareerFinale = gameState.year == 3 && gameState.week == 52; 
     
-    // Grab a hard copy of the completely simulated card so we can pass it to the GM Screen
     final completedCardToPass = List<Match>.from(gameState.currentCard); 
     final socialFeed = SocialFeedGenerator.generateLivingFeed(gameState.currentCard, gameState);
 
-    // 1. Show the Social Feed Dialog and wait for the user to close it
     await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => _buildSocialFeedDialog(context, socialFeed),
     );
     
-    // 2. The user clicked "View Official Results" and the dialog closed. Show a quick loader!
     if (!context.mounted) return;
     showDialog(
       context: context,
@@ -448,36 +615,29 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
       builder: (ctx) => const Center(child: CircularProgressIndicator(color: Colors.redAccent)),
     );
 
-    // 3. Run all the end-of-week logic updates
     await rosterNotifier.decayRivalries();
     await rosterNotifier.processContracts(); 
     await ref.read(rivalProvider.notifier).runAIWeeklyLogic();
     await ref.read(newsProvider.notifier).generateWeeklyNews(completedCardToPass, rosterState.roster);
     
-    // This officially pays you and advances to the next week!
     await notifier.processWeek(rosterState.roster);
     
     final newWeek = ref.read(gameProvider).week;
     ref.read(communicationsProvider.notifier).generateWeeklyContent(newWeek);
 
-    // 🚨 Grab the brand-new state to check our bank account!
     final updatedGameState = ref.read(gameProvider);
 
-    // 4. Close the loader and navigate away
     if (context.mounted) {
-      Navigator.pop(context); // Pop the loader
+      Navigator.pop(context); 
 
-      // 🚨 If we are in the red, trigger GAME OVER!
       if (updatedGameState.cash < 0) {
         await Navigator.pushAndRemoveUntil(
             context, 
             MaterialPageRoute(builder: (_) => const BankruptcyScreen()), 
-            (route) => false // This destroys the back button so they can't cheat!
+            (route) => false 
         );
-        // 🚨 THE FIX: Force the function to stop right here so it doesn't crash on setState!
         return; 
       } 
-      // Otherwise, proceed as normal
       else if (isCareerFinale) {
         await Navigator.push(context, MaterialPageRoute(builder: (_) => const EndGameScreen()));
       } else if (isSeasonFinale) {
@@ -486,16 +646,11 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
         await Navigator.push(context, MaterialPageRoute(builder: (_) => PostShowRecapScreen(completedCard: completedCardToPass)));
       }
 
-      // Reset pre-show flag so next week starts fresh when you come back
       if (mounted) {
         setState(() { _hasPassedPreShow = false; });
       }
     }
   }
-
-  // ========================================================================
-  // 🛠️ HELPER WIDGETS
-  // ========================================================================
 
   Widget _buildMatchSlot(BuildContext context, dynamic gameState, int index, String label, int listIndex) {
     Match? bookedMatch;
@@ -543,10 +698,10 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
                 children: [
                   Text(label, style: const TextStyle(color: Colors.grey, fontSize: 10, letterSpacing: 1.0)),
                   const SizedBox(height: 4),
-                  if (isBooked && bookedMatch!.wrestlers.isNotEmpty)
+                  if (isBooked && bookedMatch.wrestlers.isNotEmpty)
                     Row(
                       children: [
-                        ...bookedMatch!.wrestlers.take(2).map((w) => Padding(padding: const EdgeInsets.only(right: 6.0), child: WrestlerAvatar(wrestler: w, radius: 12))),
+                        ...bookedMatch.wrestlers.take(2).map((w) => Padding(padding: const EdgeInsets.only(right: 6.0), child: WrestlerAvatar(wrestler: w, radius: 12))),
                         Expanded(child: Text(matchTitle, style: TextStyle(color: titleColor, fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis)),
                       ],
                     )
@@ -574,8 +729,8 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E1E),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Colors.redAccent, width: 2)),
-        title: Row(
-          children: const [
+        title: const Row(
+          children: [
             Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 28),
             SizedBox(width: 10),
             Text("WARNING: REVENUE LOSS", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
@@ -644,7 +799,7 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
     return AlertDialog(
       backgroundColor: const Color(0xFF121212),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Colors.white10)),
-      title: Row(children: const [Icon(Icons.tag, color: Colors.blueAccent), SizedBox(width: 10), Text("SOCIAL FEED REACTION", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))]),
+      title: const Row(children: [Icon(Icons.tag, color: Colors.blueAccent), SizedBox(width: 10), Text("SOCIAL FEED REACTION", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))]),
       content: SizedBox(
         width: double.maxFinite,
         child: ListView.builder(

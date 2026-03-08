@@ -23,9 +23,9 @@ class CloudSyncService {
         'score': totalScore,
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       }, onConflict: 'user_id');
-      debugPrint("Cloud Sync Successful: ${totalScore} pts");
+      debugPrint("Cloud Sync Successful: $totalScore pts");
     } catch (e) {
-      debugPrint("Cloud Sync Error: ${e}");
+      debugPrint("Cloud Sync Error: $e");
     }
   }
 }

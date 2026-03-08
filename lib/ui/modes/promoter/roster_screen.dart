@@ -133,13 +133,11 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 🚨 SMART LAYOUT BUILDER 🚨
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool isDesktop = constraints.maxWidth > 600;
 
         if (isDesktop) {
-          // 💻 PC LAYOUT (Wide Side-by-Side)
           return Scaffold(
             backgroundColor: const Color(0xFF121212),
             appBar: AppBar(
@@ -156,12 +154,10 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
             ),
           );
         } else {
-          // 📱 MOBILE LAYOUT (40/60 Vertical Split)
           return Scaffold(
             backgroundColor: Colors.black,
             body: Column(
               children: [
-                // 🛠️ THE FIX: Top 40% Image NOW INCLUDES THE HEADER TITLE
                 Expanded(
                   flex: 4,
                   child: Stack(
@@ -196,13 +192,11 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
                           ),
                         ),
                       ),
-                      // HERO PROFILE OVERLAY (Only shows if someone is selected)
                       if (_selectedWrestler != null)
                         _buildMobileHeroOverlay(),
                     ],
                   ),
                 ),
-                // 🛠️ THE FIX: Bottom 60% Dashboard is completely free of the header!
                 Expanded(
                   flex: 6,
                   child: Container(
@@ -342,7 +336,6 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
     );
   }
 
-  // 🖼️ NEW: Custom Avatar builder to handle Web Mod Images!
   Widget _buildAvatar(Wrestler w, double size) {
     if (w.imageUrl != null && w.imageUrl!.isNotEmpty) {
       return Container(
@@ -354,7 +347,6 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
         ),
       );
     }
-    // Fallback to generic local asset
     return WrestlerAvatar(wrestler: w, size: size);
   }
 
@@ -369,7 +361,6 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
         final w = wrestlers[index];
         final isSelected = _selectedWrestler?.id == w.id;
         
-        // Dynamic border color based on status
         Color borderColor = Colors.white10;
         double borderWidth = 1.0;
         
@@ -380,7 +371,7 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
           borderColor = Colors.redAccent;
           borderWidth = 2.0;
         } else if (w.activePromise.isNotEmpty) {
-          borderColor = Colors.purpleAccent; // Purple glow for demands!
+          borderColor = Colors.purpleAccent; 
           borderWidth = 2.0;
         } else if (w.isInjured) {
           borderColor = Colors.orangeAccent;
@@ -459,7 +450,6 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- 1. HERO PROFILE CARD (PC ONLY - Mobile handles this in the top image now) ---
             if (isDesktop) ...[
               Row(
                 children: [
@@ -478,7 +468,6 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
                         Text("${w.style.name.toUpperCase()} • ${w.isHeel ? 'HEEL' : 'FACE'} • ${w.cardPosition.toUpperCase()}", style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 12),
                         
-                        // 📢 DYNAMIC WARNING LABELS
                         if (w.isHoldingOut) const Text("⚠ HOLDING OUT (Morale Critical)", style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
                         if (w.isInjured) Text("🚑 INJURED: ${w.injuryWeeks} WEEKS", style: const TextStyle(color: Colors.orangeAccent, fontSize: 12, fontWeight: FontWeight.bold)),
                         
@@ -497,7 +486,6 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
               const SizedBox(height: 32),
             ],
 
-            // --- 2. KEY ATTRIBUTES GRID ---
             const Text("ATTRIBUTES", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
             const SizedBox(height: 12),
             Row(
@@ -511,7 +499,6 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
             ),
             const SizedBox(height: 32),
 
-            // --- 3. CONTRACT & STATUS ENGINE ---
             const Text("CONTRACT STATUS", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
             const SizedBox(height: 12),
             Container(
@@ -520,7 +507,6 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ACTIVE / REHAB LOGIC (companyId == 0)
                   if (_selectedTabIndex == 0 || _selectedTabIndex == 1) ...[
                     Text("Wrestler is currently under a ${w.contractWeeks} week contract.", style: const TextStyle(color: Colors.white, fontSize: 14)),
                     const SizedBox(height: 4),
@@ -532,7 +518,6 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
                           child: ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 16)),
                             icon: const Icon(Icons.monetization_on),
-                            // 🛠️ THE FIX: FittedBox stops "RENEGOTIATE" from wrapping to two lines
                             label: const FittedBox(fit: BoxFit.scaleDown, child: Text("RENEGOTIATE", style: TextStyle(fontWeight: FontWeight.bold))),
                             onPressed: () => showDialog(context: context, builder: (_) => ContractNegotiationDialog(wrestler: w)),
                           ),
@@ -549,7 +534,6 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
                       ],
                     ),
                   ] 
-                  // FREE AGENT LOGIC (companyId == -1)
                   else if (_selectedTabIndex == 2) ...[
                     const Text("Wrestler is currently a Free Agent.", style: TextStyle(color: Colors.white, fontSize: 14)),
                     const SizedBox(height: 4),
@@ -566,7 +550,6 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
                       ),
                     ),
                   ]
-                  // RIVAL LOGIC (companyId == 1)
                   else if (_selectedTabIndex == 3) ...[
                     const Text("Wrestler is currently signed to a Rival Promotion.", style: TextStyle(color: Colors.white, fontSize: 14)),
                     const SizedBox(height: 20),
@@ -587,7 +570,6 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
             ),
             const SizedBox(height: 32),
 
-            // --- 4. MANAGEMENT & CREATIVE CONTROL ---
             if (_selectedTabIndex == 0 || _selectedTabIndex == 1) ...[
               const Text("MANAGEMENT & CREATIVE", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
               const SizedBox(height: 12),
@@ -601,6 +583,7 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
                   await notifier.removeFromIR(w);
                   _clearSelection();
                   if (mounted && !isDesktop) Navigator.pop(context); 
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${w.name} activated to main roster!"), backgroundColor: Colors.blueAccent));
                 }),
 
               if (_selectedTabIndex == 0 && w.isInjured)
@@ -608,11 +591,15 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
                   notifier.moveToIR(w);
                   _clearSelection();
                   if (mounted && !isDesktop) Navigator.pop(context); 
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${w.name} moved to Injured Reserve."), backgroundColor: Colors.orangeAccent));
                 }),
 
-              _buildActionTile("💊 MEDICAL REHAB (\$5,000)", "Heals Fatigue/Injury.", Icons.healing, Colors.greenAccent, () => notifier.trainingAction(w, "HEAL", 5000)),
+              // 🚨 THE FIX: SNACKBARS ADDED TO ALL BUTTONS!
+              _buildActionTile("💊 MEDICAL REHAB (\$5,000)", "Heals Fatigue/Injury.", Icons.healing, Colors.greenAccent, () async {
+                await notifier.trainingAction(w, "HEAL", 5000);
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Medical Rehab successful! Stamina restored."), backgroundColor: Colors.greenAccent));
+              }),
               
-              // 💰 BONUS PAYOUT FIXES MORALE AND HOLDOUTS!
               _buildActionTile("💰 CASH BONUS (\$10,000)", "Fixes morale. Ends holdouts.", Icons.attach_money, Colors.amber, () {
                 final gs = ref.read(gameProvider);
                 if (gs.cash < 10000) {
@@ -621,7 +608,6 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
                 }
                 ref.read(gameProvider.notifier).spendCash(10000);
                 
-                // Directly update the wrestler's morale and holdout status
                 final isar = Isar.getInstance();
                 if (isar != null) {
                   isar.writeTxnSync(() {
@@ -631,15 +617,25 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
                   });
                 }
                 setState(() {});
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bonus Paid! Morale restored."), backgroundColor: Colors.greenAccent));
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bonus Paid! Morale restored."), backgroundColor: Colors.amber));
               }),
               
-              _buildActionTile("🏋️ RING TRAINING (\$10,000)", "Ring Skill +1.", Icons.fitness_center, Colors.blue, () => notifier.trainingAction(w, "RING", 10000)),
-              _buildActionTile("🎤 PROMO CLASS (\$10,000)", "Mic Skill +1.", Icons.mic, Colors.purple, () => notifier.trainingAction(w, "MIC", 10000)),
+              _buildActionTile("🏋️ RING TRAINING (\$10,000)", "Ring Skill +1.", Icons.fitness_center, Colors.blue, () async {
+                await notifier.trainingAction(w, "RING", 10000);
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Training Complete! Ring Skill increased."), backgroundColor: Colors.blue));
+              }),
+              
+              _buildActionTile("🎤 PROMO CLASS (\$10,000)", "Mic Skill +1.", Icons.mic, Colors.purple, () async {
+                await notifier.trainingAction(w, "MIC", 10000);
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Promo Class Complete! Mic Skill increased."), backgroundColor: Colors.purple));
+              }),
+
               _buildActionTile("TURN ${w.isHeel ? 'FACE' : 'HEEL'}", "Switch alignment instantly.", Icons.compare_arrows, Colors.white, () {
                 notifier.turnHeelFace(w);
                 setState(() {}); 
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Alignment successfully switched!"), backgroundColor: Colors.white, behavior: SnackBarBehavior.floating, margin: EdgeInsets.only(top: 50.0)));
               }),
+              
               _buildActionTile("REPACKAGE STYLE", "Change wrestling style.", Icons.accessibility_new, Colors.cyan, () => _showStyleDialog(context, w, notifier)),
               _buildActionTile("RENAME WRESTLER", "Change their ring name.", Icons.edit, Colors.grey, () => _showRenameDialog(context, w, notifier)),
             ],

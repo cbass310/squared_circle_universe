@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../modes/network/global_network_auth_screen.dart';
 
 class PromoterAuthGateScreen extends StatelessWidget {

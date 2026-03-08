@@ -531,7 +531,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     return Container(
       decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(8), border: Border.all(color: _isTitleMatchToggled ? Colors.amber : Colors.black, width: 2)),
       child: SwitchListTile(
-        activeColor: Colors.black, activeTrackColor: Colors.amber, inactiveThumbColor: Colors.grey, inactiveTrackColor: Colors.black45,
+        activeThumbColor: Colors.black, activeTrackColor: Colors.amber, inactiveThumbColor: Colors.grey, inactiveTrackColor: Colors.black45,
         title: Text("PUT CHAMPIONSHIP ON THE LINE", style: TextStyle(color: _isTitleMatchToggled ? Colors.amber : Colors.white54, fontWeight: FontWeight.w900, letterSpacing: 1.0, fontSize: 12)),
         value: _isTitleMatchToggled,
         onChanged: (val) { HapticFeedback.selectionClick(); setState(() => _isTitleMatchToggled = val); },
@@ -640,7 +640,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
               ],
             ),
           ),
-          Text("${chemistryScore}%", style: TextStyle(color: chemColor, fontWeight: FontWeight.w900, fontSize: 20, fontFamily: "Monospace"))
+          Text("$chemistryScore%", style: TextStyle(color: chemColor, fontWeight: FontWeight.w900, fontSize: 20, fontFamily: "Monospace"))
         ],
       ),
     );
@@ -677,8 +677,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             padding: const EdgeInsets.all(16),
             width: double.infinity,
             decoration: BoxDecoration(color: Colors.amber.withOpacity(0.1), border: const Border(bottom: BorderSide(color: Colors.amber, width: 2))),
-            child: Row(
-              children: const [
+            child: const Row(
+              children: [
                 Icon(Icons.mic_external_on, color: Colors.amber, size: 20),
                 SizedBox(width: 8),
                 Text("LIVE PLAY-BY-PLAY", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.w900, letterSpacing: 1.5)),

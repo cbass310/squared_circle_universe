@@ -10,7 +10,7 @@ import '../../screens/hub_screen.dart';
 import '../../components/tv_watermark.dart';
 
 class SeasonRecapScreen extends ConsumerStatefulWidget {
-  const SeasonRecapScreen({Key? key}) : super(key: key);
+  const SeasonRecapScreen({super.key});
 
   @override
   ConsumerState<SeasonRecapScreen> createState() => _SeasonRecapScreenState();
@@ -97,22 +97,22 @@ class _SeasonRecapScreenState extends ConsumerState<SeasonRecapScreen> {
                           ),
                         ),
                       ),
-                      SafeArea(
+                      const SafeArea(
                         child: Padding(
-                          padding: const EdgeInsets.all(20.0),
+                          padding: EdgeInsets.all(20.0),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.end,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                children: const [
+                                children: [
                                   Icon(Icons.stars, color: Colors.amber, size: 24),
                                   SizedBox(width: 8),
                                   Text("SEASON FINALE", style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
                                 ],
                               ),
-                              const SizedBox(height: 4),
-                              const Text("YEAR-END AWARDS", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                              SizedBox(height: 4),
+                              Text("YEAR-END AWARDS", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
                             ],
                           ),
                         ),

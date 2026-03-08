@@ -159,9 +159,9 @@ class _CommissionerEventCreatorScreenState extends State<CommissionerEventCreato
                                 padding: EdgeInsets.zero,
                                 alignment: Alignment.topLeft,
                               ),
-                              Column(
+                              const Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                children: const [
+                                children: [
                                   Row(
                                     children: [
                                       Icon(Icons.build_circle, color: Colors.cyanAccent, size: 24),

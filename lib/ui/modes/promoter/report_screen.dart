@@ -127,7 +127,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                           ),
                         ),
                       ),
-                      TVWatermark(isMobile: true),
+                      const TVWatermark(isMobile: true),
                       SafeArea(
                         child: Padding(
                           padding: const EdgeInsets.all(16.0),
@@ -141,9 +141,9 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                                 padding: EdgeInsets.zero,
                                 alignment: Alignment.topLeft,
                               ),
-                              Column(
+                              const Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                children: const [
+                                children: [
                                   Row(
                                     children: [
                                       Icon(Icons.attach_money, color: Colors.greenAccent, size: 24),

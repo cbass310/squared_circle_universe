@@ -53,13 +53,13 @@ class PostShowRecapScreen extends ConsumerWidget {
                     fit: StackFit.expand,
                     children: [
                       _buildArtworkPane(isMobile: true),
-                      SafeArea(
+                      const SafeArea(
                         child: Padding(
-                          padding: const EdgeInsets.all(16.0),
+                          padding: EdgeInsets.all(16.0),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.end,
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
+                            children: [
                               Text("POST-SHOW", style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
                               SizedBox(height: 4),
                               Text("WEEKLY GM RECAP", style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
@@ -101,13 +101,13 @@ class PostShowRecapScreen extends ConsumerWidget {
         children: [
           // --- HEADER (PC ONLY - Mobile uses the image overlay) ---
           if (isDesktop)
-            SafeArea(
+            const SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: EdgeInsets.all(24.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text("WEEKLY GM RECAP", style: TextStyle(color: Colors.amber, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
                     Text("Squared Circle Wrestling", style: TextStyle(color: Colors.grey, fontSize: 12, letterSpacing: 2.0)),
                   ],

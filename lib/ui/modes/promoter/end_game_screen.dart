@@ -14,8 +14,9 @@ class EndGameScreen extends ConsumerWidget {
     
     // LOGIC: Determine Rank
     String rank = "ROOKIE";
-    if (gameState.cash > 100000) rank = "LEGEND";
-    else if (gameState.cash > 50000) rank = "ICON";
+    if (gameState.cash > 100000) {
+      rank = "LEGEND";
+    } else if (gameState.cash > 50000) rank = "ICON";
     else if (gameState.cash > 10000) rank = "PRO";
 
     Color themeColor = const Color(0xFFFFD740); // Gold
@@ -62,23 +63,23 @@ class EndGameScreen extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      SafeArea(
+                      const SafeArea(
                         child: Padding(
-                          padding: const EdgeInsets.all(20.0),
+                          padding: EdgeInsets.all(20.0),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.end,
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
+                                children: [
                                   Icon(Icons.stars, color: Colors.amber, size: 28),
                                   SizedBox(width: 8),
                                   Text("HALL OF FAME", style: TextStyle(color: Colors.amber, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
                                 ],
                               ),
-                              const SizedBox(height: 8),
-                              const Text("CAREER COMPLETE", style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                              SizedBox(height: 8),
+                              Text("CAREER COMPLETE", style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
                             ],
                           ),
                         ),

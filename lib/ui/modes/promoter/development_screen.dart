@@ -26,9 +26,9 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
   // Once a region hits 5, it locks permanently. 
   final Map<String, int> _scoutCounters = {
     "North America": 0,
-    "Mexico & Canada": 0,
-    "Japan & Asia": 0,
-    "UK & Europe": 0,
+    "South America": 0,
+    "Asia": 0,
+    "Europe": 0,
   };
 
   @override
@@ -94,13 +94,13 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
                           ),
                         ),
                       ),
-                      SafeArea(
+                      const SafeArea(
                         child: Padding(
-                          padding: const EdgeInsets.all(16.0),
+                          padding: EdgeInsets.all(16.0),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.end,
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
+                            children: [
                               Row(
                                 children: [
                                   Icon(Icons.flash_on, color: Colors.amber, size: 24),
@@ -146,12 +146,12 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
         children: [
           // --- HEADER (PC ONLY - Mobile handles this in the image overlay) ---
           if (isDesktop)
-            SafeArea(
+            const SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: EdgeInsets.all(24.0),
                 child: Row(
-                  children: const [
+                  children: [
                     Icon(Icons.flash_on, color: Colors.amber, size: 28),
                     SizedBox(width: 12),
                     Text("POWER PLANT", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5)),
@@ -236,9 +236,9 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
         const SizedBox(height: 16),
         
         _buildRegionCard(gameState, "North America", 1, 500, "Gym", "assets/images/scout_usa.png"),
-        _buildRegionCard(gameState, "Mexico & Canada", 2, 1000, "Civic Center", "assets/images/scout_mexico.png"),
-        _buildRegionCard(gameState, "Japan & Asia", 3, 2500, "Arena", "assets/images/scout_japan.png"),
-        _buildRegionCard(gameState, "UK & Europe", 4, 5000, "Stadium", "assets/images/scout_uk.png"),
+        _buildRegionCard(gameState, "South America", 2, 1000, "Civic Center", "assets/images/scout_mexico.png"),
+        _buildRegionCard(gameState, "Asia", 3, 2500, "Arena", "assets/images/scout_japan.png"),
+        _buildRegionCard(gameState, "Europe", 4, 5000, "Stadium", "assets/images/scout_uk.png"),
         
         const SizedBox(height: 24),
         Container(
@@ -248,14 +248,14 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
             borderRadius: BorderRadius.circular(8), 
             border: Border.all(color: Colors.amber.withOpacity(0.3))
           ),
-          child: Row(
+          child: const Row(
             children: [
-              const Icon(Icons.info_outline, color: Colors.amber, size: 24),
-              const SizedBox(width: 16),
+              Icon(Icons.info_outline, color: Colors.amber, size: 24),
+              SizedBox(width: 16),
               Expanded(
                 child: Text(
                   "Each region only holds 5 hidden prospects for your entire career. Choose carefully when to spend your cash to unearth them! Unsigned prospects fall into Free Agency.", 
-                  style: const TextStyle(color: Colors.amber, fontSize: 11, height: 1.5)
+                  style: TextStyle(color: Colors.amber, fontSize: 11, height: 1.5)
                 )
               ),
             ],
@@ -367,8 +367,8 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
           builder: (ctx) => AlertDialog(
             backgroundColor: const Color(0xFF1E1E1E),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Colors.blueAccent, width: 2)),
-            title: Column(
-              children: const [
+            title: const Column(
+              children: [
                 Icon(Icons.public, color: Colors.blueAccent, size: 40),
                 SizedBox(height: 10),
                 Text("NEW PROSPECT FOUND!", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1.0)),
@@ -598,8 +598,8 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.05), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.redAccent.withOpacity(0.3))),
-            child: Column(
-              children: const [
+            child: const Column(
+              children: [
                 Icon(Icons.sports_mma, color: Colors.redAccent, size: 20),
                 SizedBox(height: 8),
                 Text("PRACTICE MATCH SIMULATOR", style: TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
@@ -716,8 +716,8 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
         builder: (ctx) => AlertDialog(
           backgroundColor: const Color(0xFF1E1E1E),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Colors.redAccent, width: 2)),
-          title: Row(
-            children: const [
+          title: const Row(
+            children: [
               Icon(Icons.sports_mma, color: Colors.redAccent),
               SizedBox(width: 10),
               Text("SESSION REPORT", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.0)),

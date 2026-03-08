@@ -122,7 +122,7 @@ class RatingsWarScreen extends ConsumerWidget {
                               child: Center(child: Text("No data yet. Book your first show!", style: TextStyle(color: Colors.white54))),
                             )
                           else
-                            ...history.map((entry) => _buildHistoryItem(entry)).toList(),
+                            ...history.map((entry) => _buildHistoryItem(entry)),
                             
                           const SizedBox(height: 40), // Bottom padding
                         ],
@@ -166,8 +166,8 @@ class RatingsWarScreen extends ConsumerWidget {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
             decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.white10))),
-            child: Row(
-              children: const [
+            child: const Row(
+              children: [
                 Icon(Icons.history_edu_rounded, color: Colors.amber, size: 20),
                 SizedBox(width: 8),
                 Text("BATTLE LEDGER", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, letterSpacing: 1.5, fontSize: 12)),

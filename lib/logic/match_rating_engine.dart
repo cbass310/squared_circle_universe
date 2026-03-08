@@ -14,9 +14,9 @@ class MatchRatingEngine {
     required int currentFans,
   }) {
     // 1. BASE SKILL: Average of Ring Skill and Popularity
-    double wA_Skill = (wrestlerA.ringSkill + wrestlerA.pop) / 2;
-    double wB_Skill = (wrestlerB.ringSkill + wrestlerB.pop) / 2;
-    double baseSkill = (wA_Skill + wB_Skill) / 2; // Range: 0 - 100
+    double waSkill = (wrestlerA.ringSkill + wrestlerA.pop) / 2;
+    double wbSkill = (wrestlerB.ringSkill + wrestlerB.pop) / 2;
+    double baseSkill = (waSkill + wbSkill) / 2; // Range: 0 - 100
 
     // 2. CHEMISTRY MODIFIER: The Style Matrix
     double chemistryModifier = _getChemistryModifier(wrestlerA.style, wrestlerB.style);

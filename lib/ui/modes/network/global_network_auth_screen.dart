@@ -8,7 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import '../../components/tv_watermark.dart';
 
 class GlobalNetworkAuthScreen extends ConsumerWidget {
-  const GlobalNetworkAuthScreen({Key? key}) : super(key: key);
+  const GlobalNetworkAuthScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -69,9 +69,9 @@ class GlobalNetworkAuthScreen extends ConsumerWidget {
                                 padding: EdgeInsets.zero,
                                 alignment: Alignment.topLeft,
                               ),
-                              Column(
+                              const Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                children: const [
+                                children: [
                                   Row(
                                     children: [
                                       Icon(Icons.public, color: Colors.cyanAccent, size: 24),

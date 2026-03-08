@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
 import '../data/models/wrestler.dart';
 import '../data/models/news_item.dart';
-import 'game_state_provider.dart';
 
 class RivalState {
   final double rating;
