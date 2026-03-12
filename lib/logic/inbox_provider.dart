@@ -62,7 +62,7 @@ class InboxNotifier extends StateNotifier<InboxState> {
     final welcomeRumor = NewsItem()
       ..sender = "The Observer Wire"
       ..subject = "A New Challenger Appears"
-      ..body = "Rumors are swirling that a new management team has taken over Terminal Software. We will see if they have the budget and the booking skills to compete with The Empire."
+      ..body = "Rumors are swirling that a new management team has taken over Squared Circle Wrestling. We will see if they have the budget and the booking skills to compete with The Empire."
       ..timestamp = DateTime.now().subtract(const Duration(minutes: 5)) 
       ..isRead = false
       ..actionRequired = false

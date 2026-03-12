@@ -27,58 +27,63 @@ const GameSaveSchema = CollectionSchema(
       name: r'fans',
       type: IsarType.long,
     ),
-    r'premierPpvIndex': PropertySchema(
+    r'ledgerJson': PropertySchema(
       id: 2,
+      name: r'ledgerJson',
+      type: IsarType.stringList,
+    ),
+    r'premierPpvIndex': PropertySchema(
+      id: 3,
       name: r'premierPpvIndex',
       type: IsarType.long,
     ),
     r'promotionName': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'promotionName',
       type: IsarType.string,
     ),
     r'reputation': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'reputation',
       type: IsarType.long,
     ),
     r'techAudio': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'techAudio',
       type: IsarType.long,
     ),
     r'techBroadcast': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'techBroadcast',
       type: IsarType.long,
     ),
     r'techMedical': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'techMedical',
       type: IsarType.long,
     ),
     r'techPyro': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'techPyro',
       type: IsarType.long,
     ),
     r'tvShowName': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'tvShowName',
       type: IsarType.string,
     ),
     r'venueLevel': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'venueLevel',
       type: IsarType.long,
     ),
     r'week': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'week',
       type: IsarType.long,
     ),
     r'year': PropertySchema(
-      id: 12,
+      id: 13,
       name: r'year',
       type: IsarType.long,
     )
@@ -103,6 +108,13 @@ int _gameSaveEstimateSize(
   Map<Type, List<int>> allOffsets,
 ) {
   var bytesCount = offsets.last;
+  bytesCount += 3 + object.ledgerJson.length * 3;
+  {
+    for (var i = 0; i < object.ledgerJson.length; i++) {
+      final value = object.ledgerJson[i];
+      bytesCount += value.length * 3;
+    }
+  }
   bytesCount += 3 + object.promotionName.length * 3;
   bytesCount += 3 + object.tvShowName.length * 3;
   return bytesCount;
@@ -116,17 +128,18 @@ void _gameSaveSerialize(
 ) {
   writer.writeLong(offsets[0], object.cash);
   writer.writeLong(offsets[1], object.fans);
-  writer.writeLong(offsets[2], object.premierPpvIndex);
-  writer.writeString(offsets[3], object.promotionName);
-  writer.writeLong(offsets[4], object.reputation);
-  writer.writeLong(offsets[5], object.techAudio);
-  writer.writeLong(offsets[6], object.techBroadcast);
-  writer.writeLong(offsets[7], object.techMedical);
-  writer.writeLong(offsets[8], object.techPyro);
-  writer.writeString(offsets[9], object.tvShowName);
-  writer.writeLong(offsets[10], object.venueLevel);
-  writer.writeLong(offsets[11], object.week);
-  writer.writeLong(offsets[12], object.year);
+  writer.writeStringList(offsets[2], object.ledgerJson);
+  writer.writeLong(offsets[3], object.premierPpvIndex);
+  writer.writeString(offsets[4], object.promotionName);
+  writer.writeLong(offsets[5], object.reputation);
+  writer.writeLong(offsets[6], object.techAudio);
+  writer.writeLong(offsets[7], object.techBroadcast);
+  writer.writeLong(offsets[8], object.techMedical);
+  writer.writeLong(offsets[9], object.techPyro);
+  writer.writeString(offsets[10], object.tvShowName);
+  writer.writeLong(offsets[11], object.venueLevel);
+  writer.writeLong(offsets[12], object.week);
+  writer.writeLong(offsets[13], object.year);
 }
 
 GameSave _gameSaveDeserialize(
@@ -139,17 +152,18 @@ GameSave _gameSaveDeserialize(
   object.cash = reader.readLong(offsets[0]);
   object.fans = reader.readLong(offsets[1]);
   object.id = id;
-  object.premierPpvIndex = reader.readLong(offsets[2]);
-  object.promotionName = reader.readString(offsets[3]);
-  object.reputation = reader.readLong(offsets[4]);
-  object.techAudio = reader.readLong(offsets[5]);
-  object.techBroadcast = reader.readLong(offsets[6]);
-  object.techMedical = reader.readLong(offsets[7]);
-  object.techPyro = reader.readLong(offsets[8]);
-  object.tvShowName = reader.readString(offsets[9]);
-  object.venueLevel = reader.readLong(offsets[10]);
-  object.week = reader.readLong(offsets[11]);
-  object.year = reader.readLong(offsets[12]);
+  object.ledgerJson = reader.readStringList(offsets[2]) ?? [];
+  object.premierPpvIndex = reader.readLong(offsets[3]);
+  object.promotionName = reader.readString(offsets[4]);
+  object.reputation = reader.readLong(offsets[5]);
+  object.techAudio = reader.readLong(offsets[6]);
+  object.techBroadcast = reader.readLong(offsets[7]);
+  object.techMedical = reader.readLong(offsets[8]);
+  object.techPyro = reader.readLong(offsets[9]);
+  object.tvShowName = reader.readString(offsets[10]);
+  object.venueLevel = reader.readLong(offsets[11]);
+  object.week = reader.readLong(offsets[12]);
+  object.year = reader.readLong(offsets[13]);
   return object;
 }
 
@@ -165,11 +179,11 @@ P _gameSaveDeserializeProp<P>(
     case 1:
       return (reader.readLong(offset)) as P;
     case 2:
-      return (reader.readLong(offset)) as P;
+      return (reader.readStringList(offset) ?? []) as P;
     case 3:
-      return (reader.readString(offset)) as P;
-    case 4:
       return (reader.readLong(offset)) as P;
+    case 4:
+      return (reader.readString(offset)) as P;
     case 5:
       return (reader.readLong(offset)) as P;
     case 6:
@@ -179,12 +193,14 @@ P _gameSaveDeserializeProp<P>(
     case 8:
       return (reader.readLong(offset)) as P;
     case 9:
-      return (reader.readString(offset)) as P;
-    case 10:
       return (reader.readLong(offset)) as P;
+    case 10:
+      return (reader.readString(offset)) as P;
     case 11:
       return (reader.readLong(offset)) as P;
     case 12:
+      return (reader.readLong(offset)) as P;
+    case 13:
       return (reader.readLong(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -435,6 +451,230 @@ extension GameSaveQueryFilter
         upper: upper,
         includeUpper: includeUpper,
       ));
+    });
+  }
+
+  QueryBuilder<GameSave, GameSave, QAfterFilterCondition>
+      ledgerJsonElementEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'ledgerJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GameSave, GameSave, QAfterFilterCondition>
+      ledgerJsonElementGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'ledgerJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GameSave, GameSave, QAfterFilterCondition>
+      ledgerJsonElementLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'ledgerJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GameSave, GameSave, QAfterFilterCondition>
+      ledgerJsonElementBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'ledgerJson',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GameSave, GameSave, QAfterFilterCondition>
+      ledgerJsonElementStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'ledgerJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GameSave, GameSave, QAfterFilterCondition>
+      ledgerJsonElementEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'ledgerJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GameSave, GameSave, QAfterFilterCondition>
+      ledgerJsonElementContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'ledgerJson',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GameSave, GameSave, QAfterFilterCondition>
+      ledgerJsonElementMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'ledgerJson',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<GameSave, GameSave, QAfterFilterCondition>
+      ledgerJsonElementIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'ledgerJson',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<GameSave, GameSave, QAfterFilterCondition>
+      ledgerJsonElementIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'ledgerJson',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<GameSave, GameSave, QAfterFilterCondition>
+      ledgerJsonLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'ledgerJson',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<GameSave, GameSave, QAfterFilterCondition> ledgerJsonIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'ledgerJson',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<GameSave, GameSave, QAfterFilterCondition>
+      ledgerJsonIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'ledgerJson',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<GameSave, GameSave, QAfterFilterCondition>
+      ledgerJsonLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'ledgerJson',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<GameSave, GameSave, QAfterFilterCondition>
+      ledgerJsonLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'ledgerJson',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<GameSave, GameSave, QAfterFilterCondition>
+      ledgerJsonLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'ledgerJson',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
     });
   }
 
@@ -1535,6 +1775,12 @@ extension GameSaveQueryWhereDistinct
     });
   }
 
+  QueryBuilder<GameSave, GameSave, QDistinct> distinctByLedgerJson() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'ledgerJson');
+    });
+  }
+
   QueryBuilder<GameSave, GameSave, QDistinct> distinctByPremierPpvIndex() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'premierPpvIndex');
@@ -1622,6 +1868,12 @@ extension GameSaveQueryProperty
   QueryBuilder<GameSave, int, QQueryOperations> fansProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'fans');
+    });
+  }
+
+  QueryBuilder<GameSave, List<String>, QQueryOperations> ledgerJsonProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'ledgerJson');
     });
   }
 

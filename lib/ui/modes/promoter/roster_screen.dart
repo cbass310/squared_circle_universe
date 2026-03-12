@@ -91,46 +91,6 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
     });
   }
 
-  // ✍️ THE FREE AGENT SIGNING ENGINE
-  Future<void> _signFreeAgent(Wrestler w) async {
-    HapticFeedback.heavyImpact();
-    final gameState = ref.read(gameProvider);
-    final rosterState = ref.read(rosterProvider);
-
-    if (rosterState.roster.length >= 12) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Roster Full! Release someone first.", style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.redAccent));
-      return;
-    }
-
-    int signingBonus = w.salary * 4;
-    if (gameState.cash < signingBonus) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Not enough cash! Need \$$signingBonus.", style: const TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.redAccent));
-      return;
-    }
-
-    // 1. Deduct Cash
-    ref.read(gameProvider.notifier).spendCash(signingBonus);
-
-    // 2. Update DB
-    final isar = Isar.getInstance();
-    if (isar != null) {
-      await isar.writeTxn(() async {
-        w.companyId = 0; // Move to Player Roster
-        w.contractWeeks = 48; // 1 Year Deal
-        await isar.wrestlers.put(w);
-      });
-    }
-
-    // 3. Refresh Screen
-    ref.read(rosterProvider.notifier).loadRoster();
-    _clearSelection();
-    
-    if (mounted) {
-      if (MediaQuery.of(context).size.width <= 600) Navigator.pop(context); // Close sheet on mobile
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("SIGNED ${w.name.toUpperCase()}!", style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black)), backgroundColor: Colors.greenAccent));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -302,7 +262,7 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
             _selectedTabIndex = index;
             _clearSelection(); 
           });
-          if (index == 3) _fetchRivals(); // Refresh rivals if tab is clicked
+          if (index == 3) _fetchRivals(); 
         },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -537,16 +497,25 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
                   else if (_selectedTabIndex == 2) ...[
                     const Text("Wrestler is currently a Free Agent.", style: TextStyle(color: Colors.white, fontSize: 14)),
                     const SizedBox(height: 4),
-                    Text("Asking Salary: \$${w.salary} / wk", style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                    Text("Signing Bonus: \$${w.salary * 4}", style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                    Text("Estimated Salary: \$${w.pop * 10} / wk", style: const TextStyle(color: Colors.white70, fontSize: 12)),
                     const SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.greenAccent, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 16)),
-                        icon: const Icon(Icons.edit_document),
-                        label: Text("PAY \$${w.salary * 4} TO SIGN", style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0)),
-                        onPressed: () => _signFreeAgent(w),
+                        icon: const Icon(Icons.handshake),
+                        // 🚨 FIX: LAUNCHES THE NEGOTIATION DIALOG INSTEAD OF INSTANT SIGNING!
+                        label: const Text("ENTER NEGOTIATIONS", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                        onPressed: () {
+                          if (rosterState.roster.length >= 12) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Roster Full! Release someone first."), backgroundColor: Colors.redAccent));
+                            return;
+                          }
+                          showDialog(
+                            context: context, 
+                            builder: (_) => ContractNegotiationDialog(wrestler: w)
+                          );
+                        },
                       ),
                     ),
                   ]
@@ -594,7 +563,6 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${w.name} moved to Injured Reserve."), backgroundColor: Colors.orangeAccent));
                 }),
 
-              // 🚨 THE FIX: SNACKBARS ADDED TO ALL BUTTONS!
               _buildActionTile("💊 MEDICAL REHAB (\$5,000)", "Heals Fatigue/Injury.", Icons.healing, Colors.greenAccent, () async {
                 await notifier.trainingAction(w, "HEAL", 5000);
                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Medical Rehab successful! Stamina restored."), backgroundColor: Colors.greenAccent));

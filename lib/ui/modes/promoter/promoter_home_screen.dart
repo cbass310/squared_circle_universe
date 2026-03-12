@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:isar/isar.dart'; 
 import '../../../logic/game_state_provider.dart';
 import '../../../logic/promoter_provider.dart'; 
 import '../../../logic/cloud_sync_service.dart';
-import '../../../logic/communications_provider.dart'; 
+import '../../../data/models/news_item.dart'; 
 
 // --- SCREEN IMPORTS ---
 import 'booking_hub_screen.dart';       
@@ -19,6 +20,13 @@ import '../../screens/settings_screen.dart';
 
 // --- WIDGET IMPORTS ---
 import '../../components/global_network_button.dart'; 
+
+final unreadMessagesCountProvider = StreamProvider<int>((ref) async* {
+  final isar = Isar.getInstance();
+  if (isar == null) yield 0;
+  
+  yield* isar!.newsItems.filter().isReadEqualTo(false).watch(fireImmediately: true).map((items) => items.length);
+});
 
 class PromoterHomeScreen extends ConsumerStatefulWidget {
   const PromoterHomeScreen({super.key});
@@ -45,10 +53,9 @@ class _PromoterHomeScreenState extends ConsumerState<PromoterHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 🚨 SMART LAYOUT BUILDER ADAPTED FOR RESPONSIVE SCALING 🚨
     return LayoutBuilder(
       builder: (context, constraints) {
-        final bool isDesktop = constraints.maxWidth > 600; // Allow tablets to get PC UI
+        final bool isDesktop = constraints.maxWidth > 600; 
 
         return Scaffold(
           backgroundColor: Colors.black,
@@ -58,8 +65,6 @@ class _PromoterHomeScreenState extends ConsumerState<PromoterHomeScreen> {
                 index: _selectedIndex,
                 children: _mainTabs,
               ),
-              
-              // THE UNIVERSAL GLOBAL COMPONENT
               Positioned(
                 top: isDesktop ? 40 : 50, 
                 right: isDesktop ? 40 : 20,
@@ -82,7 +87,8 @@ class _PromoterHomeScreenState extends ConsumerState<PromoterHomeScreen> {
                 BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "HOME"),
                 BottomNavigationBarItem(icon: Icon(Icons.tv), label: "BOOKING"),
                 BottomNavigationBarItem(icon: Icon(Icons.business), label: "OFFICE"),
-                BottomNavigationBarItem(icon: Icon(Icons.flash_on), label: "POWER PLANT"),
+                // 🚨 THE FIX: Nav Bar officially rebranded to ACADEMY
+                BottomNavigationBarItem(icon: Icon(Icons.school), label: "ACADEMY"),
               ],
             ),
           ),
@@ -108,7 +114,6 @@ class _DashboardTabState extends ConsumerState<DashboardTab> with SingleTickerPr
   void initState() {
     super.initState();
     
-    // Setup the glowing pulse animation
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
@@ -128,11 +133,6 @@ class _DashboardTabState extends ConsumerState<DashboardTab> with SingleTickerPr
         fans: gameState.fans,
         rep: gameState.reputation,
       );
-
-      final currentNews = ref.read(communicationsProvider);
-      if (currentNews.isEmpty) {
-        ref.read(communicationsProvider.notifier).generateWeeklyContent(gameState.week);
-      }
     });
   }
 
@@ -145,31 +145,30 @@ class _DashboardTabState extends ConsumerState<DashboardTab> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     final gameState = ref.watch(gameProvider);
+    final unreadCountAsync = ref.watch(unreadMessagesCountProvider); 
+    final int unreadCount = unreadCountAsync.value ?? 0; 
+    
     final bool isPPVWeek = gameState.isPPV; 
 
-    // 🚨 40/60 MOBILE SPLIT ARCHITECTURE 🚨
     return LayoutBuilder(
       builder: (context, constraints) {
-        final bool isDesktop = constraints.maxWidth > 600; // 🛠️ 600 For Tablets
+        final bool isDesktop = constraints.maxWidth > 600; 
 
         if (isDesktop) {
-          // 💻 PC / TABLET LAYOUT (Wide Side-by-Side)
           return Scaffold(
             backgroundColor: Colors.transparent, 
             body: Row(
               children: [
-                Expanded(flex: 4, child: _buildDashboardContent(context, gameState, isPPVWeek, true)), 
-                _buildHeroBackground(true) // Takes remaining flex 6 internally
+                Expanded(flex: 4, child: _buildDashboardContent(context, gameState, unreadCount, isPPVWeek, true)), 
+                _buildHeroBackground(true) 
               ]
             ),
           );
         } else {
-          // 📱 PHONE LAYOUT (40/60 Vertical Split)
           return Scaffold(
             backgroundColor: Colors.black,
             body: Column(
               children: [
-                // 🛠️ THE FIX: Top 40% Image NOW INCLUDES THE HEADER TEXT
                 Expanded(
                   flex: 4, 
                   child: Stack(
@@ -186,7 +185,6 @@ class _DashboardTabState extends ConsumerState<DashboardTab> with SingleTickerPr
                           )
                         )
                       ),
-                      // THE MOVED HEADER
                       SafeArea(
                         child: Padding(
                           padding: const EdgeInsets.all(16.0),
@@ -221,13 +219,12 @@ class _DashboardTabState extends ConsumerState<DashboardTab> with SingleTickerPr
                     ],
                   ),
                 ),
-                // 🛠️ THE FIX: Bottom 60% Dashboard is now completely free of the header!
                 Expanded(
                   flex: 6,
                   child: Container(
                     color: Colors.black,
                     width: double.infinity,
-                    child: _buildDashboardContent(context, gameState, isPPVWeek, false),
+                    child: _buildDashboardContent(context, gameState, unreadCount, isPPVWeek, false),
                   ),
                 ),
               ],
@@ -238,12 +235,10 @@ class _DashboardTabState extends ConsumerState<DashboardTab> with SingleTickerPr
     );
   }
 
-  // ------------------------------------------------
-  // WIDGET: THE MAIN DASHBOARD CONTENT
-  // ------------------------------------------------
-  Widget _buildDashboardContent(BuildContext context, dynamic gameState, bool isPPVWeek, bool isDesktop) {
+  Widget _buildDashboardContent(BuildContext context, dynamic gameState, int unreadCount, bool isPPVWeek, bool isDesktop) {
     bool isMissingTvDeal = false;
     bool isMissingSponsors = false;
+    bool hasUnreadMessages = unreadCount > 0;
 
     if (!isPPVWeek) {
       try { isMissingTvDeal = gameState.activeTvDeals == null || gameState.activeTvDeals.isEmpty; } catch (e) {
@@ -260,7 +255,6 @@ class _DashboardTabState extends ConsumerState<DashboardTab> with SingleTickerPr
       ),
       child: Column(
         children: [
-          // TOP APP BAR AREA - ONLY COMPILES ON DESKTOP NOW
           if (isDesktop)
             SafeArea(
               bottom: false,
@@ -283,18 +277,16 @@ class _DashboardTabState extends ConsumerState<DashboardTab> with SingleTickerPr
               ),
             ),
           
-          // SCROLLABLE CONTENT
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.only(
                 left: isDesktop ? 24.0 : 16.0,
                 right: isDesktop ? 24.0 : 16.0,
-                top: isDesktop ? 0 : 16.0, // Adds top padding on mobile since header is gone
+                top: isDesktop ? 0 : 16.0, 
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. TOP METRICS
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -316,7 +308,6 @@ class _DashboardTabState extends ConsumerState<DashboardTab> with SingleTickerPr
                   ),
                   const SizedBox(height: 20),
 
-                  // 2. INTERACTIVE EVENT BANNER
                   GestureDetector(
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RatingsWarScreen())),
                     child: Container(
@@ -335,6 +326,7 @@ class _DashboardTabState extends ConsumerState<DashboardTab> with SingleTickerPr
                         boxShadow: [BoxShadow(color: (isPPVWeek ? Colors.amber : Colors.blueAccent).withOpacity(0.2), blurRadius: 12, offset: const Offset(0, 4))],
                       ),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Expanded(
                             child: Column(
@@ -342,39 +334,49 @@ class _DashboardTabState extends ConsumerState<DashboardTab> with SingleTickerPr
                               children: [
                                 Row(
                                   children: [
-                                    Text("WEEK ${gameState.week}", style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+                                    Text("WEEK ${gameState.week}", style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
                                     const SizedBox(width: 8),
                                     Icon(isPPVWeek ? Icons.bolt : Icons.live_tv, color: Colors.white54, size: 14),
                                   ],
                                 ),
                                 const SizedBox(height: 4),
-                                Text(
-                                  isPPVWeek ? gameState.nextPPVName.toUpperCase() : gameState.tvShowName.toUpperCase(), 
-                                  style: TextStyle(color: isPPVWeek ? Colors.amberAccent : Colors.white, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 1.0)
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    isPPVWeek ? gameState.nextPPVName.toUpperCase() : gameState.tvShowName.toUpperCase(), 
+                                    style: TextStyle(color: isPPVWeek ? Colors.amberAccent : Colors.white, fontSize: 24, fontWeight: FontWeight.w900)
+                                  ),
                                 ),
-                                const SizedBox(height: 2),
+                                const SizedBox(height: 4),
                                 Text(
                                   isPPVWeek ? "PREMIUM LIVE EVENT" : "${gameState.currentVenueDetails['name']}", 
-                                  style: const TextStyle(color: Colors.white70, fontSize: 12)
+                                  style: const TextStyle(color: Colors.white70, fontSize: 11, letterSpacing: 0.5),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),
                           ),
+                          const SizedBox(width: 16),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.3),
+                              color: Colors.black.withOpacity(0.4),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: Colors.white10),
                             ),
                             child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 const Icon(Icons.bar_chart_rounded, color: Colors.redAccent, size: 20),
                                 const SizedBox(height: 4),
-                                const Text("WAR ROOM", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                                const SizedBox(height: 2),
-                                // 🚨 THE FIX: Added the Draws variable directly to this widget!
-                                Text("${gameState.playerWins}-${gameState.rivalWins}-${gameState.draws}", style: const TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.w900)), 
+                                const Text("WAR ROOM", style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "${gameState.playerWins}-${gameState.rivalWins}-${gameState.draws}", 
+                                  style: const TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.w900)
+                                ), 
                               ],
                             ),
                           ),
@@ -384,7 +386,6 @@ class _DashboardTabState extends ConsumerState<DashboardTab> with SingleTickerPr
                   ),
                   const SizedBox(height: 25),
 
-                  // 3. MANAGEMENT LIST
                   const Padding(
                     padding: EdgeInsets.only(bottom: 12),
                     child: Text("MANAGEMENT", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
@@ -404,10 +405,10 @@ class _DashboardTabState extends ConsumerState<DashboardTab> with SingleTickerPr
                     context,
                     icon: Icons.article_rounded,
                     title: "COMMUNICATIONS",
-                    subtitle: "Latest dirt sheet rumors and company actions.",
-                    baseColor: Colors.orangeAccent,
+                    subtitle: hasUnreadMessages ? "You have $unreadCount unread message(s)!" : "Latest dirt sheet rumors and company actions.",
+                    baseColor: hasUnreadMessages ? Colors.redAccent : Colors.orangeAccent,
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NewsScreen())),
-                    isPulsing: false, 
+                    isPulsing: hasUnreadMessages, 
                   ),
                   
                   _buildPremiumMenuButton(
@@ -440,12 +441,8 @@ class _DashboardTabState extends ConsumerState<DashboardTab> with SingleTickerPr
     );
   }
 
-  // ------------------------------------------------
-  // WIDGET: RESPONSIVE HERO BACKGROUND
-  // ------------------------------------------------
   Widget _buildHeroBackground(bool isDesktop) {
     if (!isDesktop) {
-      // Phone Background (No Expanded wrapper needed inside Stack)
       return Image.asset(
         "assets/images/crowd_background.png", 
         fit: BoxFit.cover,
@@ -453,7 +450,6 @@ class _DashboardTabState extends ConsumerState<DashboardTab> with SingleTickerPr
       );
     }
     
-    // PC Background
     return Expanded(
       flex: 6,
       child: Stack(
@@ -495,9 +491,6 @@ class _DashboardTabState extends ConsumerState<DashboardTab> with SingleTickerPr
     );
   }
 
-  // ------------------------------------------------
-  // HELPER FORMATTING & WIDGETS
-  // ------------------------------------------------
   String _formatNumber(int number) {
     return number.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
   }

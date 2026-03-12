@@ -54,7 +54,46 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       }
     });
 
-    final availableRoster = rosterState.roster.where((w) => !w.isOnIR).toList();
+    // 🚨 THE FIX: Completely blocks anyone holding out from being booked on the card!
+    final availableRoster = rosterState.roster.where((w) => !w.isOnIR && !w.isHoldingOut).toList();
+
+    // 🚨 THE FAILSAFE: Block the screen if the roster is completely depleted
+    if (availableRoster.length < 2) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          title: const Text("CRITICAL WARNING", style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1.5)),
+          backgroundColor: const Color(0xFF121212),
+          iconTheme: const IconThemeData(color: Colors.redAccent),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 80),
+                const SizedBox(height: 24),
+                const Text("ROSTER DEPLETED", style: TextStyle(color: Colors.redAccent, fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 2.0)),
+                const SizedBox(height: 16),
+                const Text(
+                  "You do not have enough active talent to book this match. You must have at least 2 healthy wrestlers who are not holding out. Go sign Free Agents, wait for injuries to heal, or pay your holdouts!",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
+                ),
+                const SizedBox(height: 40),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16)),
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text("RETURN TO OFFICE", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                  onPressed: () => Navigator.pop(context),
+                )
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     if (selectedWrestler1Id != null && !availableRoster.any((w) => w.id == selectedWrestler1Id)) selectedWrestler1Id = null;
     if (selectedWrestler2Id != null && !availableRoster.any((w) => w.id == selectedWrestler2Id)) selectedWrestler2Id = null;
@@ -468,11 +507,28 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                     const Text("MATCH STIPULATION", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 2.0)),
                     const SizedBox(height: 12),
                     
+                    // 🚨 THE FIX: Expanded Dropdown Item Generation for MatchType
                     _buildDropdownContainer(
                       child: DropdownButton<MatchType>(
-                        isExpanded: true, dropdownColor: const Color(0xFF1A1A1A), icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.amber, size: 30),
+                        isExpanded: true, 
+                        dropdownColor: const Color(0xFF1A1A1A), 
+                        icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.amber, size: 30),
                         value: state.selectedType,
-                        items: MatchType.values.map((type) => DropdownMenuItem(value: type, child: Row(children: [const Icon(Icons.sports_kabaddi, color: Colors.white54, size: 20), const SizedBox(width: 16), Text(type.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1.0))]))).toList(),
+                        items: MatchType.values.map((type) {
+                          return DropdownMenuItem(
+                            value: type, 
+                            child: Row(
+                              children: [
+                                const Icon(Icons.sports_kabaddi, color: Colors.white54, size: 20), 
+                                const SizedBox(width: 16), 
+                                Text(
+                                  type.name.toUpperCase(), 
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1.0)
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
                         onChanged: (val) { if (val != null) { HapticFeedback.lightImpact(); notifier.setMatchType(val); } },
                       ),
                     ),
@@ -481,14 +537,29 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                     const Text("ROAD AGENT NOTES", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 2.0)),
                     const SizedBox(height: 12),
 
+                    // 🚨 THE FIX: Expanded Dropdown Item Generation for AgentNote
                     _buildDropdownContainer(
                       child: DropdownButton<AgentNote>(
-                        isExpanded: true, itemHeight: 65, dropdownColor: const Color(0xFF1A1A1A), icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.amber, size: 30),
+                        isExpanded: true, 
+                        itemHeight: 65, 
+                        dropdownColor: const Color(0xFF1A1A1A), 
+                        icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.amber, size: 30),
                         value: state.selectedNote,
                         items: [AgentNote.standard, AgentNote.cleanFinish, AgentNote.screwjob].map((note) {
                           String title = note == AgentNote.standard ? "Call It In The Ring" : note == AgentNote.cleanFinish ? "Clean Finish (+Rating)" : "Screwjob / Interference (++Heat)";
                           String sub = note == AgentNote.standard ? "Standard psychology & risks." : note == AgentNote.cleanFinish ? "Decisive win. Loser loses momentum." : "Boosts rivalry heat, risks angering fans.";
-                          return DropdownMenuItem(value: note, child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1.0)), const SizedBox(height: 2), Text(sub, style: const TextStyle(color: Colors.white54, fontSize: 10))]));
+                          return DropdownMenuItem(
+                            value: note, 
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start, 
+                              mainAxisAlignment: MainAxisAlignment.center, 
+                              children: [
+                                Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, letterSpacing: 1.0)), 
+                                const SizedBox(height: 2), 
+                                Text(sub, style: const TextStyle(color: Colors.white54, fontSize: 10)),
+                              ],
+                            ),
+                          );
                         }).toList(),
                         onChanged: (val) { if (val != null) { HapticFeedback.lightImpact(); notifier.setAgentNote(val); } },
                       ),

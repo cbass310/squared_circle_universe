@@ -6,10 +6,25 @@ import '../../../logic/game_state_provider.dart';
 import '../../../logic/promoter_provider.dart';
 import '../../../data/models/wrestler.dart';
 import '../../../data/models/show_history.dart'; 
+import '../../../data/models/rivalry.dart'; 
 import '../../components/wrestler_avatar.dart';
 
 // --- IMPORT FOR THE WATERMARK ---
 import '../../components/tv_watermark.dart';
+
+// 🚨 THE FIX: Direct Database Pipeline for Feuds
+final liveRivalriesProvider = StreamProvider<List<Rivalry>>((ref) async* {
+  final isar = Isar.getInstance();
+  if (isar == null) yield [];
+  yield* isar!.rivalrys.filter().statusEqualTo(RivalryStatus.active).sortByHeatDesc().watch(fireImmediately: true);
+});
+
+// 🚨 THE FIX: Direct Database Pipeline for History
+final liveHistoryProvider = StreamProvider<List<ShowHistory>>((ref) async* {
+  final isar = Isar.getInstance();
+  if (isar == null) yield [];
+  yield* isar!.showHistorys.where().sortByWeekDesc().watch(fireImmediately: true);
+});
 
 class RivalryScreen extends ConsumerWidget {
   const RivalryScreen({super.key});
@@ -33,7 +48,7 @@ class RivalryScreen extends ConsumerWidget {
               body: SafeArea(
                 child: Row(
                   children: [
-                    Expanded(flex: 4, child: _buildDashboard(context, gameState, rosterState, true)),
+                    Expanded(flex: 4, child: _buildDashboard(context, gameState, rosterState, ref, true)),
                     Expanded(flex: 6, child: _buildArtworkPane(gameState, isMobile: false)),
                   ],
                 ),
@@ -103,7 +118,7 @@ class RivalryScreen extends ConsumerWidget {
                     child: Container(
                       color: Colors.black,
                       width: double.infinity,
-                      child: _buildDashboard(context, gameState, rosterState, false),
+                      child: _buildDashboard(context, gameState, rosterState, ref, false),
                     ),
                   ),
                 ],
@@ -118,7 +133,7 @@ class RivalryScreen extends ConsumerWidget {
   // =====================================================================
   // --- THE CREATIVE DASHBOARD (Shared)
   // =====================================================================
-  Widget _buildDashboard(BuildContext context, dynamic gameState, dynamic rosterState, bool isDesktop) {
+  Widget _buildDashboard(BuildContext context, dynamic gameState, dynamic rosterState, WidgetRef ref, bool isDesktop) {
     return Container(
       decoration: BoxDecoration(
         color: isDesktop ? const Color(0xFF121212) : Colors.black,
@@ -164,8 +179,8 @@ class RivalryScreen extends ConsumerWidget {
           Expanded(
             child: TabBarView(
               children: [
-                _buildRivalriesTab(rosterState),
-                _buildHistoryTab(gameState),
+                _buildRivalriesTab(ref, rosterState.roster),
+                _buildHistoryTab(ref),
                 _buildAssistantGMTab(context, rosterState),
               ],
             ),
@@ -207,36 +222,49 @@ class RivalryScreen extends ConsumerWidget {
   // =====================================================================
   // --- TAB 1: RIVALRIES
   // =====================================================================
-  Widget _buildRivalriesTab(dynamic rosterState) {
-    if (rosterState.activeRivalries.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.people_outline, size: 60, color: Colors.white24),
-            SizedBox(height: 16),
-            Text("THE WHITEBOARD IS EMPTY", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-            SizedBox(height: 8),
-            Text("Book matches between talent to spark feuds.", style: TextStyle(color: Colors.white30, fontSize: 12)),
-          ],
-        ),
-      );
-    }
+  Widget _buildRivalriesTab(WidgetRef ref, List<Wrestler> roster) {
+    final rivalriesAsync = ref.watch(liveRivalriesProvider);
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: rosterState.activeRivalries.length,
-      itemBuilder: (context, index) {
-        final feud = rosterState.activeRivalries[index];
-        return _buildFeudCard(feud);
-      },
+    return rivalriesAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: Colors.amber)),
+      error: (err, stack) => const Center(child: Text("Error loading rivalries.", style: TextStyle(color: Colors.red))),
+      data: (feuds) {
+        if (feuds.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.people_outline, size: 60, color: Colors.white24),
+                SizedBox(height: 16),
+                Text("THE WHITEBOARD IS EMPTY", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                SizedBox(height: 8),
+                Text("Book matches between talent to spark feuds.", style: TextStyle(color: Colors.white30, fontSize: 12)),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: feuds.length,
+          itemBuilder: (context, index) {
+            final feud = feuds[index];
+            
+            // 🚨 Re-attach the Wrestler objects from the DB names
+            Wrestler? w1 = roster.where((w) => w.name == feud.wrestler1Name).firstOrNull;
+            Wrestler? w2 = roster.where((w) => w.name == feud.wrestler2Name).firstOrNull;
+            
+            // If they got released, we skip drawing the feud card
+            if (w1 == null || w2 == null) return const SizedBox.shrink();
+
+            return _buildFeudCard(w1, w2, feud);
+          },
+        );
+      }
     );
   }
 
-  Widget _buildFeudCard(dynamic feud) {
-    final w1 = feud.wrestlerA;
-    final w2 = feud.wrestlerB;
-
+  Widget _buildFeudCard(Wrestler w1, Wrestler w2, Rivalry feud) {
     Color heatColor = Colors.blue;
     String status = "Cold";
     IconData statusIcon = Icons.ac_unit;
@@ -250,7 +278,7 @@ class RivalryScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: heatColor.withOpacity(0.5), width: 1), // Thinned border slightly for cleaner look
+        border: Border.all(color: heatColor.withOpacity(0.5), width: 1), 
         boxShadow: [BoxShadow(color: heatColor.withOpacity(0.1), blurRadius: 15, offset: const Offset(0, 5))],
       ),
       child: Stack(
@@ -318,28 +346,24 @@ class RivalryScreen extends ConsumerWidget {
   // =====================================================================
   // --- TAB 2: HISTORY
   // =====================================================================
-  Widget _buildHistoryTab(dynamic gameState) {
-    final isar = Isar.getInstance();
-    if (isar == null) return const Center(child: Text("Archive Database Offline."));
+  Widget _buildHistoryTab(WidgetRef ref) {
+    final historyAsync = ref.watch(liveHistoryProvider);
 
-    return FutureBuilder<List<ShowHistory>>(
-      future: isar.showHistorys.where().findAll().then((list) {
-        list.sort((a, b) => b.week.compareTo(a.week)); 
-        return list.take(4).toList(); 
-      }),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: Colors.amber));
-        
-        final history = snapshot.data!;
+    return historyAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: Colors.amber)),
+      error: (err, stack) => const Center(child: Text("Error loading archive.", style: TextStyle(color: Colors.red))),
+      data: (history) {
         if (history.isEmpty) {
           return const Center(child: Text("No booking history available.", style: TextStyle(color: Colors.white54)));
         }
 
+        final topHistory = history.take(6).toList();
+
         return ListView.builder(
           padding: const EdgeInsets.all(16),
-          itemCount: history.length,
+          itemCount: topHistory.length,
           itemBuilder: (context, index) {
-            final entry = history[index];
+            final entry = topHistory[index];
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
@@ -356,7 +380,7 @@ class RivalryScreen extends ConsumerWidget {
                     children: [
                       const Icon(Icons.live_tv, color: Colors.white54, size: 18),
                       const SizedBox(width: 10),
-                      Text("WEEK ${entry.week}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                      Text("WEEK ${entry.week} - ${entry.showName.toUpperCase()}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                       const Spacer(),
                       const Icon(Icons.star, color: Colors.amber, size: 14),
                       const SizedBox(width: 4),
@@ -523,7 +547,7 @@ class RivalryScreen extends ConsumerWidget {
               },
             ),
           ),
-          const SizedBox(height: 40), // Bottom safe area
+          const SizedBox(height: 40), 
         ],
       ),
     );

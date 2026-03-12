@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// 🚨 NEW: Updated to point to the correct Inbox Provider we just built
-import '../../../logic/inbox_provider.dart'; 
+import 'package:isar/isar.dart'; 
 import '../../../data/models/news_item.dart';
 
 // --- IMPORT FOR THE WATERMARK ---
 import '../../components/tv_watermark.dart';
+
+// 🚨 THE FIX: Direct Database Pipeline. No more ghost providers!
+final liveNewsProvider = StreamProvider<List<NewsItem>>((ref) async* {
+  final isar = Isar.getInstance();
+  if (isar == null) yield [];
+  
+  yield* isar!.newsItems.where().sortByTimestampDesc().watch(fireImmediately: true);
+});
 
 class NewsScreen extends ConsumerStatefulWidget {
   const NewsScreen({super.key});
@@ -19,19 +26,39 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
   int _selectedTabIndex = 0;
   NewsItem? _selectedMessage;
 
+  Future<void> _deleteMessage(int id) async {
+    HapticFeedback.heavyImpact();
+    
+    final isar = Isar.getInstance();
+    if (isar != null) {
+      await isar.writeTxn(() async {
+        await isar.newsItems.delete(id);
+      });
+    }
+  }
+
   void _openMessage(NewsItem msg, bool isDesktop) {
     HapticFeedback.selectionClick();
-    ref.read(inboxProvider.notifier).markAsRead(msg.id); // 🚨 Pointed to the new provider
+    
+    // Mark as read instantly in the DB
+    if (!msg.isRead) {
+      final isar = Isar.getInstance();
+      if (isar != null) {
+        isar.writeTxn(() async {
+          msg.isRead = true;
+          await isar.newsItems.put(msg);
+        });
+      }
+    }
     
     if (isDesktop) {
       setState(() => _selectedMessage = msg);
     } else {
-      // 📱 MOBILE: Slide up the email/news content
       showModalBottomSheet(
         context: context,
         isScrollControlled: true, 
         backgroundColor: Colors.transparent, 
-        builder: (context) => DraggableScrollableSheet(
+        builder: (bottomSheetContext) => DraggableScrollableSheet(
           initialChildSize: 0.85, 
           minChildSize: 0.5,
           maxChildSize: 0.95,
@@ -39,7 +66,6 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFF151515),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-              // 🚨 Quick fallback color just in case
               border: Border(top: BorderSide(color: _getCategoryColor(msg.type), width: 2)),
             ),
             child: Column(
@@ -53,7 +79,7 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
                   child: SingleChildScrollView(
                     controller: controller,
                     padding: const EdgeInsets.all(24),
-                    child: _buildMessageContent(msg), 
+                    child: _buildMessageContent(msg, bottomSheetContext), 
                   ),
                 ),
               ],
@@ -66,7 +92,6 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
     }
   }
 
-  // 🎨 HELPER: Defines colors based on the category!
   Color _getCategoryColor(String type) {
     switch (type) {
       case "EMAIL": return Colors.blueAccent;
@@ -87,117 +112,119 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 🔌 READ THE LIVE MESSAGES FROM THE NEW ENGINE
-    final inboxState = ref.watch(inboxProvider);
+    // 🚨 THE FIX: Watch the live Isar stream!
+    final newsAsync = ref.watch(liveNewsProvider);
 
-    // 🚨 Filter messages based on selected tab directly from the provider!
-    List<NewsItem> filteredMessages = [];
-    if (_selectedTabIndex == 0) filteredMessages = inboxState.emails;
-    if (_selectedTabIndex == 1) filteredMessages = inboxState.dirtSheets;
-    if (_selectedTabIndex == 2) filteredMessages = inboxState.socialPosts;
-
-    // 🚨 SMART LAYOUT BUILDER 🚨
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool isDesktop = constraints.maxWidth > 800;
 
-        if (isDesktop) {
-          // 💻 PC LAYOUT (Wide Side-by-Side)
-          return Scaffold(
-            backgroundColor: Colors.black,
-            body: SafeArea(
-              child: Row(
-                children: [
-                  Expanded(flex: 4, child: _buildDashboard(filteredMessages, isDesktop)),
-                  Expanded(
-                    flex: 6, 
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        _buildArtworkPane(isMobile: false),
-                        if (_selectedMessage != null)
-                          Container(
-                            color: Colors.black.withOpacity(0.9),
-                            padding: const EdgeInsets.all(40.0),
-                            child: _buildMessageContent(_selectedMessage!),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        } else {
-          // 📱 MOBILE LAYOUT (40/60 Vertical Split)
-          return Scaffold(
-            backgroundColor: Colors.black,
-            body: Column(
-              children: [
-                // TOP 40%: The Cinematic Viewport
-                Expanded(
-                  flex: 4,
-                  child: Stack(
-                    fit: StackFit.expand,
+        return newsAsync.when(
+          loading: () => const Scaffold(backgroundColor: Colors.black, body: Center(child: CircularProgressIndicator(color: Colors.amber))),
+          error: (err, stack) => Scaffold(backgroundColor: Colors.black, body: Center(child: Text("Error: $err", style: const TextStyle(color: Colors.red)))),
+          data: (allMessages) {
+            
+            // 🚨 THE FIX: Map the live database records to the correct tabs
+            List<NewsItem> filteredMessages = [];
+            if (_selectedTabIndex == 0) filteredMessages = allMessages.where((m) => m.type == "EMAIL").toList();
+            if (_selectedTabIndex == 1) filteredMessages = allMessages.where((m) => m.type == "DIRT_SHEET").toList();
+            if (_selectedTabIndex == 2) filteredMessages = allMessages.where((m) => m.type == "SOCIAL").toList();
+
+            if (isDesktop) {
+              return Scaffold(
+                backgroundColor: Colors.black,
+                body: SafeArea(
+                  child: Row(
                     children: [
-                      _buildArtworkPane(isMobile: true),
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [Colors.black.withOpacity(0.4), Colors.black],
-                            stops: const [0.5, 1.0],
-                          ),
-                        ),
-                      ),
-                      SafeArea(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20), 
-                                onPressed: () => Navigator.pop(context),
-                                padding: EdgeInsets.zero,
-                                alignment: Alignment.topLeft,
+                      Expanded(flex: 4, child: _buildDashboard(filteredMessages, isDesktop)),
+                      Expanded(
+                        flex: 6, 
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            _buildArtworkPane(isMobile: false),
+                            if (_selectedMessage != null)
+                              Container(
+                                color: Colors.black.withOpacity(0.9),
+                                padding: const EdgeInsets.all(40.0),
+                                child: _buildMessageContent(_selectedMessage!, context),
                               ),
-                              const Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(Icons.cell_tower_rounded, color: Colors.orangeAccent, size: 24),
-                                      SizedBox(width: 8),
-                                      Text("GLOBAL NETWORK", style: TextStyle(color: Colors.orangeAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
-                                    ],
-                                  ),
-                                  SizedBox(height: 4),
-                                  Text("COMMUNICATIONS", style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
-                                ],
-                              ),
-                            ],
-                          ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-                // BOTTOM 60%: The Dashboard Data
-                Expanded(
-                  flex: 6,
-                  child: Container(
-                    color: Colors.black,
-                    width: double.infinity,
-                    child: _buildDashboard(filteredMessages, false),
-                  ),
+              );
+            } else {
+              return Scaffold(
+                backgroundColor: Colors.black,
+                body: Column(
+                  children: [
+                    Expanded(
+                      flex: 4,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          _buildArtworkPane(isMobile: true),
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Colors.black.withOpacity(0.4), Colors.black],
+                                stops: const [0.5, 1.0],
+                              ),
+                            ),
+                          ),
+                          SafeArea(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.amber, size: 20), 
+                                    onPressed: () => Navigator.pop(context),
+                                    padding: EdgeInsets.zero,
+                                    alignment: Alignment.topLeft,
+                                  ),
+                                  const Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(Icons.cell_tower_rounded, color: Colors.orangeAccent, size: 24),
+                                          SizedBox(width: 8),
+                                          Text("GLOBAL NETWORK", style: TextStyle(color: Colors.orangeAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+                                        ],
+                                      ),
+                                      SizedBox(height: 4),
+                                      Text("COMMUNICATIONS", style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      flex: 6,
+                      child: Container(
+                        color: Colors.black,
+                        width: double.infinity,
+                        child: _buildDashboard(filteredMessages, false),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          );
-        }
+              );
+            }
+          }
+        );
       }
     );
   }
@@ -213,7 +240,6 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
       ),
       child: Column(
         children: [
-          // HEADER (PC ONLY - Mobile uses the image overlay)
           if (isDesktop)
             SafeArea(
               bottom: false,
@@ -239,31 +265,12 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
               children: [
                 _buildTab(0, "INBOX"),
                 _buildTab(1, "DIRT SHEET"),
-                _buildTab(2, "SOCIAL"), // 🚨 The third tab is now active!
+                _buildTab(2, "SOCIAL"),
               ],
             ),
           ),
           
-          // 🚨 THE NEW QUALITY OF LIFE BATCH BUTTONS!
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton.icon(
-                  icon: const Icon(Icons.done_all, color: Colors.white54, size: 16),
-                  label: const Text("MARK ALL READ", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
-                  onPressed: () => ref.read(inboxProvider.notifier).markAllAsRead(),
-                ),
-                const SizedBox(width: 8),
-                TextButton.icon(
-                  icon: const Icon(Icons.delete_sweep, color: Colors.redAccent, size: 16),
-                  label: const Text("CLEAR READ", style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold)),
-                  onPressed: () => ref.read(inboxProvider.notifier).clearAllReadMessages(),
-                ),
-              ],
-            ),
-          ),
+          const SizedBox(height: 8), 
 
           // INBOX LIST
           Expanded(
@@ -295,7 +302,7 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
                             child: Padding(
                               padding: const EdgeInsets.all(16),
                               child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.all(10),
@@ -307,21 +314,31 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text(msg.sender.toUpperCase(), style: TextStyle(color: msg.isRead ? Colors.white54 : msgColor, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
-                                            // Format the raw DateTime if you don't have a getter
-                                            Text("${msg.timestamp.month}/${msg.timestamp.day}", style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10)),
-                                          ],
-                                        ),
+                                        Text(msg.sender.toUpperCase(), style: TextStyle(color: msg.isRead ? Colors.white54 : msgColor, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
                                         const SizedBox(height: 6),
                                         Text(msg.subject, style: TextStyle(color: msg.isRead ? Colors.white70 : Colors.white, fontSize: 14, fontWeight: msg.isRead ? FontWeight.normal : FontWeight.w800)),
                                       ],
                                     ),
                                   ),
                                   if (!msg.isRead)
-                                    Container(margin: const EdgeInsets.only(left: 8, top: 6), width: 8, height: 8, decoration: BoxDecoration(color: msgColor, shape: BoxShape.circle)),
+                                    Container(
+                                      margin: const EdgeInsets.only(left: 8, right: 12), 
+                                      width: 10, 
+                                      height: 10, 
+                                      decoration: BoxDecoration(color: msgColor, shape: BoxShape.circle)
+                                    ),
+                                  
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline, color: Colors.white24, size: 22),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    onPressed: () {
+                                      _deleteMessage(msg.id);
+                                      if (_selectedMessage?.id == msg.id) {
+                                        setState(() => _selectedMessage = null);
+                                      }
+                                    },
+                                  )
                                 ],
                               ),
                             ),
@@ -390,8 +407,9 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
   // =====================================================================
   // --- THE MESSAGE CONTENT (Displayed in PC Right Pane or Mobile Modal)
   // =====================================================================
-  Widget _buildMessageContent(NewsItem msg) {
+  Widget _buildMessageContent(NewsItem msg, BuildContext localContext) {
     Color msgColor = _getCategoryColor(msg.type);
+    bool isDesktop = MediaQuery.of(localContext).size.width > 800;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -410,8 +428,6 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
                     children: [
                       Text("From: ", style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12, fontWeight: FontWeight.bold)),
                       Text(msg.sender.toUpperCase(), style: TextStyle(color: msgColor, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
-                      const Spacer(),
-                      Text("${msg.timestamp.month}/${msg.timestamp.day}/${msg.timestamp.year}", style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 10, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ],
@@ -422,6 +438,30 @@ class _NewsScreenState extends ConsumerState<NewsScreen> {
         const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Divider(color: Colors.white10, thickness: 2)),
         Text(msg.body, style: const TextStyle(color: Colors.white70, fontSize: 15, height: 1.6, letterSpacing: 0.5)),
         const SizedBox(height: 40),
+
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.delete_forever_rounded, color: Colors.redAccent),
+            label: const Text("DELETE MESSAGE", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              side: const BorderSide(color: Colors.redAccent, width: 2),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              backgroundColor: Colors.redAccent.withOpacity(0.05),
+            ),
+            onPressed: () {
+              _deleteMessage(msg.id);
+              if (isDesktop) {
+                setState(() => _selectedMessage = null);
+              } else {
+                setState(() => _selectedMessage = null);
+                Navigator.pop(localContext); // Safely closes the bottom sheet
+              }
+            },
+          ),
+        ),
+        const SizedBox(height: 20),
       ],
     );
   }

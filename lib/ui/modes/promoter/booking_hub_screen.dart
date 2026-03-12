@@ -9,7 +9,6 @@ import '../../../logic/news_provider.dart';
 import '../../../logic/rival_provider.dart';
 import '../../../logic/sound_manager.dart'; 
 import '../../../logic/social_feed_generator.dart';
-import '../../../logic/communications_provider.dart'; 
 import '../../../logic/booking_provider.dart'; 
 import '../../../data/models/match.dart';
 import '../../../data/models/wrestler.dart';
@@ -221,15 +220,12 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
     );
   }
 
-  // 🚨 THE NEW DYNAMIC EXPERT QUOTES ENGINE 🚨
   List<Widget> _buildExpertQuotes(dynamic gameState, dynamic rosterState) {
     final rng = Random();
 
-    // 1. Host Dynamic Quote (Reacts to Venue Name)
     String venueName = gameState.currentVenueDetails['name'] ?? "arena";
     String hostQuote = "Welcome to the ${gameState.nextPPVName} Kickoff! The crowd here at the $venueName is filling in, and anticipation is at an all-time high. Gentlemen, what are we expecting tonight?";
 
-    // 2. Dave Delta Dynamic Quote (Reacts to active Rivalries)
     dynamic topFeud;
     if (rosterState.activeRivalries.isNotEmpty) {
       final sortedFeuds = List<dynamic>.from(rosterState.activeRivalries);
@@ -243,7 +239,6 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
       deltaQuote = "To be honest, the storylines coming into this event are a bit cold. The promoter is going to have to rely on pure in-ring workrate to justify the pay-per-view price.";
     }
 
-    // 3. The NY Smark Dynamic Quote (Reacts to Economy & Infrastructure)
     List<String> smarkQuotes = [
       "Look, I paid good money for these seats. If they don't deliver a clean finish tonight, me and the boys in section 104 are hijacking this show!",
       "If I see one more meaningless draw on this card, I'm canceling my streaming subscription. Give the fans what they want!",
@@ -256,7 +251,6 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
     }
     String smarkQuote = smarkQuotes[rng.nextInt(smarkQuotes.length)];
 
-    // 4. King T Dynamic Quote (Hype variations)
     List<String> kingQuotes = [
       "SHUCKY DUCKY QUACK QUACK! The electricity in this building is off the charts! It's time to book some magic, boss!",
       "I just walked out of the locker room, and let me tell you, these athletes are ready for WAR tonight! Awwww yeah!",
@@ -370,7 +364,7 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
     );
   }
 
-  // 🚨 THE FIXED GM AUTO-BOOK ALGORITHM 🚨
+  // 🚨 THE FIXED INSTANT MATH AUTO-BOOK ALGORITHM 🚨
   Future<void> _autoBookShow() async {
     if (_isAutoBooking) return; 
     setState(() => _isAutoBooking = true);
@@ -378,7 +372,6 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
     HapticFeedback.lightImpact();
     final rosterState = ref.read(rosterProvider);
     final gameNotifier = ref.read(gameProvider.notifier);
-    final bookingNotifier = ref.read(bookingProvider.notifier);
 
     // 1. Get healthy roster
     List<Wrestler> activeRoster = List<Wrestler>.from(
@@ -435,48 +428,55 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
       suggestedMatches.add([activeRoster[0], activeRoster[1]]);
     }
 
-    // 4. Silently Simulate the Matches (With Local Winner Logic!)
+    // 4. Silently Simulate the Matches (INSTANT MATH ENGINE)
     final rng = Random();
     for (int i = 0; i < 3; i++) {
-      await Future.delayed(const Duration(milliseconds: 300)); 
+      await Future.delayed(const Duration(milliseconds: 200)); 
       
-      // Randomize match types (IronMan removed!)
       MatchType type = MatchType.standard;
       if (rng.nextDouble() > 0.7) {
         List<MatchType> altTypes = [MatchType.hardcore, MatchType.submission];
         type = altTypes[rng.nextInt(altTypes.length)];
       }
 
-      bookingNotifier.setMatchType(type);
-      bookingNotifier.startMatchSimulation(suggestedMatches[i]); 
-      
-      await Future.delayed(const Duration(milliseconds: 100)); 
-      final resultState = ref.read(bookingProvider);
-      
       Wrestler p1 = suggestedMatches[i][0];
       Wrestler p2 = suggestedMatches[i][1];
+
+      // INSTANT WINNER CALCULATION
       double p1Score = p1.pop + (p1.ringSkill * 0.5) + rng.nextInt(20);
       double p2Score = p2.pop + (p2.ringSkill * 0.5) + rng.nextInt(20);
-
       Wrestler simWinner = p1Score >= p2Score ? p1 : p2;
       Wrestler simLoser = simWinner == p1 ? p2 : p1;
 
+      // INSTANT RATING CALCULATION (1.0 to 5.0)
+      double avgPop = (p1.pop + p2.pop) / 2;
+      double avgSkill = (p1.ringSkill + p2.ringSkill) / 2;
+      double rawRating = ((avgPop * 0.5) + (avgSkill * 0.5)) / 20.0;
+      rawRating += (rng.nextDouble() * 0.8) - 0.4;
+      if (rawRating < 1.0) rawRating = 1.0;
+      if (rawRating > 5.0) rawRating = 5.0;
+
       final completedMatch = Match()
-        ..wrestlers.addAll(suggestedMatches[i])
-        ..type = resultState.selectedType
-        ..rating = resultState.currentMatchRating
+        ..type = type
+        ..rating = double.parse(rawRating.toStringAsFixed(1))
         ..winnerName = simWinner.name
         ..loserName = simLoser.name;
 
+      // Add to Isar Links Memory
+      completedMatch.wrestlers.addAll([p1, p2]);
+
+      // If a champion is in the match, automatically stage it as a Title Match!
+      bool isTitleMatch = p1.isChampion || p1.isTVChampion || p2.isChampion || p2.isTVChampion;
+      gameNotifier.stageTitleMatch(isTitleMatch);
+
       gameNotifier.addMatchToCard(completedMatch);
-      bookingNotifier.reset(); 
     }
 
     if (mounted) {
       Navigator.pop(context); // Close loader
       setState(() => _isAutoBooking = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Assistant GM Auto-Booked the Show!"), backgroundColor: Colors.cyanAccent)
+        const SnackBar(content: Text("Assistant GM Auto-Booked the Show!"), backgroundColor: Colors.amber)
       );
     }
   }
@@ -513,14 +513,14 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
                     
                     if (!isCardFull)
                       TextButton.icon(
-                        icon: const Icon(Icons.auto_awesome, color: Colors.cyanAccent, size: 16),
-                        label: const Text("DELEGATE TO GM", style: TextStyle(color: Colors.cyanAccent, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                        icon: const Icon(Icons.auto_awesome, color: Colors.amber, size: 16),
+                        label: const Text("DELEGATE TO GM", style: TextStyle(color: Colors.amber, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           backgroundColor: Colors.cyanAccent.withOpacity(0.1),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.cyanAccent)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.amber)),
                         ),
                         onPressed: _autoBookShow,
                       ),
@@ -615,6 +615,9 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
       builder: (ctx) => const Center(child: CircularProgressIndicator(color: Colors.redAccent)),
     );
 
+    // 🚨 NEW ORGANIC FEUD LOGIC TRIGGERED HERE 🚨
+    await rosterNotifier.evaluateShowForNewFeuds(completedCardToPass);
+
     await rosterNotifier.decayRivalries();
     await rosterNotifier.processContracts(); 
     await ref.read(rivalProvider.notifier).runAIWeeklyLogic();
@@ -622,9 +625,6 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
     
     await notifier.processWeek(rosterState.roster);
     
-    final newWeek = ref.read(gameProvider).week;
-    ref.read(communicationsProvider.notifier).generateWeeklyContent(newWeek);
-
     final updatedGameState = ref.read(gameProvider);
 
     if (context.mounted) {

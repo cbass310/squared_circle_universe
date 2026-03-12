@@ -4,9 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../logic/promoter_provider.dart';
 import '../../../logic/game_state_provider.dart'; 
 import '../../../data/models/wrestler.dart';
+import '../../components/wrestler_avatar.dart';
 
 // --- IMPORT FOR THE WATERMARK ---
 import '../../components/tv_watermark.dart';
+
+final scoutingLimitsProvider = StateProvider<Map<String, int>>((ref) => {
+  "North America": 0,
+  "South America": 0,
+  "Asia": 0,
+  "Europe": 0,
+});
 
 class DevelopmentScreen extends ConsumerStatefulWidget {
   const DevelopmentScreen({super.key});
@@ -18,18 +26,8 @@ class DevelopmentScreen extends ConsumerStatefulWidget {
 class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  // Sparring Selection State
   Wrestler? _selectedA;
   Wrestler? _selectedB;
-
-  // Local state to track how many prospects have been scouted per region!
-  // Once a region hits 5, it locks permanently. 
-  final Map<String, int> _scoutCounters = {
-    "North America": 0,
-    "South America": 0,
-    "Asia": 0,
-    "Europe": 0,
-  };
 
   @override
   void initState() {
@@ -56,13 +54,11 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
     final rosterState = ref.watch(rosterProvider);
     final gameState = ref.watch(gameProvider); 
 
-    // 🚨 SMART LAYOUT BUILDER 🚨
     return LayoutBuilder(
       builder: (context, constraints) {
-        final bool isDesktop = constraints.maxWidth > 600; // 🛠️ Adjusted for Tablets
+        final bool isDesktop = constraints.maxWidth > 600; 
 
         if (isDesktop) {
-          // 💻 PC LAYOUT (Wide Side-by-Side)
           return Scaffold(
             backgroundColor: Colors.black,
             body: Row(
@@ -73,7 +69,6 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
             ),
           );
         } else {
-          // 📱 MOBILE LAYOUT (40/60 Vertical Split)
           return Scaffold(
             backgroundColor: Colors.black,
             body: Column(
@@ -103,13 +98,13 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
                             children: [
                               Row(
                                 children: [
-                                  Icon(Icons.flash_on, color: Colors.amber, size: 24),
+                                  Icon(Icons.school, color: Colors.blueAccent, size: 24),
                                   SizedBox(width: 8),
-                                  Text("SCW PIPELINE", style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+                                  Text("SCW PIPELINE", style: TextStyle(color: Colors.blueAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
                                 ],
                               ),
                               SizedBox(height: 4),
-                              Text("POWER PLANT", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                              Text("SCW ACADEMY", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
                             ],
                           ),
                         ),
@@ -133,9 +128,6 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
     );
   }
 
-  // =====================================================================
-  // --- THE POWER PLANT DASHBOARD (Shared)
-  // =====================================================================
   Widget _buildDashboard(dynamic gameState, dynamic rosterState, bool isDesktop) {
     return Container(
       decoration: BoxDecoration(
@@ -144,7 +136,6 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
       ),
       child: Column(
         children: [
-          // --- HEADER (PC ONLY - Mobile handles this in the image overlay) ---
           if (isDesktop)
             const SafeArea(
               bottom: false,
@@ -152,23 +143,22 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
                 padding: EdgeInsets.all(24.0),
                 child: Row(
                   children: [
-                    Icon(Icons.flash_on, color: Colors.amber, size: 28),
+                    Icon(Icons.school, color: Colors.blueAccent, size: 28),
                     SizedBox(width: 12),
-                    Text("POWER PLANT", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5)),
+                    Text("SCW ACADEMY", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5)),
                   ],
                 ),
               ),
             ),
           
-          // --- TABS ---
           Container(
             color: Colors.black, 
             child: TabBar(
               dividerColor: Colors.transparent, 
               controller: _tabController,
-              indicatorColor: Colors.amber,
+              indicatorColor: Colors.blueAccent,
               indicatorWeight: 3,
-              labelColor: Colors.amber,
+              labelColor: Colors.blueAccent,
               unselectedLabelColor: Colors.white54,
               labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, letterSpacing: 1.5),
               tabs: const [
@@ -179,12 +169,11 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
             ),
           ),
           
-          // --- TAB CONTENT ---
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildScoutingTab(gameState),
+                _buildScoutingTab(gameState, rosterState),
                 _buildTrainingTab(rosterState, gameState),
                 _buildSparringTab(rosterState),
               ],
@@ -195,9 +184,6 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
     );
   }
 
-  // =====================================================================
-  // --- ARTWORK PANE (Shared)
-  // =====================================================================
   Widget _buildArtworkPane({required bool isMobile}) {
     return Stack(
       fit: StackFit.expand,
@@ -224,38 +210,35 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
     );
   }
 
-  // ===========================================================================
-  // TAB 1: SCOUTING (🛠️ REDESIGNED LOGIC)
-  // ===========================================================================
-  Widget _buildScoutingTab(dynamic gameState) {
+  // 🚨 THE FIX: Removed the "Scouted Prospects" list entirely to preserve the blind lottery!
+  Widget _buildScoutingTab(dynamic gameState, dynamic rosterState) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // 🛠️ THE FIX: Removed the "MAX 5 PROSPECTS" text to clear up space!
         const Text("GLOBAL SCOUTING", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
         const SizedBox(height: 16),
         
         _buildRegionCard(gameState, "North America", 1, 500, "Gym", "assets/images/scout_usa.png"),
         _buildRegionCard(gameState, "South America", 2, 1000, "Civic Center", "assets/images/scout_mexico.png"),
-        _buildRegionCard(gameState, "Asia", 3, 2500, "Arena", "assets/images/scout_japan.png"),
-        _buildRegionCard(gameState, "Europe", 4, 5000, "Stadium", "assets/images/scout_uk.png"),
+        _buildRegionCard(gameState, "Asia", 3, 2500, "City Arena", "assets/images/scout_japan.png"),
+        _buildRegionCard(gameState, "Europe", 4, 5000, "Global Stadium", "assets/images/scout_uk.png"),
         
         const SizedBox(height: 24),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.amber.withOpacity(0.05), 
+            color: Colors.blueAccent.withOpacity(0.05), 
             borderRadius: BorderRadius.circular(8), 
-            border: Border.all(color: Colors.amber.withOpacity(0.3))
+            border: Border.all(color: Colors.blueAccent.withOpacity(0.3))
           ),
           child: const Row(
             children: [
-              Icon(Icons.info_outline, color: Colors.amber, size: 24),
+              Icon(Icons.info_outline, color: Colors.blueAccent, size: 24),
               SizedBox(width: 16),
               Expanded(
                 child: Text(
-                  "Each region only holds 5 hidden prospects for your entire career. Choose carefully when to spend your cash to unearth them! Unsigned prospects fall into Free Agency.", 
-                  style: TextStyle(color: Colors.amber, fontSize: 11, height: 1.5)
+                  "Each region holds a hidden pool of prospects. Pay the scouting fee to pull a random prospect from the region. Will you find a generational talent, or a complete bust?", 
+                  style: TextStyle(color: Colors.blueAccent, fontSize: 11, height: 1.5)
                 )
               ),
             ],
@@ -267,11 +250,12 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
   }
 
   Widget _buildRegionCard(dynamic gameState, String name, int requiredLevel, int cost, String venueName, String imagePath) {
+    final scoutLimits = ref.watch(scoutingLimitsProvider);
+    
     bool isLockedByVenue = gameState.venueLevel < requiredLevel;
-    int scoutCount = _scoutCounters[name] ?? 0;
+    int scoutCount = scoutLimits[name] ?? 0;
     bool isDepleted = scoutCount >= 5;
     
-    // The card is disabled if you don't have the venue, OR if you've already found all 5 guys.
     bool isCardDisabled = isLockedByVenue || isDepleted;
 
     return Container(
@@ -354,9 +338,10 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
     if (mounted) {
       if (newlyScoutedWrestler != null) {
         
-        // 🛠️ INCREASE THE REGION COUNTER BY 1
-        setState(() {
-          _scoutCounters[regionName] = (_scoutCounters[regionName] ?? 0) + 1;
+        ref.read(scoutingLimitsProvider.notifier).update((state) {
+          final newState = Map<String, int>.from(state);
+          newState[regionName] = (newState[regionName] ?? 0) + 1;
+          return newState;
         });
 
         String potentialGrade = _getPotentialGrade(newlyScoutedWrestler.potentialSkill);
@@ -443,9 +428,6 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
     }
   }
 
-  // ===========================================================================
-  // TAB 2: TRAINING 
-  // ===========================================================================
   Widget _buildTrainingTab(dynamic state, dynamic gameState) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -470,7 +452,7 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
                 child: Theme(
                   data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                   child: ExpansionTile(
-                    iconColor: Colors.amber,
+                    iconColor: Colors.blueAccent,
                     collapsedIconColor: Colors.white54,
                     leading: CircleAvatar(
                       backgroundColor: Colors.grey[800],
@@ -586,9 +568,6 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
     );
   }
 
-  // ===========================================================================
-  // TAB 3: SPARRING
-  // ===========================================================================
   Widget _buildSparringTab(dynamic state) {
     return Padding(
       padding: const EdgeInsets.all(16.0),

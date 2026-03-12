@@ -159,7 +159,7 @@ class OfficeScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 20),
 
-                  // 2. MIRRORED INTERACTIVE EVENT BANNER
+                  // 2. 🚨 FIXED MIRRORED INTERACTIVE EVENT BANNER 🚨
                   GestureDetector(
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RatingsWarScreen())),
                     child: Container(
@@ -178,51 +178,58 @@ class OfficeScreen extends ConsumerWidget {
                         boxShadow: [BoxShadow(color: (isPPVWeek ? Colors.amber : Colors.blueAccent).withOpacity(0.2), blurRadius: 12, offset: const Offset(0, 4))],
                       ),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center, // Vertically centers both sections
                         children: [
-                          Expanded(
+                          Expanded( // Forces the text column to take up available space
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
                                   children: [
-                                    Text("WEEK ${gameState.week}", style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+                                    Text("WEEK ${gameState.week}", style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
                                     const SizedBox(width: 8),
                                     Icon(isPPVWeek ? Icons.bolt : Icons.live_tv, color: Colors.white54, size: 14),
                                   ],
                                 ),
                                 const SizedBox(height: 4),
-                                // We wrap this in a FittedBox to solve the tablet overlap issue here too!
+                                // 🚨 FIX: Removed letterSpacing which causes wrap glitches in FittedBox
                                 FittedBox(
                                   fit: BoxFit.scaleDown,
                                   alignment: Alignment.centerLeft,
                                   child: Text(
                                     isPPVWeek ? gameState.nextPPVName.toUpperCase() : gameState.tvShowName.toUpperCase(), 
-                                    style: TextStyle(color: isPPVWeek ? Colors.amberAccent : Colors.white, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 1.0)
+                                    style: TextStyle(color: isPPVWeek ? Colors.amberAccent : Colors.white, fontSize: 24, fontWeight: FontWeight.w900)
                                   ),
                                 ),
-                                const SizedBox(height: 2),
+                                const SizedBox(height: 4),
                                 Text(
                                   isPPVWeek ? "PREMIUM LIVE EVENT" : "${gameState.currentVenueDetails['name']}", 
-                                  style: const TextStyle(color: Colors.white70, fontSize: 12)
+                                  style: const TextStyle(color: Colors.white70, fontSize: 11, letterSpacing: 0.5),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),
                           ),
+                          const SizedBox(width: 16), // 🚨 FIX: A hard buffer so the text NEVER touches the War Room box
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.3),
+                              color: Colors.black.withOpacity(0.4),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: Colors.white10),
                             ),
                             child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 const Icon(Icons.bar_chart_rounded, color: Colors.redAccent, size: 20),
                                 const SizedBox(height: 4),
-                                const Text("WAR ROOM", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                                const SizedBox(height: 2),
-                                // 🚨 THE FIX: Removed spaces between hyphens to match the Home Dashboard perfectly!
-                                Text("${gameState.playerWins}-${gameState.rivalWins}-${gameState.draws}", style: const TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.w900)), 
+                                const Text("WAR ROOM", style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "${gameState.playerWins}-${gameState.rivalWins}-${gameState.draws}", 
+                                  style: const TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.w900)
+                                ), 
                               ],
                             ),
                           ),

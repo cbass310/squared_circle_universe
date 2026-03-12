@@ -124,7 +124,7 @@ class RatingsWarScreen extends ConsumerWidget {
                           else
                             ...history.map((entry) => _buildHistoryItem(entry)),
                             
-                          const SizedBox(height: 40), // Bottom padding
+                          const SizedBox(height: 40), 
                         ],
                       ),
                     ),
@@ -237,7 +237,6 @@ class RatingsWarScreen extends ConsumerWidget {
           const Text("LIFETIME RECORD", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 3.0)),
           const SizedBox(height: 4),
           
-          // 🛠️ THE FIX: FittedBox ensures the record never wraps to two lines on a tablet!
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
@@ -283,6 +282,7 @@ class RatingsWarScreen extends ConsumerWidget {
     );
   }
 
+  // 🚨 FIX 2: WRAP EACH BAR IN AN EXPANDED WIDGET SO THEY DON'T CROWD
   Widget _buildChart(List<dynamic> recentHistory, {required bool isMobile}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,8 +304,11 @@ class RatingsWarScreen extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               crossAxisAlignment: CrossAxisAlignment.end,
+              // 🚨 The mapping now wraps the result in an Expanded
               children: recentHistory.map((entry) {
-                return _buildComparisonBar(entry.week, entry.showRating, entry.rivalRating, isMobile ? 100 : 170);
+                return Expanded(
+                  child: _buildComparisonBar(entry.week, entry.showRating, entry.rivalRating, isMobile ? 100 : 170),
+                );
               }).toList(),
             ),
           ),
@@ -358,6 +361,7 @@ class RatingsWarScreen extends ConsumerWidget {
     );
   }
 
+  // 🚨 FIX 1: CONSTRICT THE HEIGHT OF THE TEXT BOX SO LOGOS STAY EVEN
   Widget _buildTeamColumn(String name, String logoPath, Color color, bool isMobile) {
     return Column(
       children: [
@@ -378,14 +382,15 @@ class RatingsWarScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4.0),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
+        SizedBox(
+          height: isMobile ? 32 : 40, // 🚨 FORCES UNIFORM HEIGHT NO MATTER HOW IT WRAPS
+          child: Center(
             child: Text(
               name.replaceFirst(" ", "\n"), 
               textAlign: TextAlign.center,
-              style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: isMobile ? 11 : 14, letterSpacing: 1.0, height: 1.2)
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: isMobile ? 11 : 14, letterSpacing: 1.0, height: 1.1)
             ),
           ),
         ),
@@ -406,6 +411,7 @@ class RatingsWarScreen extends ConsumerWidget {
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         Row(
+          mainAxisAlignment: MainAxisAlignment.center, // Keeps the two bars tightly grouped together
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             // My Bar
@@ -414,7 +420,7 @@ class RatingsWarScreen extends ConsumerWidget {
                 Text(myScore.toString(), style: TextStyle(color: won ? Colors.greenAccent : Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 Container(
-                  width: 20, height: h1,
+                  width: 14, height: h1, // Slightly thinner to guarantee they fit on tiny screens
                   decoration: BoxDecoration(
                       color: won ? Colors.greenAccent : Colors.blueAccent.withOpacity(0.5),
                       borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
@@ -423,14 +429,14 @@ class RatingsWarScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 4),
             // Rival Bar
             Column(
               children: [
                 Text(rivalScore.toString(), style: TextStyle(color: !won ? Colors.redAccent : Colors.white30, fontSize: 10, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 Container(
-                  width: 20, height: h2,
+                  width: 14, height: h2, // Slightly thinner to guarantee they fit on tiny screens
                   decoration: BoxDecoration(
                       color: !won ? Colors.redAccent : Colors.red.withOpacity(0.3),
                       borderRadius: const BorderRadius.vertical(top: Radius.circular(4))

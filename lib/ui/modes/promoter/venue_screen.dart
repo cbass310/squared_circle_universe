@@ -29,23 +29,23 @@ class _VenueScreenState extends ConsumerState<VenueScreen> {
     final notifier = ref.read(gameProvider.notifier);
 
     // --- VENUE DATA EXTRACTION ---
-    String name; String cap; String cost; String desc; String img; int rent;
+    String name; String cap; String cost; String desc; String img; int rent; int requiredFans;
     switch (_selectedVenueLevel) {
       case 4: 
-        name = gameState.venueCustomNames[3]; cap = "60,000 Fans"; cost = "\$1,000,000"; rent = 250000;
+        name = gameState.venueCustomNames[3]; cap = "60,000 Fans"; cost = "\$1,000,000"; rent = 250000; requiredFans = 500000;
         desc = "The grandest stage of them all. Legends are made here. Unlocks maximum TV and Sponsorship potential."; 
         img = "assets/images/venue_stadium.png"; break;
       case 3: 
-        name = gameState.venueCustomNames[2]; cap = "15,000 Fans"; cost = "\$250,000"; rent = 50000;
+        name = gameState.venueCustomNames[2]; cap = "15,000 Fans"; cost = "\$250,000"; rent = 50000; requiredFans = 100000;
         desc = "A massive televised arena with luxury boxes and pyrotechnics. Capable of hosting major PPV events."; 
         img = "assets/images/venue_arena.png"; break;
       case 2: 
-        name = gameState.venueCustomNames[1]; cap = "2,500 Fans"; cost = "\$25,000"; rent = 5000;
+        name = gameState.venueCustomNames[1]; cap = "2,500 Fans"; cost = "\$25,000"; rent = 5000; requiredFans = 10000;
         desc = "A respectable local hall with proper lighting and seating. The first step out of the indies."; 
         img = "assets/images/venue_civic.png"; break;
       case 1: 
       default: 
-        name = gameState.venueCustomNames[0]; cap = "500 Fans"; cost = "FREE"; rent = 500;
+        name = gameState.venueCustomNames[0]; cap = "500 Fans"; cost = "FREE"; rent = 500; requiredFans = 0;
         desc = "A sweaty, gritty gym. It smells like hard work. Maximum capacity is strictly enforced by the fire marshal."; 
         img = "assets/images/venue_gym.png"; break;
     }
@@ -54,31 +54,27 @@ class _VenueScreenState extends ConsumerState<VenueScreen> {
     bool isNext = _selectedVenueLevel == gameState.venueLevel + 1;
     bool isLocked = _selectedVenueLevel > gameState.venueLevel + 1;
 
-    // 🚨 SMART LAYOUT BUILDER 🚨
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool isDesktop = constraints.maxWidth > 800;
 
         if (isDesktop) {
-          // 💻 PC LAYOUT (Wide Side-by-Side)
           return Scaffold(
             backgroundColor: Colors.black,
             body: SafeArea(
               child: Row(
                 children: [
                   Expanded(flex: 4, child: _buildDesktopListColumn(gameState)),
-                  Expanded(flex: 6, child: _buildDesktopDetailPane(name, cap, cost, desc, img, rent, isCurrent, isNext, isLocked, notifier)),
+                  Expanded(flex: 6, child: _buildDesktopDetailPane(name, cap, cost, desc, img, rent, requiredFans, isCurrent, isNext, isLocked, gameState, notifier)),
                 ],
               ),
             ),
           );
         } else {
-          // 📱 MOBILE LAYOUT (40/60 Vertical Split)
           return Scaffold(
             backgroundColor: Colors.black,
             body: Column(
               children: [
-                // TOP 40%: The Cinematic Viewport
                 Expanded(
                   flex: 4,
                   child: Stack(
@@ -146,7 +142,6 @@ class _VenueScreenState extends ConsumerState<VenueScreen> {
                     ],
                   ),
                 ),
-                // BOTTOM 60%: The Scrollable Dashboard
                 Expanded(
                   flex: 6,
                   child: Container(
@@ -168,7 +163,7 @@ class _VenueScreenState extends ConsumerState<VenueScreen> {
                           Text(desc, style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.5, fontStyle: FontStyle.italic)),
                           const SizedBox(height: 24),
                           
-                          _buildActionButton(isNext, isLocked, isCurrent, cost, notifier),
+                          _buildActionButton(isNext, isLocked, isCurrent, cost, requiredFans, gameState, notifier),
                           
                           const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Divider(color: Colors.white10, thickness: 1)),
                           const Text("AVAILABLE PROPERTIES", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
@@ -235,7 +230,7 @@ class _VenueScreenState extends ConsumerState<VenueScreen> {
     );
   }
 
-  Widget _buildDesktopDetailPane(String name, String cap, String cost, String desc, String img, int rent, bool isCurrent, bool isNext, bool isLocked, GameNotifier notifier) {
+  Widget _buildDesktopDetailPane(String name, String cap, String cost, String desc, String img, int rent, int requiredFans, bool isCurrent, bool isNext, bool isLocked, GameState gameState, GameNotifier notifier) {
     return Container(
       color: Colors.black,
       child: Stack(
@@ -290,7 +285,7 @@ class _VenueScreenState extends ConsumerState<VenueScreen> {
                   const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Divider(color: Colors.white24, thickness: 1)),
                   Text(desc, style: const TextStyle(color: Colors.white70, fontSize: 16, height: 1.5, fontStyle: FontStyle.italic)),
                   const SizedBox(height: 40),
-                  _buildActionButton(isNext, isLocked, isCurrent, cost, notifier),
+                  _buildActionButton(isNext, isLocked, isCurrent, cost, requiredFans, gameState, notifier),
                 ],
               ),
             ),
@@ -373,24 +368,46 @@ class _VenueScreenState extends ConsumerState<VenueScreen> {
     );
   }
 
-  Widget _buildActionButton(bool isNext, bool isLocked, bool isCurrent, String cost, GameNotifier notifier) {
+  Widget _buildActionButton(bool isNext, bool isLocked, bool isCurrent, String cost, int requiredFans, GameState gameState, GameNotifier notifier) {
     if (isNext) {
-      return SizedBox(
-        width: double.infinity,
-        child: ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 18), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-          icon: const Icon(Icons.shopping_cart),
-          label: Text("PURCHASE DEED ($cost)", style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1.0)),
-          onPressed: () {
-            bool success = notifier.purchaseVenueUpgrade();
-            if (success) {
-              ref.read(soundProvider).playSound("bell.mp3"); 
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("UPGRADE SUCCESSFUL! WELCOME TO THE BIG LEAGUES!"), backgroundColor: Colors.green));
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("NOT ENOUGH CASH IN THE TREASURY!"), backgroundColor: Colors.red));
-            }
-          },
-        ),
+      String reqFansFormatted = requiredFans.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
+      bool hasFans = gameState.fans >= requiredFans;
+      
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 🚨 THE FIX: Display the Fan Requirement to the player
+          Row(
+            children: [
+              Icon(hasFans ? Icons.check_circle : Icons.warning_amber_rounded, color: hasFans ? Colors.greenAccent : Colors.redAccent, size: 16),
+              const SizedBox(width: 8),
+              Text("Requires $reqFansFormatted Fans", style: TextStyle(color: hasFans ? Colors.greenAccent : Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 18), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+              icon: const Icon(Icons.shopping_cart),
+              label: Text("PURCHASE DEED ($cost)", style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1.0)),
+              onPressed: () {
+                bool success = notifier.purchaseVenueUpgrade();
+                if (success) {
+                  ref.read(soundProvider).playSound("bell.mp3"); 
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("UPGRADE SUCCESSFUL! WELCOME TO THE BIG LEAGUES!"), backgroundColor: Colors.green));
+                } else {
+                  // 🚨 THE FIX: Detailed error messages
+                  if (gameState.fans < requiredFans) {
+                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("NOT ENOUGH FANS! You need $reqFansFormatted fans to draw a big enough crowd."), backgroundColor: Colors.red));
+                  } else {
+                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("NOT ENOUGH CASH IN THE TREASURY!"), backgroundColor: Colors.red));
+                  }
+                }
+              },
+            ),
+          ),
+        ],
       );
     } else if (isLocked) {
       return Container(

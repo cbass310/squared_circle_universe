@@ -27,7 +27,7 @@ class NewsNotifier extends StateNotifier<List<NewsItem>> {
       // 🔥 BANGER MATCH REACTION (4.5+ Stars)
       if (bestMatch.rating >= 4.5 && rng.nextDouble() < 0.7) {
         generatedNews.add(_createNews(
-          sender: "Meltzer Ratings",
+          sender: "Meltz Ratings",
           subject: "Match of the Year Candidate?",
           body: "The ${bestMatch.winnerName} vs ${bestMatch.loserName} bout from this week's card is receiving universal acclaim. I'm hearing it might get the elusive 5-star rating in this week's newsletter.",
           type: "DIRT_SHEET",
@@ -77,7 +77,7 @@ class NewsNotifier extends StateNotifier<List<NewsItem>> {
       generatedNews.add(_createNews(
         sender: "Wrestling Insider",
         subject: "Free Agent Market: ${fa.name}",
-        body: "The hottest free agent on the market right now is ${fa.name}. The Rival Promotion is reportedly preparing a massive contract offer. Don't let the competition snatch them up!",
+        body: "The hottest free agent on the market right now is ${fa.name}. Empire Wrestling is reportedly preparing a massive contract offer. Don't let the competition snatch them up!",
         type: "DIRT_SHEET",
       ));
     }
@@ -89,7 +89,7 @@ class NewsNotifier extends StateNotifier<List<NewsItem>> {
       List<String> genericRumors = [
         "Network executives are reportedly paying close attention to TV ratings this month. A bad string of shows could lead to cancelled deals.",
         "Merchandise sales across the industry are up 15%. Make sure you have highly popular stars on your roster to capitalize on the boom.",
-        "Rumors are swirling that the Rival Promotion is looking to aggressively expand their arena infrastructure.",
+        "Rumors are swirling that Empire Wrestling is looking to aggressively expand their arena infrastructure.",
       ];
       genericRumors.shuffle();
       generatedNews.add(_createNews(

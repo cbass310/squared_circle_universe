@@ -14,15 +14,11 @@ final availableTvDealsProvider = FutureProvider.family<List<TvNetworkDeal>, int>
   
   final rawDeals = await isar.tvNetworkDeals.filter().tierLevelEqualTo(tier).findAll();
   
-  // 🛠️ THE FIX: Filter out duplicate TV Deals!
-  // If the app was seeded multiple times, Isar might have duplicate TV Deals.
-  // This ensures we only ever show one instance of each Network Name in the UI.
   final uniqueDealsMap = <String, TvNetworkDeal>{};
   for (final deal in rawDeals) {
     uniqueDealsMap[deal.networkName] = deal;
   }
   
-  // Sort them by payout so the best deals are always at the top!
   final sortedDeals = uniqueDealsMap.values.toList();
   sortedDeals.sort((a, b) => b.weeklyPayout.compareTo(a.weeklyPayout));
   
@@ -66,14 +62,11 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
   Widget build(BuildContext context) {
     final gameState = ref.watch(gameProvider);
 
-    // 🚨 SMART LAYOUT BUILDER 🚨
     return LayoutBuilder(
       builder: (context, constraints) {
-        // 🛠️ THE FIX: Lowered to 600 so Tablets in portrait get the Side-by-Side layout!
         final bool isDesktop = constraints.maxWidth > 600; 
 
         if (isDesktop) {
-          // 💻 PC / TABLET LAYOUT (Wide Side-by-Side)
           return Scaffold(
             backgroundColor: Colors.black,
             body: SafeArea(
@@ -91,9 +84,6 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
             ),
           );
         } else {
-          // 📱 MOBILE LAYOUT (40/60 Vertical Split)
-          
-          // Exception: If a contract proposal is open, slide it over the bottom 60%
           if (_selectedTabIndex == 0 && _selectedDeal != null) {
             return Scaffold(
               backgroundColor: Colors.black,
@@ -115,7 +105,7 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
                             ),
                           ),
                         ),
-                        const TVWatermark(isMobile: true), // 🛠️ THE FIX: Watermark on TOP of gradient
+                        const TVWatermark(isMobile: true), 
                       ],
                     )
                   ),
@@ -128,12 +118,10 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
             );
           }
 
-          // Standard Mobile Layout
           return Scaffold(
             backgroundColor: Colors.black,
             body: Column(
               children: [
-                // TOP 40%: The Cinematic Viewport
                 Expanded(
                   flex: 4,
                   child: Stack(
@@ -150,7 +138,7 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
                           ),
                         ),
                       ),
-                      const TVWatermark(isMobile: true), // 🛠️ THE FIX: Watermark on TOP of gradient
+                      const TVWatermark(isMobile: true), 
                       SafeArea(
                         child: Padding(
                           padding: const EdgeInsets.all(16.0),
@@ -185,7 +173,6 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
                     ],
                   ),
                 ),
-                // BOTTOM 60%: The Dashboard Data
                 Expanded(
                   flex: 6,
                   child: Container(
@@ -213,7 +200,6 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
       ),
       child: Column(
         children: [
-          // HEADER (PC ONLY - Mobile uses the image overlay)
           if (isDesktop)
             SafeArea(
               bottom: false,
@@ -229,7 +215,6 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
               ),
             ),
           
-          // --- TABS ---
           Container(
             decoration: BoxDecoration(
               border: Border(bottom: BorderSide(color: isDesktop ? Colors.black : Colors.white10, width: isDesktop ? 3 : 1)),
@@ -251,7 +236,6 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
             ),
           ),
           
-          // --- TAB CONTENT ---
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -267,15 +251,12 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
     );
   }
 
-  // =====================================================================
-  // --- ARTWORK PANE (Dynamic based on Tab)
-  // =====================================================================
   Widget _buildArtworkPane({required bool isMobile}) {
-    String imagePath = "assets/images/office_bg.png"; // Fallback
+    String imagePath = "assets/images/office_bg.png"; 
     
-    if (_selectedTabIndex == 0) imagePath = "assets/images/office_background.png"; // Contracts
-    if (_selectedTabIndex == 1) imagePath = "assets/images/production_bg.png"; // Production
-    if (_selectedTabIndex == 2) imagePath = "assets/images/branding_bg.png"; // Branding
+    if (_selectedTabIndex == 0) imagePath = "assets/images/office_background.png"; 
+    if (_selectedTabIndex == 1) imagePath = "assets/images/production_bg.png"; 
+    if (_selectedTabIndex == 2) imagePath = "assets/images/branding_bg.png"; 
 
     return Stack(
       fit: StackFit.expand,
@@ -303,7 +284,6 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
     );
   }
 
-  // Helper strings for the Mobile Header
   String _getTabTitle() {
     if (_selectedTabIndex == 0) return "TELEVISION DEALS";
     if (_selectedTabIndex == 1) return "PRODUCTION VALUES";
@@ -328,9 +308,6 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
     return Icons.auto_awesome;
   }
 
-  // =====================================================================
-  // --- TAB 1: CONTRACTS LIST 
-  // =====================================================================
   Widget _buildContractsList(GameState gameState) {
     if (!gameState.isBiddingWarActive && gameState.activeTvDeal != null) {
       final deal = gameState.activeTvDeal!;
@@ -342,10 +319,30 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(color: Colors.greenAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.greenAccent)),
-            child: const Row(children: [Icon(Icons.check_circle, color: Colors.greenAccent), SizedBox(width: 12), Expanded(child: Text("ACTIVE CONTRACT. Upgrade your Venue to trigger a new Bidding War.", style: TextStyle(color: Colors.white)))]),
+            child: const Row(children: [Icon(Icons.check_circle, color: Colors.greenAccent), SizedBox(width: 12), Expanded(child: Text("ACTIVE CONTRACT. Use the 'Enter Open Market' button if you wish to renegotiate.", style: TextStyle(color: Colors.white)))]),
           ),
           const SizedBox(height: 20),
           if (!isDesktop) _buildActiveContractDetail(deal) else _buildNetworkListTile(deal, true),
+          
+          if (isDesktop) ...[
+             const SizedBox(height: 32),
+             SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.amber,
+                  side: const BorderSide(color: Colors.amber, width: 2),
+                  padding: const EdgeInsets.symmetric(vertical: 16)
+                ),
+                icon: const Icon(Icons.satellite_alt_rounded),
+                label: const FittedBox(fit: BoxFit.scaleDown, child: Text("ENTER OPEN MARKET (SEEK NEW DEAL)", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0))),
+                onPressed: () {
+                  HapticFeedback.heavyImpact();
+                  ref.read(gameProvider.notifier).enterTvNegotiations();
+                },
+              ),
+            )
+          ]
         ],
       );
     }
@@ -373,7 +370,7 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
   }
 
   Widget _buildNetworkListTile(TvNetworkDeal deal, bool isActive) {
-    bool isSelected = _selectedDeal?.id == deal.id;
+    bool isSelected = _selectedDeal?.id == deal.id || _selectedDeal?.networkName == deal.networkName;
     return GestureDetector(
       onTap: isActive ? null : () {
         HapticFeedback.selectionClick();
@@ -452,6 +449,11 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
             label: const FittedBox(fit: BoxFit.scaleDown, child: Text("SIGN EXCLUSIVE CONTRACT", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1.0))),
             onPressed: () {
               HapticFeedback.heavyImpact();
+              
+              if (deal.id == Isar.autoIncrement || deal.id == 0) {
+                 deal.id = deal.networkName.hashCode.abs();
+              }
+              
               notifier.signTvDeal(deal);
               setState(() => _selectedDeal = null);
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Signed with ${deal.networkName}!"), backgroundColor: Colors.green));
@@ -491,7 +493,10 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
     );
   }
 
+  // 🚨 THE FIX: The Manual Renegotiation Trigger for Mobile!
   Widget _buildActiveContractDetail(TvNetworkDeal deal) {
+    final notifier = ref.read(gameProvider.notifier);
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.greenAccent.withOpacity(0.5), width: 2)),
@@ -518,6 +523,24 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
           _buildDealStatRow("Weekly Payout:", "\$${deal.weeklyPayout}", Colors.greenAccent),
           _buildDealStatRow("Target Rating:", "${deal.targetMinimumRating} Stars", Colors.amber),
           _buildDealStatRow("PPV Terms:", deal.cannibalizesPPVs ? "Flat Fee (No Buyrates)" : "${deal.ppvBonusMultiplier}x Buyrate Cut", Colors.blueAccent),
+          
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.amber,
+                side: const BorderSide(color: Colors.amber, width: 2),
+                padding: const EdgeInsets.symmetric(vertical: 16)
+              ),
+              icon: const Icon(Icons.satellite_alt_rounded),
+              label: const FittedBox(fit: BoxFit.scaleDown, child: Text("ENTER OPEN MARKET (SEEK NEW DEAL)", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0))),
+              onPressed: () {
+                HapticFeedback.heavyImpact();
+                notifier.enterTvNegotiations();
+              },
+            ),
+          )
         ],
       ),
     );
@@ -534,13 +557,13 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
         Container(
           padding: const EdgeInsets.all(16),
           margin: const EdgeInsets.only(bottom: 20), 
-          decoration: BoxDecoration(color: Colors.blueAccent.withOpacity(0.05), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.blueAccent.withOpacity(0.3))),
+          decoration: BoxDecoration(color: Colors.amber.withOpacity(0.05), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.amber.withOpacity(0.3))),
           child: const Text("Upgrading Production Values increases your maximum Show Rating cap and generates a flat bonus to all matches. Note: Higher tiers require weekly maintenance fees!", style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.5)),
         ),
         _buildTechCard("BROADCAST & CAMERAS", "Unlocks higher show ratings. Required for top-tier TV networks.", gameState.techBroadcast, () => notifier.buyTechUpgrade("BROADCAST", _getTechCost(gameState.techBroadcast)), gameState.cash),
         _buildTechCard("STAGE & PYROTECHNICS", "Increases crowd energy and boosts the Match Rating of your openers.", gameState.techPyro, () => notifier.buyTechUpgrade("PYRO", _getTechCost(gameState.techPyro)), gameState.cash),
         _buildTechCard("MEDICAL & REHAB", "Reduces the severity of injuries and increases weekly stamina recovery.", gameState.techMedical, () => notifier.buyTechUpgrade("MEDICAL", _getTechCost(gameState.techMedical)), gameState.cash),
-        const SizedBox(height: 40), // Bottom padding
+        const SizedBox(height: 40), 
       ],
     );
   }
@@ -586,7 +609,7 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
                   Expanded(
                     flex: 2,
                     child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: canAfford ? Colors.blueAccent : Colors.grey.shade800),
+                      style: ElevatedButton.styleFrom(backgroundColor: canAfford ? Colors.amber : Colors.grey.shade800),
                       onPressed: canAfford ? () {
                         HapticFeedback.lightImpact();
                         onUpgrade();
@@ -677,7 +700,7 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
             ),
           );
         }),
-        const SizedBox(height: 40), // Bottom padding
+        const SizedBox(height: 40), 
       ],
     );
   }

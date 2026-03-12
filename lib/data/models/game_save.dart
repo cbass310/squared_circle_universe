@@ -18,6 +18,9 @@ class GameSave {
   late int techAudio;
   late int techMedical;
   
-  // NEW: Tracks your "WrestleMania" event (Defaults to 11, which is Month 12 / Starrcade)
+  // Tracks your "WrestleMania" event
   int premierPpvIndex = 11; 
+
+  // 🚨 THE FIX: We store the ledger as a list of JSON strings to completely bypass the Isar generation bug!
+  List<String> ledgerJson = []; 
 }

@@ -33,12 +33,76 @@ class _TrophyRoomScreenState extends State<TrophyRoomScreen> {
     }
   }
 
+  // 🚨 EXPANDED ICON MAP FOR 50 TROPHIES (PREVENTS TREE-SHAKING CRASHES)
+  IconData _getIcon(int codePoint) {
+    // Financial
+    if (codePoint == Icons.attach_money.codePoint) return Icons.attach_money;
+    if (codePoint == Icons.money.codePoint) return Icons.money;
+    if (codePoint == Icons.account_balance_wallet.codePoint) return Icons.account_balance_wallet;
+    if (codePoint == Icons.savings.codePoint) return Icons.savings;
+    if (codePoint == Icons.price_change.codePoint) return Icons.price_change;
+    if (codePoint == Icons.monetization_on.codePoint) return Icons.monetization_on;
+    if (codePoint == Icons.domain.codePoint) return Icons.domain;
+    if (codePoint == Icons.account_balance.codePoint) return Icons.account_balance;
+    if (codePoint == Icons.diamond.codePoint) return Icons.diamond;
+    
+    // Infrastructure & Fans
+    if (codePoint == Icons.group.codePoint) return Icons.group;
+    if (codePoint == Icons.groups.codePoint) return Icons.groups;
+    if (codePoint == Icons.map.codePoint) return Icons.map;
+    if (codePoint == Icons.public.codePoint) return Icons.public;
+    if (codePoint == Icons.language.codePoint) return Icons.language;
+    if (codePoint == Icons.business.codePoint) return Icons.business;
+    if (codePoint == Icons.location_city.codePoint) return Icons.location_city;
+    if (codePoint == Icons.stadium.codePoint) return Icons.stadium;
+    if (codePoint == Icons.handshake.codePoint) return Icons.handshake;
+    if (codePoint == Icons.storefront.codePoint) return Icons.storefront;
+    
+    // Broadcasting
+    if (codePoint == Icons.tv.codePoint) return Icons.tv;
+    if (codePoint == Icons.live_tv.codePoint) return Icons.live_tv;
+    if (codePoint == Icons.nightlight_round.codePoint) return Icons.nightlight_round;
+    if (codePoint == Icons.confirmation_number.codePoint) return Icons.confirmation_number;
+    if (codePoint == Icons.video_camera_front.codePoint) return Icons.video_camera_front;
+    
+    // Booking & Creative
+    if (codePoint == Icons.star_half.codePoint) return Icons.star_half;
+    if (codePoint == Icons.star.codePoint) return Icons.star;
+    if (codePoint == Icons.workspace_premium.codePoint) return Icons.workspace_premium;
+    if (codePoint == Icons.auto_awesome.codePoint) return Icons.auto_awesome;
+    if (codePoint == Icons.thumb_down.codePoint) return Icons.thumb_down;
+    if (codePoint == Icons.people_alt.codePoint) return Icons.people_alt;
+    if (codePoint == Icons.local_fire_department.codePoint) return Icons.local_fire_department;
+    if (codePoint == Icons.flash_on.codePoint) return Icons.flash_on;
+    if (codePoint == Icons.emoji_events.codePoint) return Icons.emoji_events;
+    if (codePoint == Icons.military_tech.codePoint) return Icons.military_tech;
+    
+    // Roster & Management
+    if (codePoint == Icons.history_edu.codePoint) return Icons.history_edu;
+    if (codePoint == Icons.transfer_within_a_station.codePoint) return Icons.transfer_within_a_station;
+    if (codePoint == Icons.outbox.codePoint) return Icons.outbox;
+    if (codePoint == Icons.local_hospital.codePoint) return Icons.local_hospital;
+    if (codePoint == Icons.school.codePoint) return Icons.school;
+    if (codePoint == Icons.trending_up.codePoint) return Icons.trending_up;
+    if (codePoint == Icons.fitness_center.codePoint) return Icons.fitness_center;
+    if (codePoint == Icons.mic.codePoint) return Icons.mic;
+    if (codePoint == Icons.mood.codePoint) return Icons.mood;
+    if (codePoint == Icons.show_chart.codePoint) return Icons.show_chart;
+    
+    // Longevity
+    if (codePoint == Icons.calendar_view_week.codePoint) return Icons.calendar_view_week;
+    if (codePoint == Icons.calendar_month.codePoint) return Icons.calendar_month;
+    if (codePoint == Icons.celebration.codePoint) return Icons.celebration;
+    if (codePoint == Icons.cake.codePoint) return Icons.cake;
+    
+    return Icons.emoji_events; // Fallback
+  }
+
   @override
   Widget build(BuildContext context) {
     int unlockedCount = _milestones.where((m) => m.isUnlocked).length;
     double progress = _milestones.isEmpty ? 0 : unlockedCount / _milestones.length;
 
-    // 🚨 RESPONSIVE CHECK: Are we on Mobile or PC?
     final bool isDesktop = MediaQuery.of(context).size.width > 600;
 
     return Scaffold(
@@ -92,11 +156,9 @@ class _TrophyRoomScreenState extends State<TrophyRoomScreen> {
                 child: GridView.builder(
                   padding: const EdgeInsets.all(16),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    // 🚨 RESPONSIVE GRID: 4 columns on PC, 2 columns on Mobile!
                     crossAxisCount: isDesktop ? 4 : 2, 
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
-                    // Square on PC, slightly taller on mobile to fit the text
                     childAspectRatio: isDesktop ? 1.0 : 0.85, 
                   ),
                   itemCount: _milestones.length,
@@ -129,7 +191,7 @@ class _TrophyRoomScreenState extends State<TrophyRoomScreen> {
               color: m.isUnlocked ? Colors.amber.withOpacity(0.1) : Colors.white.withOpacity(0.05),
             ),
             child: Icon(
-              IconData(m.iconCode, fontFamily: 'MaterialIcons'), 
+              _getIcon(m.iconCode),
               size: 32, 
               color: m.isUnlocked ? Colors.amber : Colors.white24
             ),
@@ -156,7 +218,7 @@ class _TrophyRoomScreenState extends State<TrophyRoomScreen> {
               m.description, 
               textAlign: TextAlign.center, 
               style: TextStyle(
-                color: m.isUnlocked ? Colors.white70 : Colors.white12, // Made the text slightly visible when locked
+                color: m.isUnlocked ? Colors.white70 : Colors.white12,
                 fontSize: 10,
                 height: 1.3
               ),
@@ -180,7 +242,6 @@ class _TrophyRoomScreenState extends State<TrophyRoomScreen> {
               ),
             ),
           ] else ...[
-            // Keep the spacing even if it's not unlocked
             const SizedBox(height: 25),
           ]
         ],

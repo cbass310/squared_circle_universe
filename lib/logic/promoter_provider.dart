@@ -268,6 +268,9 @@ class RosterNotifier extends StateNotifier<RosterState> {
       w.isTVChampion = false;
       await _isar!.wrestlers.put(w);
     });
+    
+    // 🚨 TROPHY HOOK
+    await ref.read(gameProvider.notifier).unlockMilestone("medical_ward");
     await loadRoster();
   }
 
@@ -299,6 +302,29 @@ class RosterNotifier extends StateNotifier<RosterState> {
     await loadRoster();
   }
 
+  Future<void> evaluateShowForNewFeuds(List<Match> completedCard) async {
+    if (completedCard.isEmpty) return;
+
+    Match mainEvent = completedCard.last;
+    
+    String w1 = mainEvent.winnerName;
+    String w2 = mainEvent.loserName;
+    
+    if (mainEvent.rating >= 3.0 && w1.isNotEmpty && w2.isNotEmpty && w1 != "Draw" && w2 != "Draw") {
+      await addMatchInteraction(w1, w2);
+    }
+
+    for (int i = 0; i < completedCard.length - 1; i++) {
+      Match m = completedCard[i];
+      String mw1 = m.winnerName;
+      String mw2 = m.loserName;
+
+      if (m.rating >= 4.0 && mw1.isNotEmpty && mw2.isNotEmpty && mw1 != "Draw" && mw2 != "Draw") {
+        await addMatchInteraction(mw1, mw2);
+      }
+    }
+  }
+
   Future<void> addMatchInteraction(String w1, String w2) async {
     if (_isar == null || w1 == w2) return;
     
@@ -319,15 +345,23 @@ class RosterNotifier extends StateNotifier<RosterState> {
           existing.heat = (existing.heat + 25).clamp(0, 100);
           existing.status = RivalryStatus.active;
           await _isar!.rivalrys.put(existing);
+          
+          // 🚨 TROPHY HOOKS for Heat
+          if (existing.heat >= 60) await ref.read(gameProvider.notifier).unlockMilestone("red_hot");
+          if (existing.heat >= 90) await ref.read(gameProvider.notifier).unlockMilestone("legendary_grudge");
+          
         } else {
           var newRiv = Rivalry(
             wrestler1Name: w1,
             wrestler2Name: w2,
-            heat: 25, 
-            durationWeeks: 1,
+            heat: 45, 
+            durationWeeks: 0,
             status: RivalryStatus.active,
           );
           await _isar!.rivalrys.put(newRiv);
+          
+          // 🚨 TROPHY HOOK
+          await ref.read(gameProvider.notifier).unlockMilestone("first_feud");
         }
       });
     } catch (e) {
@@ -360,7 +394,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
     await loadRoster();
   }
   
-  // 🚨 THE FIX: GENERATE NEWS WHEN A WRESTLER HOLDS OUT OR LEAVES THE COMPANY
   Future<void> processContracts() async {
     if (_isar == null) return;
     
@@ -395,9 +428,13 @@ class RosterNotifier extends StateNotifier<RosterState> {
             w.isOnIR = false; 
           } 
           else {
+            // 🚨 THE FIX: Force morale to ZERO if they are holding out!
             if (!w.isHoldingOut && w.pop >= (w.contractedPop + 15) && w.greed >= 75) {
               w.isHoldingOut = true; 
+              w.morale = 0; // Hard-lock morale to 0
               if (w.companyId == 0) playerHoldouts.add(w.name);
+            } else if (w.isHoldingOut) {
+              w.morale = 0; // Keep morale locked at 0 until they are paid
             }
           }
           toUpdate.add(w);
@@ -408,7 +445,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
     
     final gameNotifier = ref.read(gameProvider.notifier);
     
-    // TRIGGER THE NEWS
     for (String name in playerExpired) { await gameNotifier.generatePlayerRosterNews(name, false); }
     for (String name in rivalExpired) { await gameNotifier.generateAiReleaseNews(name); }
     for (String name in playerHoldouts) { await gameNotifier.generateHoldoutNews(name); }
@@ -436,6 +472,9 @@ class RosterNotifier extends StateNotifier<RosterState> {
     });
     
     await ref.read(gameProvider.notifier).generatePlayerRosterNews(wrestler.name, true);
+    
+    // 🚨 TROPHY HOOK
+    await ref.read(gameProvider.notifier).unlockMilestone("first_signing");
     await loadRoster();
   }
 
@@ -452,6 +491,9 @@ class RosterNotifier extends StateNotifier<RosterState> {
     });
 
     await ref.read(gameProvider.notifier).generatePlayerRosterNews(wrestler.name, false);
+    
+    // 🚨 TROPHY HOOK
+    await ref.read(gameProvider.notifier).unlockMilestone("future_endeavors");
     await loadRoster();
   }
 
@@ -533,17 +575,79 @@ class RosterNotifier extends StateNotifier<RosterState> {
       ..cardPosition = "Main Eventer";
   }
 
+  // 🚨 THE FIX: The Rookie Lottery Engine
   List<Wrestler> _generateRandomRoster(int count, {bool isRookie = false}) {
     List<Wrestler> pool = [];
-    List<String> firstNames = ["Rex", "Jimmy", "Johnny", "Tommy", "Big", "Sly", "Mad", "King", "El", "Kid", "Doc", "Shadow"];
-    List<String> lastNames = ["Danger", "Flash", "Strong", "Storm", "Black", "Justice", "Ruckus", "Steele", "Havoc", "Viper", "Gato"];
+    List<String> firstNames = ["Rex", "Jimmy", "Johnny", "Tommy", "Big", "Sly", "Mad", "King", "El", "Kid", "Doc", "Shadow", "Ace", "Duke", "Jack", "Max", "Zack", "Blade", "Axel", "Steel"];
+    List<String> lastNames = ["Danger", "Flash", "Strong", "Storm", "Black", "Justice", "Ruckus", "Steele", "Havoc", "Viper", "Gato", "Cross", "Stone", "Wolf", "Hunter", "Rage", "Knight", "Blood"];
     
+    if (isRookie && count == 20) {
+      // We guarantee exactly 1 Generational star, 4 Decent stars, and 15 Scrubs in the pool of 20
+      List<String> archetypes = [
+        "GENERATIONAL", 
+        "DECENT", "DECENT", "DECENT", "DECENT",
+        "SCRUB", "SCRUB", "SCRUB", "SCRUB", "SCRUB", 
+        "SCRUB", "SCRUB", "SCRUB", "SCRUB", "SCRUB", 
+        "SCRUB", "SCRUB", "SCRUB", "SCRUB", "SCRUB"
+      ];
+      archetypes.shuffle(_rng); // Shuffles them so you never know which region they are in!
+
+      for (int i = 0; i < count; i++) {
+        String name = "${firstNames[_rng.nextInt(firstNames.length)]} ${lastNames[_rng.nextInt(lastNames.length)]}";
+        WrestlingStyle style = WrestlingStyle.values[_rng.nextInt(WrestlingStyle.values.length)];
+        
+        int basePop;
+        int baseRing;
+        int potential;
+
+        if (archetypes[i] == "GENERATIONAL") {
+          basePop = 60 + _rng.nextInt(15); // Instant Main Eventer/Upper Midcard
+          baseRing = 70 + _rng.nextInt(15); 
+          potential = 99; // Max potential
+        } else if (archetypes[i] == "DECENT") {
+          basePop = 35 + _rng.nextInt(15); // Good Midcarder
+          baseRing = 45 + _rng.nextInt(15); 
+          potential = 85 + _rng.nextInt(10); 
+        } else {
+          basePop = 15 + _rng.nextInt(15); // True Rookie (Scrub)
+          baseRing = 20 + _rng.nextInt(15); 
+          potential = 60 + _rng.nextInt(20); 
+        }
+        
+        pool.add(
+          Wrestler()
+            ..name = name
+            ..style = style
+            ..pop = basePop
+            ..ringSkill = baseRing
+            ..micSkill = (basePop * 0.8).toInt() + _rng.nextInt(15)
+            ..potentialSkill = potential 
+            ..salary = (basePop * 10) + _rng.nextInt(500)
+            ..companyId = -1 
+            ..isHeel = _rng.nextBool()
+            ..greed = 40 + _rng.nextInt(60)
+            ..loyalty = 40 + _rng.nextInt(60)
+            ..contractWeeks = 12 + _rng.nextInt(40)
+            ..contractedPop = basePop
+            ..isRookie = true
+            ..isScouted = false 
+            ..isOnIR = false 
+            ..isChampion = false
+            ..isTVChampion = false
+            ..isHoldingOut = false
+            ..cardPosition = "Opener" 
+        );
+      }
+      return pool;
+    }
+
+    // Standard Generation for the initial free agent/main roster pool
     for (int i = 0; i < count; i++) {
       String name = "${firstNames[_rng.nextInt(firstNames.length)]} ${lastNames[_rng.nextInt(lastNames.length)]}";
       WrestlingStyle style = WrestlingStyle.values[_rng.nextInt(WrestlingStyle.values.length)];
       
-      int basePop = isRookie ? 15 + _rng.nextInt(20) : 30 + _rng.nextInt(40); 
-      int baseRing = isRookie ? 25 + _rng.nextInt(20) : 40 + _rng.nextInt(40); 
+      int basePop = 30 + _rng.nextInt(40); 
+      int baseRing = 40 + _rng.nextInt(40); 
       
       pool.add(
         Wrestler()
@@ -560,8 +664,8 @@ class RosterNotifier extends StateNotifier<RosterState> {
           ..loyalty = 40 + _rng.nextInt(60)
           ..contractWeeks = 12 + _rng.nextInt(40)
           ..contractedPop = basePop
-          ..isRookie = isRookie
-          ..isScouted = !isRookie 
+          ..isRookie = false
+          ..isScouted = true 
           ..isOnIR = false 
           ..isChampion = false
           ..isTVChampion = false
@@ -660,6 +764,8 @@ class RosterNotifier extends StateNotifier<RosterState> {
       deductCash(cost);
     }
 
+    // 🚨 TROPHY HOOK
+    await ref.read(gameProvider.notifier).unlockMilestone("developmental");
     await loadRoster();
     return prospect; 
   }
@@ -679,10 +785,11 @@ class RosterNotifier extends StateNotifier<RosterState> {
       deductCash(cost);
     }
 
+    // 🚨 TROPHY HOOK
+    await ref.read(gameProvider.notifier).unlockMilestone("developmental");
     await loadRoster();
   }
 
-  // 🚨 THE FIX: Added the "BONUS" logic so it correctly clears contract holdouts and resets morale!
   Future<void> trainingAction(Wrestler w, String type, int cost) async {
     if (_isar == null) return;
     
@@ -694,7 +801,7 @@ class RosterNotifier extends StateNotifier<RosterState> {
       if (type == "BONUS" || type == "MORALE") { 
         w.morale = 100; 
         w.isHoldingOut = false; 
-        w.contractedPop = w.pop; // Reset baseline so they don't hold out again tomorrow!
+        w.contractedPop = w.pop; 
       }
       await _isar!.wrestlers.put(w);
     });

@@ -5,7 +5,7 @@ import '../../logic/promoter_provider.dart';
 import '../../logic/game_state_provider.dart'; 
 import '../../logic/settings_provider.dart'; 
 import 'hub_screen.dart'; 
-import '../modes/promoter/trophy_room_screen.dart'; // 🚨 FIXED: Added ../ to the path
+import '../modes/promoter/trophy_room_screen.dart'; 
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -153,17 +153,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Divider(color: Colors.white10, thickness: 2)),
 
             // --- DATA MANAGEMENT ---
-            const Text("DATA MANAGEMENT", style: TextStyle(color: Colors.blueAccent, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 2.0)),
+            const Text("DATA MANAGEMENT", style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 2.0)),
             const SizedBox(height: 16),
             
+            // 🚨 FIX: Removed hard height and used padding to prevent text slicing
             SizedBox(
               width: double.infinity,
-              height: 50,
               child: ElevatedButton.icon(
-                icon: const Icon(Icons.save, color: Colors.white),
-                label: const Text("MANUAL SAVE", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.0, color: Colors.white)),
+                icon: const Icon(Icons.save, color: Colors.black),
+                label: const Text("MANUAL SAVE", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.0, color: Colors.black, height: 1.2)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blueAccent.shade700,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: Colors.amber,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 onPressed: () async {
@@ -179,14 +180,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: 12),
             
+            // 🚨 FIX: Removed hard height and used padding
             SizedBox(
               width: double.infinity,
-              height: 50,
               child: ElevatedButton.icon(
-                icon: const Icon(Icons.exit_to_app, color: Colors.white),
-                label: const Text("SAVE & QUIT TO MENU", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.0, color: Colors.white)),
+                icon: const Icon(Icons.exit_to_app, color: Colors.black),
+                label: const Text("SAVE & QUIT TO MENU", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.0, color: Colors.black, height: 1.2)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey.shade800,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: Colors.amber,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 onPressed: () async {
@@ -207,14 +209,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: 12),
 
-            // 🚨 THE NEW TROPHY BUTTON 🚨
+            // 🚨 FIX: Removed hard height and used padding
             SizedBox(
               width: double.infinity,
-              height: 50,
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.emoji_events, color: Colors.black),
-                label: const Text("VIEW PROMOTER MILESTONES", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0, color: Colors.black)),
+                label: const Text("VIEW PROMOTER MILESTONES", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.0, color: Colors.black, height: 1.2)),
                 style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: Colors.amber, 
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
@@ -237,9 +239,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               width: double.infinity,
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.delete_forever_rounded, color: Colors.redAccent),
-                label: const Text("FACTORY RESET UNIVERSE", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Colors.redAccent, letterSpacing: 1.0)),
+                label: const Text("FACTORY RESET UNIVERSE", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Colors.redAccent, letterSpacing: 1.0, height: 1.2)),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   side: const BorderSide(color: Colors.redAccent, width: 2),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   backgroundColor: Colors.redAccent.withOpacity(0.05),
