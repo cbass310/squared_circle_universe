@@ -1,3 +1,4 @@
+import 'dart:io' show Platform; // 🚨 ADDED FOR PLATFORM DETECTION
 import 'dart:math'; 
 import 'dart:convert'; 
 import 'package:flutter/material.dart'; 
@@ -91,6 +92,7 @@ class GameState {
   final int venueLevel; 
   final int premierPpvIndex; 
   final bool isLoading; 
+  final bool isFullGameUnlocked; // 🚨 ADDED
 
   GameState({
     this.promotionName = "Squared Circle Universe",
@@ -124,6 +126,7 @@ class GameState {
     this.venueLevel = 1, 
     this.premierPpvIndex = 11, 
     this.isLoading = true,
+    this.isFullGameUnlocked = false, // 🚨 ADDED
   });
 
   int get playerWins => ledger.where((e) => e.warResult == "VICTORY").length;
@@ -153,7 +156,7 @@ class GameState {
     List<String>? ppvNames, List<String>? venueCustomNames, List<SponsorshipDeal>? activeSponsors,
     List<SponsorshipDeal>? availableOffers, TvNetworkDeal? activeTvDeal, bool? isBiddingWarActive, 
     bool? isSandboxMode, int? techBroadcast, int? techPyro, int? techAudio, int? techMedical, 
-    int? venueLevel, int? premierPpvIndex, bool? isLoading,
+    int? venueLevel, int? premierPpvIndex, bool? isLoading, bool? isFullGameUnlocked, // 🚨 ADDED
   }) {
     return GameState(
       promotionName: promotionName ?? this.promotionName,
@@ -180,6 +183,7 @@ class GameState {
       venueLevel: venueLevel ?? this.venueLevel,
       premierPpvIndex: premierPpvIndex ?? this.premierPpvIndex,
       isLoading: isLoading ?? this.isLoading,
+      isFullGameUnlocked: isFullGameUnlocked ?? this.isFullGameUnlocked, // 🚨 ADDED
     );
   }
 }
@@ -238,11 +242,27 @@ class GameNotifier extends StateNotifier<GameState> {
     final currentSponsors = await db.sponsorshipDeals.filter().promotionIdEqualTo(0).findAll();
     final existingSave = await db.gameSaves.get(1); 
 
+    // 🚨 THE PLATFORM CHECK LOGIC 🚨
+    bool isDesktop = false;
+    try {
+      if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+        isDesktop = true;
+      }
+    } catch (e) {
+      // Failsafe for web or weird environments
+    }
+
     if (existingSave != null) {
       List<FinancialEntry> loadedLedger = [];
       try {
         loadedLedger = existingSave.ledgerJson.map((e) => FinancialEntry.fromMap(jsonDecode(e))).toList();
       } catch (e) {}
+
+      // 🚨 DETERMINE UNLOCK STATUS (Auto-true for PC, checks Isar DB for mobile)
+      bool unlockedStatus = isDesktop;
+      if (!isDesktop) {
+        try { unlockedStatus = existingSave.isFullGameUnlocked; } catch(e) { unlockedStatus = false; }
+      }
 
       state = state.copyWith(
         week: existingSave.week, year: existingSave.year, cash: existingSave.cash, fans: existingSave.fans,
@@ -251,9 +271,16 @@ class GameNotifier extends StateNotifier<GameState> {
         techAudio: existingSave.techAudio, techMedical: existingSave.techMedical, premierPpvIndex: existingSave.premierPpvIndex, 
         activeTvDeal: currentDeal, activeSponsors: currentSponsors, isBiddingWarActive: currentDeal == null, isLoading: false,
         ledger: loadedLedger, 
+        isFullGameUnlocked: unlockedStatus, // 🚨 LOAD UNLOCK STATUS
       );
     } else {
-      state = state.copyWith(isLoading: false, isBiddingWarActive: true, activeTvDeal: null, activeSponsors: []);
+      state = state.copyWith(
+        isLoading: false, 
+        isBiddingWarActive: true, 
+        activeTvDeal: null, 
+        activeSponsors: [],
+        isFullGameUnlocked: isDesktop, // 🚨 AUTO-UNLOCK FOR NEW PC SAVES
+      );
     }
     
     _generateInitialSponsors();
@@ -586,6 +613,11 @@ class GameNotifier extends StateNotifier<GameState> {
   // 🚀 PROCESS WEEK ENGINE 
   // =========================================================================
   Future<void> processWeek(List<Wrestler> roster) async {
+    // 🚨 THE PAYWALL ROADBLOCK 🚨
+    if (!state.isFullGameUnlocked && state.week >= 12) {
+      throw Exception("DEMO_LIMIT_REACHED");
+    }
+
     final db = await _getDb(); 
 
     int sal = roster.fold(0, (sum, w) => sum + w.salary);
@@ -831,13 +863,12 @@ class GameNotifier extends StateNotifier<GameState> {
 
     freeAgents.sort((a, b) => b.pop.compareTo(a.pop));
     
-    // 🚨 THE FIX: AI Budget Pacing ("Smoke and Mirrors" Economy)
     int aiSigningsThisWeek = 0;
     int maxSigningsPerWeek = currentDifficultyForAI == "TYCOON" ? 2 : 1; 
     double dynamicSignChance = state.week <= 4 ? (signChance * 0.5) : signChance;
 
     for (var fa in freeAgents) {
-      if (aiSigningsThisWeek >= maxSigningsPerWeek) break; // Cuts them off!
+      if (aiSigningsThisWeek >= maxSigningsPerWeek) break; 
 
       int bossCount = rivalRoster.where((w) => w.pop >= 85).length;
       if (fa.pop >= 85 && bossCount >= 3) continue;
@@ -992,7 +1023,8 @@ class GameNotifier extends StateNotifier<GameState> {
           ..techAudio = state.techAudio
           ..techMedical = state.techMedical
           ..premierPpvIndex = state.premierPpvIndex
-          ..ledgerJson = state.ledger.map((e) => jsonEncode(e.toMap())).toList(); 
+          ..ledgerJson = state.ledger.map((e) => jsonEncode(e.toMap())).toList()
+          ..isFullGameUnlocked = state.isFullGameUnlocked; // 🚨 ADDED
       await db.writeTxn(() async { await db.gameSaves.put(save); });
   }
 

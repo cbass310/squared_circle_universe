@@ -3,9 +3,6 @@ import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
-    // START: FlutterFire Configuration
-    id("com.google.gms.google-services")
-    // END: FlutterFire Configuration
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
@@ -19,7 +16,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.example.squared_circle_universe"
+    namespace = "com.cbassenterprises.squaredcircletycoon"
     compileSdk = 36 // 🚨 BUMPED TO 36 FOR THE UPDATED PLUGINS 🚨
     ndkVersion = flutter.ndkVersion
 
@@ -43,7 +40,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.squared_circle_universe"
+        applicationId = "com.cbassenterprises.squaredcircletycoon"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

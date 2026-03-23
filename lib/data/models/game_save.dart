@@ -17,6 +17,7 @@ class GameSave {
   late int techPyro;
   late int techAudio;
   late int techMedical;
+  late bool isFullGameUnlocked = false;
   
   // Tracks your "WrestleMania" event
   int premierPpvIndex = 11; 
