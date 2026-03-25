@@ -1,4 +1,4 @@
-package com.example.squared_circle_universe
+package com.cbassenterprises.squarecircletycoon
 
 import io.flutter.embedding.android.FlutterActivity
 
