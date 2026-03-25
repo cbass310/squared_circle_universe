@@ -28,6 +28,7 @@ dependencies:
   csv: ^7.1.0
   shared_preferences: ^2.5.4
   intl: ^0.20.2
+  easy_localization: ^3.0.8
 
 dev_dependencies:
   flutter_test:
@@ -46,6 +47,7 @@ flutter:
     - .env          # <--- Registers your secure Supabase vault
     - assets/images/
     - assets/audio/
+    - assets/translations/
 
 # --- APP ICON CONFIGURATION ---
 flutter_launcher_icons:

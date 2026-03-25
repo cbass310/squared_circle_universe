@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,12 +11,13 @@ import '../../logic/game_state_provider.dart';
 
 // --- SCREEN IMPORTS ---
 import '../modes/promoter/promoter_home_screen.dart';
-import '../modes/promoter/welcome_letter_screen.dart'; // 🚨 IMPORTED THE NEW WELCOME LETTER!
+import '../modes/promoter/welcome_letter_screen.dart'; 
 import 'show_history_screen.dart';
 import '../modes/leaderboard/leaderboard_screen.dart';
 import '../modes/network/player_pick_sheet_screen.dart'; 
 import '../modes/network/commissioner_dashboard_screen.dart';
 import 'community_rosters_screen.dart';
+import 'settings_screen.dart'; // 🚨 NEW IMPORT ADDED HERE!
 
 // --- WIDGET IMPORTS ---
 import '../components/global_network_button.dart'; 
@@ -38,7 +40,7 @@ class _HubScreenState extends ConsumerState<HubScreen> {
   Widget build(BuildContext context) {
     final gameState = ref.watch(gameProvider);
     
-    // 🛠️ THE FIX: A save file only exists if the player has advanced past week 1, 
+    // A save file only exists if the player has advanced past week 1, 
     // moved to a new year, or has generated financial ledger history.
     final bool hasSaveFile = gameState.week > 1 || gameState.year > 1 || gameState.ledger.isNotEmpty;
     
@@ -46,10 +48,10 @@ class _HubScreenState extends ConsumerState<HubScreen> {
     final user = session?.user;
     final bool isLoggedIn = user != null;
 
-    // 📱 LAYOUT BUILDER ADAPTS TO PHONE VS TABLET
+    // LAYOUT BUILDER ADAPTS TO PHONE VS TABLET
     return LayoutBuilder(
       builder: (context, constraints) {
-        // 🛠️ THE FIX: 600 Breakpoint ensures Tablets get the Desktop Menu!
+        // 600 Breakpoint ensures Tablets get the Desktop Menu!
         final bool isDesktop = constraints.maxWidth > 600;
 
         return Scaffold(
@@ -75,12 +77,11 @@ class _HubScreenState extends ConsumerState<HubScreen> {
   }
 
   // ====================================================================
-  // 📱 NEW MOBILE LAYOUT (Centered, Gradient Background, Scrollable)
+  // MOBILE LAYOUT
   // ====================================================================
   Widget _buildMobileLayout(bool hasSaveFile, bool isLoggedIn, User? user, dynamic gameState) {
     return Stack(
       children: [
-        // Background Hero
         Positioned.fill(
           child: Image.asset(
             "assets/images/imagepromoter.png",
@@ -88,7 +89,6 @@ class _HubScreenState extends ConsumerState<HubScreen> {
             errorBuilder: (c, e, s) => Container(color: const Color(0xFF101010)),
           ),
         ),
-        // Shadow Gradient (Lighter at top, pitch black at bottom for readability)
         Positioned.fill(
           child: Container(
             decoration: BoxDecoration(
@@ -101,7 +101,6 @@ class _HubScreenState extends ConsumerState<HubScreen> {
             ),
           ),
         ),
-        // Centered Main Menu
         SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -118,7 +117,7 @@ class _HubScreenState extends ConsumerState<HubScreen> {
   }
 
   // ====================================================================
-  // 💻 DESKTOP/TABLET LAYOUT (Left Column)
+  // DESKTOP/TABLET LAYOUT
   // ====================================================================
   Widget _buildDesktopMenu(bool hasSaveFile, bool isLoggedIn, User? user, dynamic gameState) {
     return Expanded(
@@ -143,12 +142,10 @@ class _HubScreenState extends ConsumerState<HubScreen> {
   }
 
   // ====================================================================
-  // 🛠 THE REUSABLE MENU ITEMS (Used by both Phone and Tablet)
+  // THE REUSABLE MENU ITEMS
   // ====================================================================
   List<Widget> _buildMenuButtons(bool hasSaveFile, bool isLoggedIn, User? user, bool isDesktop, dynamic gameState) {
     return [
-      
-      // 🚨 RESIZED AND CENTERED LOGO TREATMENT 🚨
       Center(
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
@@ -164,13 +161,13 @@ class _HubScreenState extends ConsumerState<HubScreen> {
           ),
           child: Image.asset(
             "assets/images/imagelogo.png", 
-            height: isDesktop ? 180 : 120, // Perfectly scaled back to fit the frame
+            height: isDesktop ? 180 : 120, 
             fit: BoxFit.contain,
             errorBuilder: (c, e, s) => Icon(Icons.sports_mma, size: isDesktop ? 100 : 80, color: Colors.amber),
           ),
         ),
       ),
-      SizedBox(height: isDesktop ? 25 : 15), // Reduced empty gap
+      SizedBox(height: isDesktop ? 25 : 15), 
 
       const Text("SELECT MODE", style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
       const SizedBox(height: 20),
@@ -213,6 +210,19 @@ class _HubScreenState extends ConsumerState<HubScreen> {
         baseColor: Colors.purpleAccent,
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LeaderboardScreen())),
       ),
+      const SizedBox(height: 16),
+
+      // 4. SETTINGS & LOCALIZATION 
+      _buildMenuButton(
+        icon: Icons.settings,
+        title: "SETTINGS",
+        subtitle: "Preferences.",
+        baseColor: Colors.grey,
+        // 🚨 THIS NOW ROUTES TO YOUR FULL SETTINGS SCREEN 🚨
+        onTap: () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+        },
+      ),
 
       const SizedBox(height: 40),
       const Center(child: Text("v1.0.0 RELEASE", style: TextStyle(color: Colors.white24, fontSize: 10, letterSpacing: 2.0))),
@@ -220,7 +230,7 @@ class _HubScreenState extends ConsumerState<HubScreen> {
   }
 
   // ====================================================================
-  // WIDGET: RIGHT HERO IMAGE (For Desktop/Tablet)
+  // WIDGET: RIGHT HERO IMAGE 
   // ====================================================================
   Widget _buildHeroImage(bool isDesktop) {
     return Expanded(
@@ -301,7 +311,7 @@ class _HubScreenState extends ConsumerState<HubScreen> {
   }
 
   // ====================================================================
-  // 📱 THE NEW BOTTOM SHEET ENGINE (Replaces Dialogs)
+  // THE BOTTOM SHEET ENGINE
   // ====================================================================
   void _openBottomSheet(BuildContext context, String title, List<Widget> children, Color accentColor) {
     showModalBottomSheet(
@@ -315,11 +325,10 @@ class _HubScreenState extends ConsumerState<HubScreen> {
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             boxShadow: [BoxShadow(color: Colors.black87, blurRadius: 15, spreadRadius: 5)],
           ),
-          child: SafeArea( // Ensures it doesn't overlap the phone's home bar
+          child: SafeArea( 
             child: Column(
-              mainAxisSize: MainAxisSize.min, // Shrinks to fit content perfectly
+              mainAxisSize: MainAxisSize.min, 
               children: [
-                // Header
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.white12, width: 1))),
@@ -331,7 +340,6 @@ class _HubScreenState extends ConsumerState<HubScreen> {
                     ],
                   ),
                 ),
-                // Buttons Layer
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(children: children),
@@ -368,7 +376,6 @@ class _HubScreenState extends ConsumerState<HubScreen> {
       options.add(const SizedBox(height: 12));
     }
     
-    // 🛠️ THE FIX: Smart "New Game" routing. If they have a save, warn them. If not, just launch!
     options.add(_buildBottomSheetButton("NEW CAREER", Icons.add_circle_outline_rounded, Colors.blueAccent, () { 
       Navigator.pop(context); 
       if (hasSaveFile) {
@@ -414,33 +421,24 @@ class _HubScreenState extends ConsumerState<HubScreen> {
     );
   }
 
-  // 🚨 THE FIX: Now routes to the Welcome Letter before the Dashboard!
   Future<void> _startFreshGame() async {
     HapticFeedback.heavyImpact();
     
-    // 1. Show a quick loading spinner so the user knows something is happening
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => const Center(child: CircularProgressIndicator(color: Colors.amber)),
     );
 
-    // 2. Wipe the universe and await the new game state
     await ref.read(gameProvider.notifier).resetGame(); 
-    
-    // 3. Wipe the roster and crucially AWAIT the generation of the new wrestlers
     await ref.read(rosterProvider.notifier).factoryReset(); 
     
     if (context.mounted) { 
-      // 4. Pop the loading spinner
       Navigator.pop(context);
-      
-      // 5. Safely push into the Welcome Letter! 
       Navigator.push(context, MaterialPageRoute(builder: (_) => const WelcomeLetterScreen())); 
     } 
   }
 
-  // Destructive Action: Kept as standard Dialog to ensure user attention
   void _confirmNewGame() {
     showDialog(
       context: context,
@@ -451,7 +449,7 @@ class _HubScreenState extends ConsumerState<HubScreen> {
         actions: [
           TextButton(child: const Text("Cancel"), onPressed: () => Navigator.pop(ctx)),
           TextButton(
-            child: const Text("START NEW GAME", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)), 
+            child: const Text("START NEW GAME", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)), 
             onPressed: () { 
               Navigator.pop(ctx); 
               _startFreshGame(); 

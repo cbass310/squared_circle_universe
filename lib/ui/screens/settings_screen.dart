@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart'; // 🚨 IMPORT ADDED HERE
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -126,6 +127,42 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             // --- GAMEPLAY SECTION ---
             const Text("GAMEPLAY EXPERIENCE", style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 2.0)),
             const SizedBox(height: 16),
+
+            /* 🚨 HIDDEN FOR VERSION 1.0 LAUNCH 🚨
+
+            // 🚨 NEW LANGUAGE DROPDOWN BOX 🚨
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Language / Idioma", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  DropdownButtonHideUnderline(
+                    child: DropdownButton<Locale>(
+                      value: context.locale, // Reads current language
+                      dropdownColor: const Color(0xFF202020),
+                      icon: const Icon(Icons.arrow_drop_down, color: Colors.amber),
+                      style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.w900, letterSpacing: 1.0),
+                      items: const [
+                        DropdownMenuItem(value: Locale('en'), child: Text("ENGLISH")),
+                        DropdownMenuItem(value: Locale('es'), child: Text("ESPAÑOL")),
+                        DropdownMenuItem(value: Locale('pt'), child: Text("PORTUGUÊS")),
+                      ],
+                      onChanged: (Locale? newLocale) {
+                        if (newLocale != null) {
+                          context.setLocale(newLocale); // Instantly swaps the dictionary
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 12),
+            */
+
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white10)),
@@ -156,7 +193,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const Text("DATA MANAGEMENT", style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 2.0)),
             const SizedBox(height: 16),
             
-            // 🚨 FIX: Removed hard height and used padding to prevent text slicing
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -180,7 +216,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: 12),
             
-            // 🚨 FIX: Removed hard height and used padding
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -209,7 +244,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: 12),
 
-            // 🚨 FIX: Removed hard height and used padding
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(

@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart'; 
@@ -9,14 +10,15 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 // 🚨 IMPORT THE SPLASH SCREEN
 import 'ui/screens/splash_screen.dart'; 
 
-Future<void> main() async {
+void main() async {
+  // 1. Initialize core Flutter bindings
   WidgetsFlutterBinding.ensureInitialized();
   
+  // 2. Wake up the translation engine
+  await EasyLocalization.ensureInitialized(); 
+
   // ====================================================================
   // 🚨 THE FIX: COMPLETELY UNLOCK ALL ORIENTATIONS 🚨
-  // By allowing all orientations, we bypass any Android hardware bugs
-  // that falsely report screen sizes on boot. 
-  // Our LayoutBuilders (> 600) will automatically handle the UI changes!
   // ====================================================================
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -25,16 +27,30 @@ Future<void> main() async {
     DeviceOrientation.landscapeRight,
   ]);
   
-  // 1. Unlock the vault to get your keys
+  // 3. Unlock the vault to get your keys
   await dotenv.load(fileName: ".env");
   
-  // 2. Fire up the pure-Dart Supabase Engine
+  // 4. Fire up the pure-Dart Supabase Engine
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
   
-  runApp(const ProviderScope(child: MyApp()));
+  // 5. Run the app: ProviderScope wraps EasyLocalization, which wraps MyApp
+  runApp(
+    ProviderScope(
+      child: EasyLocalization(
+        supportedLocales: const [
+          Locale('en'), 
+          Locale('es'), 
+          Locale('pt')
+        ],
+        path: 'assets/translations', // Points to your dictionary folder
+        fallbackLocale: const Locale('en'), 
+        child: const MyApp(), 
+      ),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -45,6 +61,13 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Squared Circle Tycoon',
       debugShowCheckedModeBanner: false,
+
+      // 🚨 CRITICAL LOCALIZATION HOOKS 🚨
+      // These tell your app to actually use the dictionaries we set up
+      localizationsDelegates: context.localizationDelegates,
+      supportedLocales: context.supportedLocales,
+      locale: context.locale,
+
       theme: ThemeData(
         // NOIR THEME CONFIGURATION
         brightness: Brightness.dark,
@@ -98,7 +121,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSwatch(brightness: Brightness.dark).copyWith(secondary: const Color(0xFF18FFFF)), // Cyan Accent
       ),
       
-      // 🚨 Set the Entry Point to the Splash Screen!
+      // Set the Entry Point to the Splash Screen
       home: const SplashScreen(), 
     );
   }
