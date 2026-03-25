@@ -16,7 +16,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.cbassenterprises.squaredcircletycoon"
+    namespace = "com.cbassenterprises.squaredcircletycoondcircletycoon"
     compileSdk = 36 // 🚨 BUMPED TO 36 FOR THE UPDATED PLUGINS 🚨
     ndkVersion = flutter.ndkVersion
 
@@ -40,7 +40,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.cbassenterprises.squaredcircletycoon"
+        applicationId = "com.cbassenterprises.squaredcircletycoondcircletycoon"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

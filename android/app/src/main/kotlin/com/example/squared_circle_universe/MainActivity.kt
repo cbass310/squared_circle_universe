@@ -1,4 +1,4 @@
-package com.cbassenterprises.squarecircletycoon
+package com.cbassenterprises.squaredcircletycooncircletycoon
 
 import io.flutter.embedding.android.FlutterActivity
 
