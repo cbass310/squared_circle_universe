@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb; // 🚨 NEW: The Web Checker! 🚨
 import '../../../logic/auth_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState; 
 
 // --- IMPORT FOR THE WATERMARK ---
 import '../../components/tv_watermark.dart';
+
+// 🚨 NEW: The Compiler Flag Listener! 🚨
+// This listens for the --dart-define=SOLANA_STORE=true command in the terminal.
+const bool isSolanaStoreBuild = bool.fromEnvironment('SOLANA_STORE', defaultValue: false);
 
 class GlobalNetworkAuthScreen extends ConsumerWidget {
   const GlobalNetworkAuthScreen({super.key});
@@ -189,17 +194,20 @@ class GlobalNetworkAuthScreen extends ConsumerWidget {
                         ref.read(authStateProvider.notifier).signInWithApple();
                       },
                     ),
-                    const SizedBox(height: 16),
-                    // 🚨 NEW SOLANA BUTTON 🚨
-                    _buildAuthButton(
-                      icon: Icons.account_balance_wallet,
-                      label: 'SIGN IN WITH SOLANA',
-                      onPressed: () {
-                        HapticFeedback.heavyImpact();
-                        // 🚨 PASSED THE CONTEXT HERE! 🚨
-                        ref.read(authStateProvider.notifier).signInWithSolana(context);
-                      },
-                    ),
+                    
+                    // 🚨 CONDITIONAL SOLANA BUTTON 🚨
+                    // Renders on the Web OR if we specifically flag it as a Solana Store build!
+                    if (kIsWeb || isSolanaStoreBuild) ...[
+                      const SizedBox(height: 16),
+                      _buildAuthButton(
+                        icon: Icons.account_balance_wallet,
+                        label: 'SIGN IN WITH SOLANA',
+                        onPressed: () {
+                          HapticFeedback.heavyImpact();
+                          ref.read(authStateProvider.notifier).signInWithSolana(context);
+                        },
+                      ),
+                    ],
                   ],
                 ],
               ),
