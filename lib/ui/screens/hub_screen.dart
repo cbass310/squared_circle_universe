@@ -2,12 +2,13 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 // --- LOGIC IMPORTS ---
 import '../../logic/promoter_provider.dart';
 import '../../logic/roster_importer.dart';
 import '../../logic/game_state_provider.dart'; 
+import '../../logic/auth_provider.dart'; // 🚨 NEW IMPORT ADDED HERE!
 
 // --- SCREEN IMPORTS ---
 import '../modes/promoter/promoter_home_screen.dart';
@@ -17,7 +18,7 @@ import '../modes/leaderboard/leaderboard_screen.dart';
 import '../modes/network/player_pick_sheet_screen.dart'; 
 import '../modes/network/commissioner_dashboard_screen.dart';
 import 'community_rosters_screen.dart';
-import 'settings_screen.dart'; // 🚨 NEW IMPORT ADDED HERE!
+import 'settings_screen.dart'; 
 
 // --- WIDGET IMPORTS ---
 import '../components/global_network_button.dart'; 
@@ -44,9 +45,10 @@ class _HubScreenState extends ConsumerState<HubScreen> {
     // moved to a new year, or has generated financial ledger history.
     final bool hasSaveFile = gameState.week > 1 || gameState.year > 1 || gameState.ledger.isNotEmpty;
     
-    final session = Supabase.instance.client.auth.currentSession;
-    final user = session?.user;
-    final bool isLoggedIn = user != null;
+    // 🚨 LIVE VIDEO FEED: Watch the Riverpod provider!
+    final authState = ref.watch(authStateProvider);
+    final bool isLoggedIn = authState == AuthState.authenticated;
+    final user = Supabase.instance.client.auth.currentUser;
 
     // LAYOUT BUILDER ADAPTS TO PHONE VS TABLET
     return LayoutBuilder(
@@ -216,9 +218,8 @@ class _HubScreenState extends ConsumerState<HubScreen> {
       _buildMenuButton(
         icon: Icons.settings,
         title: "SETTINGS",
-        subtitle: "Preferences.",
+        subtitle: "Game Preferences.",
         baseColor: Colors.grey,
-        // 🚨 THIS NOW ROUTES TO YOUR FULL SETTINGS SCREEN 🚨
         onTap: () {
           Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
         },

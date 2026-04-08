@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // 🚨 NEW: Added Supabase!
 import '../../../logic/game_state_provider.dart';
 import '../../../data/models/wrestler.dart';
 import '../../screens/hub_screen.dart';
@@ -19,11 +20,34 @@ class SeasonRecapScreen extends ConsumerStatefulWidget {
 class _SeasonRecapScreenState extends ConsumerState<SeasonRecapScreen> {
   Wrestler? woty;
   bool isLoading = true;
+  bool _scoreUploaded = false; // 🚨 NEW: Prevents double uploads
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _uploadSeasonScore(); // 🚨 NEW: Sync to the leaderboard immediately!
+  }
+
+  // 🚨 NEW: The Cloud Sync Function
+  Future<void> _uploadSeasonScore() async {
+    try {
+      final gameState = ref.read(gameProvider);
+      final session = Supabase.instance.client.auth.currentSession;
+      
+      // Only upload if they are logged into the Global Network
+      if (session != null && !_scoreUploaded) {
+        await Supabase.instance.client.from('tycoon_scores').insert({
+          'user_id': session.user.id,
+          'promotion_name': gameState.promotionName,
+          'score': gameState.cash, 
+        });
+        if (mounted) setState(() => _scoreUploaded = true);
+        debugPrint("Season score successfully synced to Tycoon Legacy Board!");
+      }
+    } catch (e) {
+      debugPrint("Failed to upload season score: $e");
+    }
   }
 
   Future<void> _loadData() async {
@@ -56,6 +80,22 @@ class _SeasonRecapScreenState extends ConsumerState<SeasonRecapScreen> {
     // Format the profit to look like real money (e.g. $1,250,000)
     final formattedProfit = totalProfit.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
     
+    // 🚨 NEW: Calculate the War Room Record
+    int wins = gameState.playerWins;
+    int losses = gameState.rivalWins;
+    int draws = gameState.draws;
+    String record = "$wins W - $losses L - $draws D";
+    
+    String warVictor = "DRAW";
+    Color victorColor = Colors.white;
+    if (wins > losses) {
+      warVictor = "YOU WON THE RATINGS WAR";
+      victorColor = Colors.greenAccent;
+    } else if (losses > wins) {
+      warVictor = "RIVAL WON THE RATINGS WAR";
+      victorColor = Colors.redAccent;
+    }
+
     final nextYear = gameState.year + 1;
 
     // 🚨 SMART LAYOUT BUILDER 🚨
@@ -69,7 +109,7 @@ class _SeasonRecapScreenState extends ConsumerState<SeasonRecapScreen> {
             backgroundColor: const Color(0xFF121212),
             body: Row(
               children: [
-                Expanded(flex: 4, child: _buildDesktopDataColumn(highestRating, formattedProfit, nextYear)),
+                Expanded(flex: 4, child: _buildDesktopDataColumn(highestRating, formattedProfit, record, warVictor, victorColor, nextYear)),
                 Expanded(flex: 6, child: _buildArtworkPane(isMobile: false)),
               ],
             ),
@@ -97,22 +137,22 @@ class _SeasonRecapScreenState extends ConsumerState<SeasonRecapScreen> {
                           ),
                         ),
                       ),
-                      const SafeArea(
+                      SafeArea(
                         child: Padding(
-                          padding: EdgeInsets.all(20.0),
+                          padding: const EdgeInsets.all(20.0),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.end,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
                                 children: [
-                                  Icon(Icons.stars, color: Colors.amber, size: 24),
-                                  SizedBox(width: 8),
-                                  Text("SEASON FINALE", style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
+                                  const Icon(Icons.stars, color: Colors.amber, size: 24),
+                                  const SizedBox(width: 8),
+                                  const Text("SEASON FINALE", style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2.0)),
                                 ],
                               ),
-                              SizedBox(height: 4),
-                              Text("YEAR-END AWARDS", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                              const SizedBox(height: 4),
+                              const Text("YEAR-END AWARDS", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
                             ],
                           ),
                         ),
@@ -136,10 +176,12 @@ class _SeasonRecapScreenState extends ConsumerState<SeasonRecapScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  _buildStatRow('Ratings War Record', record, subtitle: warVictor, subColor: victorColor, isMobile: true),
+                                  const SizedBox(height: 20),
                                   _buildStatRow('Event of the Year', '⭐ ${highestRating.toStringAsFixed(1)} Rating', isMobile: true),
-                                  const SizedBox(height: 30),
+                                  const SizedBox(height: 20),
                                   _buildStatRow('Wrestler of the Year', isLoading ? 'Loading...' : (woty?.name ?? 'N/A'), isMobile: true),
-                                  const SizedBox(height: 30),
+                                  const SizedBox(height: 20),
                                   _buildStatRow('Total Annual Profit', '\$$formattedProfit', isMobile: true),
                                 ],
                               ),
@@ -163,7 +205,7 @@ class _SeasonRecapScreenState extends ConsumerState<SeasonRecapScreen> {
   // =====================================================================
   // --- 💻 DESKTOP SPECIFIC WIDGETS
   // =====================================================================
-  Widget _buildDesktopDataColumn(double highestRating, String formattedProfit, int nextYear) {
+  Widget _buildDesktopDataColumn(double highestRating, String formattedProfit, String record, String warVictor, Color victorColor, int nextYear) {
     return Container(
       color: const Color(0xFF121212),
       padding: const EdgeInsets.all(40.0),
@@ -180,6 +222,8 @@ class _SeasonRecapScreenState extends ConsumerState<SeasonRecapScreen> {
             ),
           ),
           const SizedBox(height: 50),
+          _buildStatRow('Ratings War Record', record, subtitle: warVictor, subColor: victorColor, isMobile: false),
+          const SizedBox(height: 30),
           _buildStatRow('Event of the Year', '⭐ ${highestRating.toStringAsFixed(1)} Rating', isMobile: false),
           const SizedBox(height: 30),
           _buildStatRow('Wrestler of the Year', isLoading ? 'Loading...' : (woty?.name ?? 'N/A'), isMobile: false),
@@ -232,7 +276,7 @@ class _SeasonRecapScreenState extends ConsumerState<SeasonRecapScreen> {
     );
   }
 
-  Widget _buildStatRow(String title, String value, {required bool isMobile}) {
+  Widget _buildStatRow(String title, String value, {String? subtitle, Color? subColor, required bool isMobile}) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(isMobile ? 16 : 20),
@@ -253,6 +297,13 @@ class _SeasonRecapScreenState extends ConsumerState<SeasonRecapScreen> {
             value, 
             style: TextStyle(fontSize: isMobile ? 24 : 32, fontWeight: FontWeight.w900, color: Colors.white),
           ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: subColor ?? Colors.white54),
+            ),
+          ]
         ],
       ),
     );

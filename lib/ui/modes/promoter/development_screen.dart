@@ -210,7 +210,6 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
     );
   }
 
-  // 🚨 THE FIX: Removed the "Scouted Prospects" list entirely to preserve the blind lottery!
   Widget _buildScoutingTab(dynamic gameState, dynamic rosterState) {
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -220,7 +219,7 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
         
         _buildRegionCard(gameState, "North America", 1, 500, "Gym", "assets/images/scout_usa.png"),
         _buildRegionCard(gameState, "South America", 2, 1000, "Civic Center", "assets/images/scout_mexico.png"),
-        _buildRegionCard(gameState, "Asia", 3, 2500, "City Arena", "assets/images/scout_japan.png"),
+        _buildRegionCard(gameState, "Asia", 3, 2500, "State Arena", "assets/images/scout_japan.png"),
         _buildRegionCard(gameState, "Europe", 4, 5000, "Global Stadium", "assets/images/scout_uk.png"),
         
         const SizedBox(height: 24),
@@ -459,7 +458,16 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
                       radius: 20,
                       child: Text(wrestler.name[0], style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold))
                     ),
-                    title: Text(wrestler.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                    title: Row(
+                      children: [
+                        Text(wrestler.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                        if (wrestler.pop >= wrestler.popPotential)
+                          const Padding(
+                            padding: EdgeInsets.only(left: 6.0),
+                            child: Icon(Icons.star, color: Colors.amber, size: 12),
+                          ),
+                      ],
+                    ),
                     subtitle: Padding(
                       padding: const EdgeInsets.only(top: 4.0),
                       child: Row(
@@ -497,33 +505,46 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
     );
   }
 
-  Widget _buildTrainButton(Wrestler w, String type, int cost, Color color, dynamic gameState) {
+  Widget _buildTrainButton(Wrestler w, String type, int cost, Color defaultColor, dynamic gameState) {
+    // 🚨 THE FIX: Determine if the wrestler has hit their cap for this specific stat
+    bool isMaxed = false;
+    if (type == "POPULARITY" && w.pop >= w.popPotential) isMaxed = true;
+    if (type == "RING SKILL" && w.ringSkill >= 100) isMaxed = true;
+    if (type == "MIC SKILL" && w.micSkill >= 100) isMaxed = true;
+
+    Color buttonColor = isMaxed ? Colors.redAccent : defaultColor;
+    String buttonText = isMaxed ? "MAXED" : "\$$cost";
+
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4.0),
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: color.withOpacity(0.1), 
-            foregroundColor: color,
-            side: BorderSide(color: color.withOpacity(0.5)),
+            backgroundColor: buttonColor.withOpacity(0.1), 
+            foregroundColor: buttonColor,
+            side: BorderSide(color: buttonColor.withOpacity(0.5)),
             padding: const EdgeInsets.symmetric(vertical: 12),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             elevation: 0,
           ),
+          onPressed: isMaxed ? () {
+             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${w.name} has reached their maximum potential for $type!"), backgroundColor: Colors.redAccent));
+          } : () => _runTrainingLogic(w, type, cost, gameState, buttonColor), 
           child: Column(
             children: [
               Text(type, style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
               const SizedBox(height: 4),
-              Text("\$$cost", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text(buttonText, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isMaxed ? Colors.redAccent : Colors.white)),
             ],
           ),
-          onPressed: () => _runTrainingLogic(w, type, cost, gameState, color), 
         ),
       ),
     );
   }
 
-  void _runTrainingLogic(Wrestler w, String type, int cost, dynamic gameState, Color color) {
+  // 🚨 THE FIX: Removed the rogue setState that was forcing stats up artificially.
+  // Now it waits for the provider to do the official math and refresh the screen.
+  void _runTrainingLogic(Wrestler w, String type, int cost, dynamic gameState, Color color) async {
     if (gameState.cash < cost) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Insufficient Funds!"), backgroundColor: Colors.red));
       return;
@@ -531,41 +552,35 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
 
     HapticFeedback.lightImpact();
 
-    setState(() {
-      try {
-        if (type == "POPULARITY") {
-          w.pop += 3;
-          if (w.pop > 100) w.pop = 100;
-        } else if (type == "RING SKILL") {
-          w.ringSkill += 3;
-          if (w.ringSkill > 100) w.ringSkill = 100;
-        } else {
-          w.pop += 1; 
-        }
-      } catch (e) {
+    try {
+      // Let the backend handle the logic and caps
+      await ref.read(rosterProvider.notifier).trainingAction(w, type, cost);
+      
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: const Color(0xFF1E1E1E),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: color, width: 2)),
+            title: Row(
+              children: [
+                Icon(Icons.fitness_center, color: color),
+                const SizedBox(width: 10),
+                const Text("TRAINING COMPLETE", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+              ]
+            ),
+            content: Text("${w.name} successfully leveled up their $type!", style: const TextStyle(color: Colors.white70)),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: Text("AWESOME", style: TextStyle(color: color, fontWeight: FontWeight.bold))),
+            ],
+          )
+        );
       }
-    });
-
-    ref.read(rosterProvider.notifier).trainingAction(w, type, cost);
-    
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: color, width: 2)),
-        title: Row(
-          children: [
-            Icon(Icons.fitness_center, color: color),
-            const SizedBox(width: 10),
-            const Text("TRAINING COMPLETE", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-          ]
-        ),
-        content: Text("${w.name} successfully leveled up their $type!", style: const TextStyle(color: Colors.white70)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text("AWESOME", style: TextStyle(color: color, fontWeight: FontWeight.bold))),
-        ],
-      )
-    );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
+      }
+    }
   }
 
   Widget _buildSparringTab(dynamic state) {
@@ -670,22 +685,9 @@ class _DevelopmentScreenState extends ConsumerState<DevelopmentScreen> with Sing
     );
   }
 
+  // 🚨 THE FIX: Removed manual UI overrides here too. Let the backend do the exact math!
   Future<void> _runSparringEngineHook() async {
     HapticFeedback.heavyImpact();
-
-    setState(() {
-      try {
-        _selectedA!.ringSkill += 2;
-        if (_selectedA!.ringSkill > 100) _selectedA!.ringSkill = 100;
-        _selectedA!.stamina -= 25;
-        if (_selectedA!.stamina < 0) _selectedA!.stamina = 0;
-
-        _selectedB!.ringSkill += 2;
-        if (_selectedB!.ringSkill > 100) _selectedB!.ringSkill = 100;
-        _selectedB!.stamina -= 25;
-        if (_selectedB!.stamina < 0) _selectedB!.stamina = 0;
-      } catch (e) {}
-    });
 
     final result = await ref.read(rosterProvider.notifier).runPracticeMatch(_selectedA!, _selectedB!);
     

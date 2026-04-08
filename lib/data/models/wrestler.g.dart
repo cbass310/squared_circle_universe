@@ -37,144 +37,170 @@ const WrestlerSchema = CollectionSchema(
       name: r'condition',
       type: IsarType.long,
     ),
-    r'contractWeeks': PropertySchema(
+    r'contractType': PropertySchema(
       id: 4,
+      name: r'contractType',
+      type: IsarType.byte,
+      enumMap: _WrestlercontractTypeEnumValueMap,
+    ),
+    r'contractWeeks': PropertySchema(
+      id: 5,
       name: r'contractWeeks',
       type: IsarType.long,
     ),
     r'contractedPop': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'contractedPop',
       type: IsarType.long,
     ),
+    r'cooldownUntilWeek': PropertySchema(
+      id: 7,
+      name: r'cooldownUntilWeek',
+      type: IsarType.long,
+    ),
     r'desireToWin': PropertySchema(
-      id: 6,
+      id: 8,
       name: r'desireToWin',
       type: IsarType.long,
     ),
+    r'gimmickStaleness': PropertySchema(
+      id: 9,
+      name: r'gimmickStaleness',
+      type: IsarType.long,
+    ),
     r'greed': PropertySchema(
-      id: 7,
+      id: 10,
       name: r'greed',
       type: IsarType.long,
     ),
     r'hasCreativeControl': PropertySchema(
-      id: 8,
+      id: 11,
       name: r'hasCreativeControl',
       type: IsarType.bool,
     ),
     r'imagePath': PropertySchema(
-      id: 9,
+      id: 12,
       name: r'imagePath',
       type: IsarType.string,
     ),
     r'imageUrl': PropertySchema(
-      id: 10,
+      id: 13,
       name: r'imageUrl',
       type: IsarType.string,
     ),
     r'injuryWeeks': PropertySchema(
-      id: 11,
+      id: 14,
       name: r'injuryWeeks',
       type: IsarType.long,
     ),
     r'isChampion': PropertySchema(
-      id: 12,
+      id: 15,
       name: r'isChampion',
       type: IsarType.bool,
     ),
     r'isHeel': PropertySchema(
-      id: 13,
+      id: 16,
       name: r'isHeel',
       type: IsarType.bool,
     ),
     r'isHoldingOut': PropertySchema(
-      id: 14,
+      id: 17,
       name: r'isHoldingOut',
       type: IsarType.bool,
     ),
     r'isInjured': PropertySchema(
-      id: 15,
+      id: 18,
       name: r'isInjured',
       type: IsarType.bool,
     ),
     r'isOnIR': PropertySchema(
-      id: 16,
+      id: 19,
       name: r'isOnIR',
       type: IsarType.bool,
     ),
     r'isRookie': PropertySchema(
-      id: 17,
+      id: 20,
       name: r'isRookie',
       type: IsarType.bool,
     ),
     r'isScouted': PropertySchema(
-      id: 18,
+      id: 21,
       name: r'isScouted',
       type: IsarType.bool,
     ),
     r'isTVChampion': PropertySchema(
-      id: 19,
+      id: 22,
       name: r'isTVChampion',
       type: IsarType.bool,
     ),
     r'loyalty': PropertySchema(
-      id: 20,
+      id: 23,
       name: r'loyalty',
       type: IsarType.long,
     ),
+    r'matchesWorked': PropertySchema(
+      id: 24,
+      name: r'matchesWorked',
+      type: IsarType.long,
+    ),
     r'micSkill': PropertySchema(
-      id: 21,
+      id: 25,
       name: r'micSkill',
       type: IsarType.long,
     ),
     r'morale': PropertySchema(
-      id: 22,
+      id: 26,
       name: r'morale',
       type: IsarType.long,
     ),
     r'name': PropertySchema(
-      id: 23,
+      id: 27,
       name: r'name',
       type: IsarType.string,
     ),
     r'pop': PropertySchema(
-      id: 24,
+      id: 28,
       name: r'pop',
       type: IsarType.long,
     ),
+    r'popPotential': PropertySchema(
+      id: 29,
+      name: r'popPotential',
+      type: IsarType.long,
+    ),
     r'potentialSkill': PropertySchema(
-      id: 25,
+      id: 30,
       name: r'potentialSkill',
       type: IsarType.long,
     ),
     r'promiseDeadline': PropertySchema(
-      id: 26,
+      id: 31,
       name: r'promiseDeadline',
       type: IsarType.long,
     ),
     r'ringSkill': PropertySchema(
-      id: 27,
+      id: 32,
       name: r'ringSkill',
       type: IsarType.long,
     ),
     r'salary': PropertySchema(
-      id: 28,
+      id: 33,
       name: r'salary',
       type: IsarType.long,
     ),
     r'stamina': PropertySchema(
-      id: 29,
+      id: 34,
       name: r'stamina',
       type: IsarType.long,
     ),
     r'style': PropertySchema(
-      id: 30,
+      id: 35,
       name: r'style',
       type: IsarType.byte,
       enumMap: _WrestlerstyleEnumValueMap,
     ),
     r'upfrontBonus': PropertySchema(
-      id: 31,
+      id: 36,
       name: r'upfrontBonus',
       type: IsarType.long,
     )
@@ -227,34 +253,39 @@ void _wrestlerSerialize(
   writer.writeString(offsets[1], object.cardPosition);
   writer.writeLong(offsets[2], object.companyId);
   writer.writeLong(offsets[3], object.condition);
-  writer.writeLong(offsets[4], object.contractWeeks);
-  writer.writeLong(offsets[5], object.contractedPop);
-  writer.writeLong(offsets[6], object.desireToWin);
-  writer.writeLong(offsets[7], object.greed);
-  writer.writeBool(offsets[8], object.hasCreativeControl);
-  writer.writeString(offsets[9], object.imagePath);
-  writer.writeString(offsets[10], object.imageUrl);
-  writer.writeLong(offsets[11], object.injuryWeeks);
-  writer.writeBool(offsets[12], object.isChampion);
-  writer.writeBool(offsets[13], object.isHeel);
-  writer.writeBool(offsets[14], object.isHoldingOut);
-  writer.writeBool(offsets[15], object.isInjured);
-  writer.writeBool(offsets[16], object.isOnIR);
-  writer.writeBool(offsets[17], object.isRookie);
-  writer.writeBool(offsets[18], object.isScouted);
-  writer.writeBool(offsets[19], object.isTVChampion);
-  writer.writeLong(offsets[20], object.loyalty);
-  writer.writeLong(offsets[21], object.micSkill);
-  writer.writeLong(offsets[22], object.morale);
-  writer.writeString(offsets[23], object.name);
-  writer.writeLong(offsets[24], object.pop);
-  writer.writeLong(offsets[25], object.potentialSkill);
-  writer.writeLong(offsets[26], object.promiseDeadline);
-  writer.writeLong(offsets[27], object.ringSkill);
-  writer.writeLong(offsets[28], object.salary);
-  writer.writeLong(offsets[29], object.stamina);
-  writer.writeByte(offsets[30], object.style.index);
-  writer.writeLong(offsets[31], object.upfrontBonus);
+  writer.writeByte(offsets[4], object.contractType.index);
+  writer.writeLong(offsets[5], object.contractWeeks);
+  writer.writeLong(offsets[6], object.contractedPop);
+  writer.writeLong(offsets[7], object.cooldownUntilWeek);
+  writer.writeLong(offsets[8], object.desireToWin);
+  writer.writeLong(offsets[9], object.gimmickStaleness);
+  writer.writeLong(offsets[10], object.greed);
+  writer.writeBool(offsets[11], object.hasCreativeControl);
+  writer.writeString(offsets[12], object.imagePath);
+  writer.writeString(offsets[13], object.imageUrl);
+  writer.writeLong(offsets[14], object.injuryWeeks);
+  writer.writeBool(offsets[15], object.isChampion);
+  writer.writeBool(offsets[16], object.isHeel);
+  writer.writeBool(offsets[17], object.isHoldingOut);
+  writer.writeBool(offsets[18], object.isInjured);
+  writer.writeBool(offsets[19], object.isOnIR);
+  writer.writeBool(offsets[20], object.isRookie);
+  writer.writeBool(offsets[21], object.isScouted);
+  writer.writeBool(offsets[22], object.isTVChampion);
+  writer.writeLong(offsets[23], object.loyalty);
+  writer.writeLong(offsets[24], object.matchesWorked);
+  writer.writeLong(offsets[25], object.micSkill);
+  writer.writeLong(offsets[26], object.morale);
+  writer.writeString(offsets[27], object.name);
+  writer.writeLong(offsets[28], object.pop);
+  writer.writeLong(offsets[29], object.popPotential);
+  writer.writeLong(offsets[30], object.potentialSkill);
+  writer.writeLong(offsets[31], object.promiseDeadline);
+  writer.writeLong(offsets[32], object.ringSkill);
+  writer.writeLong(offsets[33], object.salary);
+  writer.writeLong(offsets[34], object.stamina);
+  writer.writeByte(offsets[35], object.style.index);
+  writer.writeLong(offsets[36], object.upfrontBonus);
 }
 
 Wrestler _wrestlerDeserialize(
@@ -268,37 +299,44 @@ Wrestler _wrestlerDeserialize(
   object.cardPosition = reader.readString(offsets[1]);
   object.companyId = reader.readLong(offsets[2]);
   object.condition = reader.readLong(offsets[3]);
-  object.contractWeeks = reader.readLong(offsets[4]);
-  object.contractedPop = reader.readLong(offsets[5]);
-  object.desireToWin = reader.readLong(offsets[6]);
-  object.greed = reader.readLong(offsets[7]);
-  object.hasCreativeControl = reader.readBool(offsets[8]);
+  object.contractType =
+      _WrestlercontractTypeValueEnumMap[reader.readByteOrNull(offsets[4])] ??
+          ContractType.standard;
+  object.contractWeeks = reader.readLong(offsets[5]);
+  object.contractedPop = reader.readLong(offsets[6]);
+  object.cooldownUntilWeek = reader.readLong(offsets[7]);
+  object.desireToWin = reader.readLong(offsets[8]);
+  object.gimmickStaleness = reader.readLong(offsets[9]);
+  object.greed = reader.readLong(offsets[10]);
+  object.hasCreativeControl = reader.readBool(offsets[11]);
   object.id = id;
-  object.imagePath = reader.readStringOrNull(offsets[9]);
-  object.imageUrl = reader.readStringOrNull(offsets[10]);
-  object.injuryWeeks = reader.readLong(offsets[11]);
-  object.isChampion = reader.readBool(offsets[12]);
-  object.isHeel = reader.readBool(offsets[13]);
-  object.isHoldingOut = reader.readBool(offsets[14]);
-  object.isInjured = reader.readBool(offsets[15]);
-  object.isOnIR = reader.readBool(offsets[16]);
-  object.isRookie = reader.readBool(offsets[17]);
-  object.isScouted = reader.readBool(offsets[18]);
-  object.isTVChampion = reader.readBool(offsets[19]);
-  object.loyalty = reader.readLong(offsets[20]);
-  object.micSkill = reader.readLong(offsets[21]);
-  object.morale = reader.readLong(offsets[22]);
-  object.name = reader.readString(offsets[23]);
-  object.pop = reader.readLong(offsets[24]);
-  object.potentialSkill = reader.readLong(offsets[25]);
-  object.promiseDeadline = reader.readLong(offsets[26]);
-  object.ringSkill = reader.readLong(offsets[27]);
-  object.salary = reader.readLong(offsets[28]);
-  object.stamina = reader.readLong(offsets[29]);
+  object.imagePath = reader.readStringOrNull(offsets[12]);
+  object.imageUrl = reader.readStringOrNull(offsets[13]);
+  object.injuryWeeks = reader.readLong(offsets[14]);
+  object.isChampion = reader.readBool(offsets[15]);
+  object.isHeel = reader.readBool(offsets[16]);
+  object.isHoldingOut = reader.readBool(offsets[17]);
+  object.isInjured = reader.readBool(offsets[18]);
+  object.isOnIR = reader.readBool(offsets[19]);
+  object.isRookie = reader.readBool(offsets[20]);
+  object.isScouted = reader.readBool(offsets[21]);
+  object.isTVChampion = reader.readBool(offsets[22]);
+  object.loyalty = reader.readLong(offsets[23]);
+  object.matchesWorked = reader.readLong(offsets[24]);
+  object.micSkill = reader.readLong(offsets[25]);
+  object.morale = reader.readLong(offsets[26]);
+  object.name = reader.readString(offsets[27]);
+  object.pop = reader.readLong(offsets[28]);
+  object.popPotential = reader.readLong(offsets[29]);
+  object.potentialSkill = reader.readLong(offsets[30]);
+  object.promiseDeadline = reader.readLong(offsets[31]);
+  object.ringSkill = reader.readLong(offsets[32]);
+  object.salary = reader.readLong(offsets[33]);
+  object.stamina = reader.readLong(offsets[34]);
   object.style =
-      _WrestlerstyleValueEnumMap[reader.readByteOrNull(offsets[30])] ??
+      _WrestlerstyleValueEnumMap[reader.readByteOrNull(offsets[35])] ??
           WrestlingStyle.brawler;
-  object.upfrontBonus = reader.readLong(offsets[31]);
+  object.upfrontBonus = reader.readLong(offsets[36]);
   return object;
 }
 
@@ -318,7 +356,9 @@ P _wrestlerDeserializeProp<P>(
     case 3:
       return (reader.readLong(offset)) as P;
     case 4:
-      return (reader.readLong(offset)) as P;
+      return (_WrestlercontractTypeValueEnumMap[
+              reader.readByteOrNull(offset)] ??
+          ContractType.standard) as P;
     case 5:
       return (reader.readLong(offset)) as P;
     case 6:
@@ -326,19 +366,19 @@ P _wrestlerDeserializeProp<P>(
     case 7:
       return (reader.readLong(offset)) as P;
     case 8:
-      return (reader.readBool(offset)) as P;
-    case 9:
-      return (reader.readStringOrNull(offset)) as P;
-    case 10:
-      return (reader.readStringOrNull(offset)) as P;
-    case 11:
       return (reader.readLong(offset)) as P;
+    case 9:
+      return (reader.readLong(offset)) as P;
+    case 10:
+      return (reader.readLong(offset)) as P;
+    case 11:
+      return (reader.readBool(offset)) as P;
     case 12:
-      return (reader.readBool(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 13:
-      return (reader.readBool(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 14:
-      return (reader.readBool(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 15:
       return (reader.readBool(offset)) as P;
     case 16:
@@ -350,13 +390,13 @@ P _wrestlerDeserializeProp<P>(
     case 19:
       return (reader.readBool(offset)) as P;
     case 20:
-      return (reader.readLong(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 21:
-      return (reader.readLong(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 22:
-      return (reader.readLong(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 23:
-      return (reader.readString(offset)) as P;
+      return (reader.readLong(offset)) as P;
     case 24:
       return (reader.readLong(offset)) as P;
     case 25:
@@ -364,21 +404,41 @@ P _wrestlerDeserializeProp<P>(
     case 26:
       return (reader.readLong(offset)) as P;
     case 27:
-      return (reader.readLong(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 28:
       return (reader.readLong(offset)) as P;
     case 29:
       return (reader.readLong(offset)) as P;
     case 30:
+      return (reader.readLong(offset)) as P;
+    case 31:
+      return (reader.readLong(offset)) as P;
+    case 32:
+      return (reader.readLong(offset)) as P;
+    case 33:
+      return (reader.readLong(offset)) as P;
+    case 34:
+      return (reader.readLong(offset)) as P;
+    case 35:
       return (_WrestlerstyleValueEnumMap[reader.readByteOrNull(offset)] ??
           WrestlingStyle.brawler) as P;
-    case 31:
+    case 36:
       return (reader.readLong(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
 }
 
+const _WrestlercontractTypeEnumValueMap = {
+  'standard': 0,
+  'specialAttraction': 1,
+  'partTime': 2,
+};
+const _WrestlercontractTypeValueEnumMap = {
+  0: ContractType.standard,
+  1: ContractType.specialAttraction,
+  2: ContractType.partTime,
+};
 const _WrestlerstyleEnumValueMap = {
   'brawler': 0,
   'technician': 1,
@@ -863,6 +923,60 @@ extension WrestlerQueryFilter
     });
   }
 
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> contractTypeEqualTo(
+      ContractType value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'contractType',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition>
+      contractTypeGreaterThan(
+    ContractType value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'contractType',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> contractTypeLessThan(
+    ContractType value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'contractType',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> contractTypeBetween(
+    ContractType lower,
+    ContractType upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'contractType',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
   QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> contractWeeksEqualTo(
       int value) {
     return QueryBuilder.apply(this, (query) {
@@ -971,6 +1085,62 @@ extension WrestlerQueryFilter
     });
   }
 
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition>
+      cooldownUntilWeekEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'cooldownUntilWeek',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition>
+      cooldownUntilWeekGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'cooldownUntilWeek',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition>
+      cooldownUntilWeekLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'cooldownUntilWeek',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition>
+      cooldownUntilWeekBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'cooldownUntilWeek',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
   QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> desireToWinEqualTo(
       int value) {
     return QueryBuilder.apply(this, (query) {
@@ -1017,6 +1187,62 @@ extension WrestlerQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
         property: r'desireToWin',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition>
+      gimmickStalenessEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'gimmickStaleness',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition>
+      gimmickStalenessGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'gimmickStaleness',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition>
+      gimmickStalenessLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'gimmickStaleness',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition>
+      gimmickStalenessBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'gimmickStaleness',
         lower: lower,
         includeLower: includeLower,
         upper: upper,
@@ -1620,6 +1846,60 @@ extension WrestlerQueryFilter
     });
   }
 
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> matchesWorkedEqualTo(
+      int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'matchesWorked',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition>
+      matchesWorkedGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'matchesWorked',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> matchesWorkedLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'matchesWorked',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> matchesWorkedBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'matchesWorked',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
   QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> micSkillEqualTo(
       int value) {
     return QueryBuilder.apply(this, (query) {
@@ -1901,6 +2181,60 @@ extension WrestlerQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
         property: r'pop',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> popPotentialEqualTo(
+      int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'popPotential',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition>
+      popPotentialGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'popPotential',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> popPotentialLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'popPotential',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterFilterCondition> popPotentialBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'popPotential',
         lower: lower,
         includeLower: includeLower,
         upper: upper,
@@ -2342,6 +2676,18 @@ extension WrestlerQuerySortBy on QueryBuilder<Wrestler, Wrestler, QSortBy> {
     });
   }
 
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByContractType() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'contractType', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByContractTypeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'contractType', Sort.desc);
+    });
+  }
+
   QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByContractWeeks() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'contractWeeks', Sort.asc);
@@ -2366,6 +2712,18 @@ extension WrestlerQuerySortBy on QueryBuilder<Wrestler, Wrestler, QSortBy> {
     });
   }
 
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByCooldownUntilWeek() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cooldownUntilWeek', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByCooldownUntilWeekDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cooldownUntilWeek', Sort.desc);
+    });
+  }
+
   QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByDesireToWin() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'desireToWin', Sort.asc);
@@ -2375,6 +2733,18 @@ extension WrestlerQuerySortBy on QueryBuilder<Wrestler, Wrestler, QSortBy> {
   QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByDesireToWinDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'desireToWin', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByGimmickStaleness() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'gimmickStaleness', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByGimmickStalenessDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'gimmickStaleness', Sort.desc);
     });
   }
 
@@ -2547,6 +2917,18 @@ extension WrestlerQuerySortBy on QueryBuilder<Wrestler, Wrestler, QSortBy> {
     });
   }
 
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByMatchesWorked() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'matchesWorked', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByMatchesWorkedDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'matchesWorked', Sort.desc);
+    });
+  }
+
   QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByMicSkill() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'micSkill', Sort.asc);
@@ -2592,6 +2974,18 @@ extension WrestlerQuerySortBy on QueryBuilder<Wrestler, Wrestler, QSortBy> {
   QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByPopDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'pop', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByPopPotential() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'popPotential', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> sortByPopPotentialDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'popPotential', Sort.desc);
     });
   }
 
@@ -2730,6 +3124,18 @@ extension WrestlerQuerySortThenBy
     });
   }
 
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByContractType() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'contractType', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByContractTypeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'contractType', Sort.desc);
+    });
+  }
+
   QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByContractWeeks() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'contractWeeks', Sort.asc);
@@ -2754,6 +3160,18 @@ extension WrestlerQuerySortThenBy
     });
   }
 
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByCooldownUntilWeek() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cooldownUntilWeek', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByCooldownUntilWeekDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'cooldownUntilWeek', Sort.desc);
+    });
+  }
+
   QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByDesireToWin() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'desireToWin', Sort.asc);
@@ -2763,6 +3181,18 @@ extension WrestlerQuerySortThenBy
   QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByDesireToWinDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'desireToWin', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByGimmickStaleness() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'gimmickStaleness', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByGimmickStalenessDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'gimmickStaleness', Sort.desc);
     });
   }
 
@@ -2947,6 +3377,18 @@ extension WrestlerQuerySortThenBy
     });
   }
 
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByMatchesWorked() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'matchesWorked', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByMatchesWorkedDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'matchesWorked', Sort.desc);
+    });
+  }
+
   QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByMicSkill() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'micSkill', Sort.asc);
@@ -2992,6 +3434,18 @@ extension WrestlerQuerySortThenBy
   QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByPopDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'pop', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByPopPotential() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'popPotential', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QAfterSortBy> thenByPopPotentialDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'popPotential', Sort.desc);
     });
   }
 
@@ -3109,6 +3563,12 @@ extension WrestlerQueryWhereDistinct
     });
   }
 
+  QueryBuilder<Wrestler, Wrestler, QDistinct> distinctByContractType() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'contractType');
+    });
+  }
+
   QueryBuilder<Wrestler, Wrestler, QDistinct> distinctByContractWeeks() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'contractWeeks');
@@ -3121,9 +3581,21 @@ extension WrestlerQueryWhereDistinct
     });
   }
 
+  QueryBuilder<Wrestler, Wrestler, QDistinct> distinctByCooldownUntilWeek() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'cooldownUntilWeek');
+    });
+  }
+
   QueryBuilder<Wrestler, Wrestler, QDistinct> distinctByDesireToWin() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'desireToWin');
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QDistinct> distinctByGimmickStaleness() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'gimmickStaleness');
     });
   }
 
@@ -3213,6 +3685,12 @@ extension WrestlerQueryWhereDistinct
     });
   }
 
+  QueryBuilder<Wrestler, Wrestler, QDistinct> distinctByMatchesWorked() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'matchesWorked');
+    });
+  }
+
   QueryBuilder<Wrestler, Wrestler, QDistinct> distinctByMicSkill() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'micSkill');
@@ -3235,6 +3713,12 @@ extension WrestlerQueryWhereDistinct
   QueryBuilder<Wrestler, Wrestler, QDistinct> distinctByPop() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'pop');
+    });
+  }
+
+  QueryBuilder<Wrestler, Wrestler, QDistinct> distinctByPopPotential() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'popPotential');
     });
   }
 
@@ -3313,6 +3797,13 @@ extension WrestlerQueryProperty
     });
   }
 
+  QueryBuilder<Wrestler, ContractType, QQueryOperations>
+      contractTypeProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'contractType');
+    });
+  }
+
   QueryBuilder<Wrestler, int, QQueryOperations> contractWeeksProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'contractWeeks');
@@ -3325,9 +3816,21 @@ extension WrestlerQueryProperty
     });
   }
 
+  QueryBuilder<Wrestler, int, QQueryOperations> cooldownUntilWeekProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'cooldownUntilWeek');
+    });
+  }
+
   QueryBuilder<Wrestler, int, QQueryOperations> desireToWinProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'desireToWin');
+    });
+  }
+
+  QueryBuilder<Wrestler, int, QQueryOperations> gimmickStalenessProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'gimmickStaleness');
     });
   }
 
@@ -3415,6 +3918,12 @@ extension WrestlerQueryProperty
     });
   }
 
+  QueryBuilder<Wrestler, int, QQueryOperations> matchesWorkedProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'matchesWorked');
+    });
+  }
+
   QueryBuilder<Wrestler, int, QQueryOperations> micSkillProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'micSkill');
@@ -3436,6 +3945,12 @@ extension WrestlerQueryProperty
   QueryBuilder<Wrestler, int, QQueryOperations> popProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'pop');
+    });
+  }
+
+  QueryBuilder<Wrestler, int, QQueryOperations> popPotentialProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'popPotential');
     });
   }
 

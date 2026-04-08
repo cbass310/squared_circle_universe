@@ -7,23 +7,31 @@ import '../../../logic/promoter_provider.dart';
 import '../../../data/models/wrestler.dart';
 import '../../../data/models/show_history.dart'; 
 import '../../../data/models/rivalry.dart'; 
+import '../../../data/models/yearly_archive.dart'; // 🚨 NEW IMPORT
 import '../../components/wrestler_avatar.dart';
 
 // --- IMPORT FOR THE WATERMARK ---
 import '../../components/tv_watermark.dart';
 
-// 🚨 THE FIX: Direct Database Pipeline for Feuds
+// 🚨 Direct Database Pipeline for Feuds
 final liveRivalriesProvider = StreamProvider<List<Rivalry>>((ref) async* {
   final isar = Isar.getInstance();
   if (isar == null) yield [];
   yield* isar!.rivalrys.filter().statusEqualTo(RivalryStatus.active).sortByHeatDesc().watch(fireImmediately: true);
 });
 
-// 🚨 THE FIX: Direct Database Pipeline for History
+// 🚨 Direct Database Pipeline for History
 final liveHistoryProvider = StreamProvider<List<ShowHistory>>((ref) async* {
   final isar = Isar.getInstance();
   if (isar == null) yield [];
   yield* isar!.showHistorys.where().sortByWeekDesc().watch(fireImmediately: true);
+});
+
+// 🚨 NEW: Direct Database Pipeline for Yearly Archives
+final liveLegacyProvider = StreamProvider<List<YearlyArchive>>((ref) async* {
+  final isar = Isar.getInstance();
+  if (isar == null) yield [];
+  yield* isar!.yearlyArchives.where().sortByYearDesc().watch(fireImmediately: true);
 });
 
 class RivalryScreen extends ConsumerWidget {
@@ -35,8 +43,7 @@ class RivalryScreen extends ConsumerWidget {
     final rosterState = ref.watch(rosterProvider);
 
     return DefaultTabController(
-      length: 3, 
-      // 🚨 SMART LAYOUT BUILDER 🚨
+      length: 4, // 🚨 UPDATED TO 4 TABS
       child: LayoutBuilder(
         builder: (context, constraints) {
           final bool isDesktop = constraints.maxWidth > 800;
@@ -166,10 +173,12 @@ class RivalryScreen extends ConsumerWidget {
               indicatorWeight: 3,
               labelColor: Colors.amber,
               unselectedLabelColor: Colors.white54,
-              labelStyle: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1.0),
+              labelStyle: TextStyle(fontWeight: FontWeight.w900, fontSize: 10, letterSpacing: 1.0),
+              isScrollable: true, // Let them slide if screen is small
               tabs: [
                 Tab(text: "RIVALRIES"),
                 Tab(text: "HISTORY"),
+                Tab(text: "LEGACY"), // 🚨 NEW TAB
                 Tab(text: "ASSISTANT GM"),
               ],
             ),
@@ -181,6 +190,7 @@ class RivalryScreen extends ConsumerWidget {
               children: [
                 _buildRivalriesTab(ref, rosterState.roster),
                 _buildHistoryTab(ref),
+                _buildLegacyTab(ref), // 🚨 NEW TAB CONTENT
                 _buildAssistantGMTab(context, rosterState),
               ],
             ),
@@ -250,7 +260,7 @@ class RivalryScreen extends ConsumerWidget {
           itemBuilder: (context, index) {
             final feud = feuds[index];
             
-            // 🚨 Re-attach the Wrestler objects from the DB names
+            // Re-attach the Wrestler objects from the DB names
             Wrestler? w1 = roster.where((w) => w.name == feud.wrestler1Name).firstOrNull;
             Wrestler? w2 = roster.where((w) => w.name == feud.wrestler2Name).firstOrNull;
             
@@ -380,8 +390,15 @@ class RivalryScreen extends ConsumerWidget {
                     children: [
                       const Icon(Icons.live_tv, color: Colors.white54, size: 18),
                       const SizedBox(width: 10),
-                      Text("WEEK ${entry.week} - ${entry.showName.toUpperCase()}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                      const Spacer(),
+                      Expanded(
+                        child: Text(
+                          "WEEK ${entry.week} - ${entry.showName.toUpperCase()}", 
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       const Icon(Icons.star, color: Colors.amber, size: 14),
                       const SizedBox(width: 4),
                       Text("${entry.avgRating}", style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.w900, fontSize: 14)),
@@ -442,7 +459,91 @@ class RivalryScreen extends ConsumerWidget {
   }
 
   // =====================================================================
-  // --- TAB 3: ASSISTANT GM
+  // --- 🚨 TAB 3: LEGACY (YEARLY ARCHIVES) 🚨
+  // =====================================================================
+  Widget _buildLegacyTab(WidgetRef ref) {
+    final legacyAsync = ref.watch(liveLegacyProvider);
+
+    return legacyAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: Colors.amber)),
+      error: (err, stack) => const Center(child: Text("Error loading legacy data.", style: TextStyle(color: Colors.red))),
+      data: (archives) {
+        if (archives.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.museum, size: 60, color: Colors.white24),
+                SizedBox(height: 16),
+                Text("NO ARCHIVED SEASONS YET", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                SizedBox(height: 8),
+                Text("Complete your first year to build your legacy.", style: TextStyle(color: Colors.white30, fontSize: 12)),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: archives.length,
+          itemBuilder: (context, index) {
+            final archive = archives[index];
+            final formattedProfit = archive.totalProfit.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
+            
+            bool wonWar = archive.wins > archive.losses;
+            Color warColor = wonWar ? Colors.greenAccent : Colors.redAccent;
+            String warText = wonWar ? "RATINGS WAR VICTOR" : "RATINGS WAR DEFEAT";
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1E1E),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white10),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text("YEAR ${archive.year} ARCHIVE", style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1.5)),
+                        Text(warText, style: TextStyle(color: warColor, fontWeight: FontWeight.bold, fontSize: 10)),
+                      ],
+                    ),
+                    const Divider(color: Colors.white10, height: 24),
+                    _buildLegacyStatRow("Season Record", "${archive.wins} W - ${archive.losses} L - ${archive.draws} D"),
+                    const SizedBox(height: 8),
+                    _buildLegacyStatRow("Annual Profit", "\$$formattedProfit"),
+                    const SizedBox(height: 8),
+                    _buildLegacyStatRow("Wrestler of the Year", archive.wrestlerOfTheYear),
+                    const SizedBox(height: 8),
+                    _buildLegacyStatRow("Event of the Year", "${archive.bestShowName} (⭐ ${archive.bestShowRating.toStringAsFixed(1)})"),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      }
+    );
+  }
+
+  Widget _buildLegacyStatRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold)),
+        Text(value, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900)),
+      ],
+    );
+  }
+
+
+  // =====================================================================
+  // --- TAB 4: ASSISTANT GM
   // =====================================================================
   Widget _buildAssistantGMTab(BuildContext context, dynamic rosterState) {
     dynamic topFeud;

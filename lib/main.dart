@@ -1,3 +1,4 @@
+import 'dart:io'; // 🚨 ADDED FOR WINDOWS REGISTRY BYPASS 🚨
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,9 +11,31 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 // 🚨 IMPORT THE SPLASH SCREEN
 import 'ui/screens/splash_screen.dart'; 
 
-void main() async {
+// 🚨 NEW IMPORT: THE HIGHLANDER RULE 
+import 'package:windows_single_instance/windows_single_instance.dart';
+
+// 🚨 UPDATE: Added "List<String> args" so the app can catch the deep link from Chrome
+Future<void> main(List<String> args) async {
   // 1. Initialize core Flutter bindings
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ====================================================================
+  // 🚨 WINDOWS PC DEEP LINK REGISTRY FIX (ZERO DEPENDENCIES) 🚨
+  // Tells the Windows OS to route logins back to the game instead of a blank screen
+  // ====================================================================
+  if (Platform.isWindows) {
+    try {
+      final appPath = Platform.resolvedExecutable;
+      // 1. Create the base registry key
+      Process.runSync('reg', ['add', r'HKCU\Software\Classes\io.supabase.squaredcircle', '/ve', '/d', 'URL:io.supabase.squaredcircle', '/f']);
+      // 2. Mark it as a URL Protocol
+      Process.runSync('reg', ['add', r'HKCU\Software\Classes\io.supabase.squaredcircle', '/v', 'URL Protocol', '/d', '', '/f']);
+      // 3. Tell Windows exactly which .exe file to open
+      Process.runSync('reg', ['add', r'HKCU\Software\Classes\io.supabase.squaredcircle\shell\open\command', '/ve', '/d', '"$appPath" "%1"', '/f']);
+    } catch (e) {
+      debugPrint("Registry Error: $e");
+    }
+  }
   
   // 2. Wake up the translation engine
   await EasyLocalization.ensureInitialized(); 
@@ -35,6 +58,27 @@ void main() async {
     url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
+
+  // ====================================================================
+  // 🚨 4.5 THE HIGHLANDER RULE: PREVENT MULTIPLE COPIES ON PC 🚨
+  // ====================================================================
+  if (Platform.isWindows) {
+    await WindowsSingleInstance.ensureSingleInstance(
+      args,
+      "squared_circle_tycoon_app_id", // A unique ID for Windows to track
+      onSecondWindow: (List<String> newArgs) {
+        // When Chrome tries to open a second copy, intercept the deep link!
+        if (newArgs.isNotEmpty) {
+          final deepLink = newArgs.first;
+          final uri = Uri.tryParse(deepLink);
+          if (uri != null) {
+            // Pass the login token directly into your ALREADY RUNNING game
+            Supabase.instance.client.auth.getSessionFromUrl(uri);
+          }
+        }
+      },
+    );
+  }
   
   // 5. Run the app: ProviderScope wraps EasyLocalization, which wraps MyApp
   runApp(

@@ -13,6 +13,13 @@ enum WrestlingStyle {
   hardcore
 }
 
+// 🚨 NEW: Track if they are a Standard worker or a Special Attraction
+enum ContractType {
+  standard,
+  specialAttraction,
+  partTime
+}
+
 @collection
 class Wrestler {
   Id id = Isar.autoIncrement;
@@ -29,6 +36,13 @@ class Wrestler {
   int stamina = 100;
   int condition = 100;
   int morale = 100;
+  int gimmickStaleness = 0;
+
+  // 🚨 NEW: The hard cap to prevent players from buying their way to 99
+  int popPotential = 85; 
+
+  // 🚨 NEW: Tracks ring time for organic growth
+  int matchesWorked = 0; 
 
   // --- STATUS ---
   bool isHeel = false;
@@ -54,9 +68,15 @@ class Wrestler {
   // --- NEW UNIVERSAL CONTRACT ENGINE ---
   // =========================================================
   
+  @enumerated
+  ContractType contractType = ContractType.standard; // 🚨 NEW: Defaults to standard
+
   int salary = 500;            
   int upfrontBonus = 0;        
   int contractWeeks = 12;      
+
+  // 🚨 NEW: The 8-week lockout timer for Mega-Stars entering Free Agency
+  int cooldownUntilWeek = 0; 
 
   bool hasCreativeControl = false; 
   bool isHoldingOut = false;       

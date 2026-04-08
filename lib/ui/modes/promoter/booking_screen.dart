@@ -22,7 +22,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   int? selectedWrestler2Id;
   
   int _activeDraftSlot = 1;
-  bool _isTitleMatchToggled = false;
+  String _selectedTitle = ""; // 🚨 THE FIX: Replaced _isTitleMatchToggled
 
   final ScrollController _scrollController = ScrollController();
 
@@ -54,10 +54,10 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       }
     });
 
-    // 🚨 THE FIX: Completely blocks anyone holding out from being booked on the card!
+    // Completely blocks anyone holding out from being booked on the card!
     final availableRoster = rosterState.roster.where((w) => !w.isOnIR && !w.isHoldingOut).toList();
 
-    // 🚨 THE FAILSAFE: Block the screen if the roster is completely depleted
+    // THE FAILSAFE: Block the screen if the roster is completely depleted
     if (availableRoster.length < 2) {
       return Scaffold(
         backgroundColor: Colors.black,
@@ -507,7 +507,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                     const Text("MATCH STIPULATION", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 2.0)),
                     const SizedBox(height: 12),
                     
-                    // 🚨 THE FIX: Expanded Dropdown Item Generation for MatchType
                     _buildDropdownContainer(
                       child: DropdownButton<MatchType>(
                         isExpanded: true, 
@@ -537,7 +536,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                     const Text("ROAD AGENT NOTES", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 2.0)),
                     const SizedBox(height: 12),
 
-                    // 🚨 THE FIX: Expanded Dropdown Item Generation for AgentNote
                     _buildDropdownContainer(
                       child: DropdownButton<AgentNote>(
                         isExpanded: true, 
@@ -589,47 +587,125 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     );
   }
 
+  // 🚨 THE FIX: The new Vacant-Aware Title Dropdown!
   Widget _buildTitleToggle(List<Wrestler> roster) {
-    bool hasChampion = false;
-    if (selectedWrestler1Id != null && selectedWrestler2Id != null) {
-      Wrestler w1 = roster.firstWhere((w) => w.id == selectedWrestler1Id);
-      Wrestler w2 = roster.firstWhere((w) => w.id == selectedWrestler2Id);
-      if (w1.isChampion || w1.isTVChampion || w2.isChampion || w2.isTVChampion) hasChampion = true;
+    if (selectedWrestler1Id == null || selectedWrestler2Id == null) return const SizedBox.shrink();
+
+    Wrestler w1 = roster.firstWhere((w) => w.id == selectedWrestler1Id);
+    Wrestler w2 = roster.firstWhere((w) => w.id == selectedWrestler2Id);
+
+    // Check if belts are currently vacant across the entire active roster
+    bool worldVacant = !roster.any((w) => w.isChampion && w.companyId == 0 && !w.isOnIR);
+    bool tvVacant = !roster.any((w) => w.isTVChampion && w.companyId == 0 && !w.isOnIR);
+
+    List<String> availableTitles = [""]; // Empty string = Non-Title Match
+
+    // If vacant, OR if one of the booked wrestlers holds it, it can be put on the line!
+    if (worldVacant || w1.isChampion || w2.isChampion) availableTitles.add("World Heavyweight");
+    if (tvVacant || w1.isTVChampion || w2.isTVChampion) availableTitles.add("Television Title");
+
+    if (availableTitles.length == 1) return const SizedBox.shrink(); 
+
+    // Failsafe: Reset if they swap wrestlers and the selected belt is no longer valid
+    if (!availableTitles.contains(_selectedTitle)) {
+      _selectedTitle = "";
     }
 
-    if (!hasChampion) return const SizedBox.shrink();
-
-    return Container(
-      decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(8), border: Border.all(color: _isTitleMatchToggled ? Colors.amber : Colors.black, width: 2)),
-      child: SwitchListTile(
-        activeThumbColor: Colors.black, activeTrackColor: Colors.amber, inactiveThumbColor: Colors.grey, inactiveTrackColor: Colors.black45,
-        title: Text("PUT CHAMPIONSHIP ON THE LINE", style: TextStyle(color: _isTitleMatchToggled ? Colors.amber : Colors.white54, fontWeight: FontWeight.w900, letterSpacing: 1.0, fontSize: 12)),
-        value: _isTitleMatchToggled,
-        onChanged: (val) { HapticFeedback.selectionClick(); setState(() => _isTitleMatchToggled = val); },
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("CHAMPIONSHIP STAKES", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 2.0)),
+        const SizedBox(height: 12),
+        _buildDropdownContainer(
+          child: DropdownButton<String>(
+            isExpanded: true,
+            dropdownColor: const Color(0xFF1A1A1A),
+            icon: const Icon(Icons.emoji_events, color: Colors.amber, size: 30),
+            value: _selectedTitle,
+            items: availableTitles.map((title) {
+              String label = title.isEmpty ? "Non-Title Match" : "$title Championship";
+              return DropdownMenuItem(
+                value: title,
+                child: Text(label, style: TextStyle(color: title.isEmpty ? Colors.white54 : Colors.amber, fontWeight: FontWeight.w900)),
+              );
+            }).toList(),
+            onChanged: (val) {
+              if (val != null) {
+                HapticFeedback.lightImpact();
+                setState(() => _selectedTitle = val);
+              }
+            },
+          ),
+        ),
+      ],
     );
   }
 
+  // 🚨 THE FIX: The Live Alignment Warning Widget!
+  Widget _buildAlignmentWarning(List<Wrestler> roster) {
+    if (selectedWrestler1Id == null || selectedWrestler2Id == null) return const SizedBox.shrink();
+
+    Wrestler? w1 = roster.where((w) => w.id == selectedWrestler1Id).firstOrNull;
+    Wrestler? w2 = roster.where((w) => w.id == selectedWrestler2Id).firstOrNull;
+
+    if (w1 != null && w2 != null && w1.isHeel == w2.isHeel) {
+      String matchType = w1.isHeel ? "Heel vs. Heel" : "Face vs. Face";
+      return Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.redAccent.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.redAccent.withOpacity(0.5)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                "WARNING: $matchType matches lack crowd dynamics and will suffer a rating penalty.",
+                style: const TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold, height: 1.3),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  // 🚨 Injecting the warning above the final simulate button
   Widget _buildSimulateButton(bool canRunMatch, List<Wrestler> roster, BookingNotifier notifier) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(color: Colors.black, border: const Border(top: BorderSide(color: Colors.white10)), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 10, offset: const Offset(0, -5))]),
-      child: SizedBox(
-        width: double.infinity,
-        height: 60,
-        child: ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(backgroundColor: canRunMatch ? Colors.amber : const Color(0xFF1E1E1E), foregroundColor: canRunMatch ? Colors.black : Colors.white30, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-          icon: Icon(canRunMatch ? Icons.sports_mma_rounded : Icons.lock),
-          label: const Text("RING THE BELL", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
-          onPressed: canRunMatch ? () {
-            HapticFeedback.heavyImpact();
-            Wrestler w1 = roster.firstWhere((w) => w.id == selectedWrestler1Id);
-            Wrestler w2 = roster.firstWhere((w) => w.id == selectedWrestler2Id);
-            ref.read(gameProvider.notifier).stageTitleMatch(_isTitleMatchToggled);
-            notifier.setWinner(null); 
-            notifier.startMatchSimulation([w1, w2]); 
-          } : null,
-        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min, // Keep it from blowing up the layout
+        children: [
+          if (canRunMatch) _buildAlignmentWarning(roster), // 🚨 Warning Appears Here!
+          SizedBox(
+            width: double.infinity,
+            height: 60,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: canRunMatch ? Colors.amber : const Color(0xFF1E1E1E), foregroundColor: canRunMatch ? Colors.black : Colors.white30, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+              icon: Icon(canRunMatch ? Icons.sports_mma_rounded : Icons.lock),
+              label: const Text("RING THE BELL", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+              onPressed: canRunMatch ? () {
+                HapticFeedback.heavyImpact();
+                Wrestler w1 = roster.firstWhere((w) => w.id == selectedWrestler1Id);
+                Wrestler w2 = roster.firstWhere((w) => w.id == selectedWrestler2Id);
+                
+                // 🚨 PASSED THE STRING TO THE BACKEND INSTEAD OF A BOOLEAN!
+                ref.read(gameProvider.notifier).stageTitleMatch(_selectedTitle); 
+                notifier.setTitleMatch(_selectedTitle);
+                
+                notifier.setWinner(null); 
+                notifier.startMatchSimulation([w1, w2]); 
+              } : null,
+            ),
+          ),
+        ],
       ),
     );
   }

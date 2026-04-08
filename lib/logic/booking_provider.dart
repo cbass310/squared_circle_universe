@@ -26,7 +26,7 @@ class BookingState {
   final double momentum;
   final MatchType selectedType;
   final AgentNote selectedNote; 
-  final bool isTitleMatch; 
+  final String selectedTitle; // 🚨 REPLACED isTitleMatch with String
   final Wrestler? selectedWinner;
 
   BookingState({
@@ -38,7 +38,7 @@ class BookingState {
     this.momentum = 0.5,
     this.selectedType = MatchType.standard,
     this.selectedNote = AgentNote.standard,
-    this.isTitleMatch = false,
+    this.selectedTitle = "", // 🚨 DEFAULT TO EMPTY STRING
     this.selectedWinner,
   });
 
@@ -51,7 +51,7 @@ class BookingState {
     double? momentum,
     MatchType? selectedType,
     AgentNote? selectedNote,
-    bool? isTitleMatch,
+    String? selectedTitle, // 🚨 UPDATED
     Wrestler? selectedWinner,
   }) {
     return BookingState(
@@ -63,7 +63,7 @@ class BookingState {
       momentum: momentum ?? this.momentum,
       selectedType: selectedType ?? this.selectedType,
       selectedNote: selectedNote ?? this.selectedNote,
-      isTitleMatch: isTitleMatch ?? this.isTitleMatch,
+      selectedTitle: selectedTitle ?? this.selectedTitle, // 🚨 UPDATED
       selectedWinner: selectedWinner ?? this.selectedWinner,
     );
   }
@@ -88,7 +88,10 @@ class BookingNotifier extends StateNotifier<BookingState> {
 
   void setMatchType(MatchType type) => state = state.copyWith(selectedType: type);
   void setAgentNote(AgentNote note) => state = state.copyWith(selectedNote: note); 
-  void setTitleMatch(bool isTitle) => state = state.copyWith(isTitleMatch: isTitle);
+  
+  // 🚨 UPDATED: Now takes a String instead of a boolean
+  void setTitleMatch(String title) => state = state.copyWith(selectedTitle: title);
+  
   void setWinner(Wrestler? w) => state = state.copyWith(selectedWinner: w);
   
   void reset() {
@@ -136,6 +139,8 @@ class BookingNotifier extends StateNotifier<BookingState> {
     
     double targetRating = 1.0;
     double startRating = 0.5;
+    
+    List<CommentaryLog> initialLogs = [];
 
     if (participants.length == 2 && state.selectedType != MatchType.promo && state.selectedType != MatchType.ambush) {
       
@@ -164,7 +169,20 @@ class BookingNotifier extends StateNotifier<BookingState> {
 
       if (state.selectedType == MatchType.cage || state.selectedType == MatchType.ladder) targetRating += 0.5;
       if (state.selectedType == MatchType.hardcore) targetRating += 0.25;
-      if (state.isTitleMatch) targetRating += 0.5;
+      
+      // 🚨 UPDATED: Check if string is not empty
+      if (state.selectedTitle.isNotEmpty) targetRating += 0.5;
+
+      bool isW1Heel = participants[0].isHeel;
+      bool isW2Heel = participants[1].isHeel;
+
+      if (isW1Heel && isW2Heel) {
+        initialLogs.add(CommentaryLog("The crowd has no one to cheer for here. Two villains in the ring, and the fans are sitting on their hands.", "INFO", "CYRUS"));
+      } else if (!isW1Heel && !isW2Heel) {
+        initialLogs.add(CommentaryLog("Two fan favorites going at it. It's a great athletic contest, but it lacks that bitter hatred.", "INFO", "VIC"));
+      } else {
+        initialLogs.add(CommentaryLog("Classic good versus evil here, Vic! The crowd is absolutely eating this up!", "INFO", "CYRUS"));
+      }
 
     } else {
       double avgMic = participants.fold(0, (sum, w) => sum + w.micSkill) / participants.length;
@@ -173,7 +191,6 @@ class BookingNotifier extends StateNotifier<BookingState> {
 
     targetRating = targetRating.clamp(0.5, 5.0);
 
-    List<CommentaryLog> initialLogs = [];
     if (targetRating >= 4.0) {
        initialLogs.add(CommentaryLog("The atmosphere in the building is absolutely electric!", "INFO", "VIC"));
     } else if (targetRating <= 1.5) {
@@ -244,29 +261,30 @@ class BookingNotifier extends StateNotifier<BookingState> {
   void _finishMatch(List<Wrestler> participants, double finalEngineScore) {
     Wrestler winner = state.selectedWinner ?? participants[_rng.nextInt(participants.length)];
     
-    // 🚨 NEW FIX: We now definitively find the loser and save it as a variable!
     String designatedLoser = "Unknown";
     
     if (participants.length == 2) {
-      // Find the guy who isn't the winner
       Wrestler loserObj = participants.firstWhere((p) => p.name != winner.name, orElse: () => participants[0]);
       
-      // Check for Creative Control Hijack
       if (loserObj.hasCreativeControl && state.selectedWinner != null) {
-        winner = loserObj; // Winner is swapped!
+        winner = loserObj; 
         designatedLoser = participants.firstWhere((p) => p.name != winner.name).name;
         state = state.copyWith(
           liveLogs: [...state.liveLogs, CommentaryLog("WAIT! ${loserObj.name} is refusing to follow the script! They just hijacked the match!", "INFO", "VIC")]
         );
       } else {
-        designatedLoser = loserObj.name; // Normal finish
+        designatedLoser = loserObj.name; 
       }
     } else if (participants.length == 1) {
       designatedLoser = "Local Jobber";
     }
 
     String finishText = "🔔 Winner: ${winner.name}!";
-    if (state.isTitleMatch) finishText = "🏆 AND NEW CHAMPION: ${winner.name}!";
+    
+    // 🚨 UPDATED: Dynamically announce EXACTLY which belt was won!
+    if (state.selectedTitle.isNotEmpty) {
+      finishText = "🏆 AND NEW ${state.selectedTitle.toUpperCase()} CHAMPION: ${winner.name}!";
+    }
 
     if (state.selectedNote == AgentNote.screwjob) {
        finishText = "WAIT! We have a Screwjob! Outside interference costs the match!";
@@ -288,7 +306,7 @@ class BookingNotifier extends StateNotifier<BookingState> {
     final match = Match()
       ..id = 100000
       ..winnerName = winner.name
-      ..loserName = designatedLoser // 🚨 THE FIX: Permanently stamp the loser's name here!
+      ..loserName = designatedLoser 
       ..type = state.selectedType
       ..agentNote = state.selectedNote 
       ..rating = double.parse(finalEngineScore.toStringAsFixed(1)); 

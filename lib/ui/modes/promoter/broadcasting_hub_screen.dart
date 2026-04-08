@@ -493,7 +493,6 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
     );
   }
 
-  // 🚨 THE FIX: The Manual Renegotiation Trigger for Mobile!
   Widget _buildActiveContractDetail(TvNetworkDeal deal) {
     final notifier = ref.read(gameProvider.notifier);
     
@@ -560,9 +559,9 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
           decoration: BoxDecoration(color: Colors.amber.withOpacity(0.05), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.amber.withOpacity(0.3))),
           child: const Text("Upgrading Production Values increases your maximum Show Rating cap and generates a flat bonus to all matches. Note: Higher tiers require weekly maintenance fees!", style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.5)),
         ),
-        _buildTechCard("BROADCAST & CAMERAS", "Unlocks higher show ratings. Required for top-tier TV networks.", gameState.techBroadcast, () => notifier.buyTechUpgrade("BROADCAST", _getTechCost(gameState.techBroadcast)), gameState.cash),
-        _buildTechCard("STAGE & PYROTECHNICS", "Increases crowd energy and boosts the Match Rating of your openers.", gameState.techPyro, () => notifier.buyTechUpgrade("PYRO", _getTechCost(gameState.techPyro)), gameState.cash),
-        _buildTechCard("MEDICAL & REHAB", "Reduces the severity of injuries and increases weekly stamina recovery.", gameState.techMedical, () => notifier.buyTechUpgrade("MEDICAL", _getTechCost(gameState.techMedical)), gameState.cash),
+        _buildTechCard("BROADCAST & CAMERAS", "Unlocks higher show ratings. Required for top-tier TV networks.", gameState.techBroadcast, gameState.venueLevel, () => notifier.buyTechUpgrade("BROADCAST", _getTechCost(gameState.techBroadcast)), gameState.cash),
+        _buildTechCard("STAGE & PYROTECHNICS", "Increases crowd energy and boosts the Match Rating of your openers.", gameState.techPyro, gameState.venueLevel, () => notifier.buyTechUpgrade("PYRO", _getTechCost(gameState.techPyro)), gameState.cash),
+        _buildTechCard("MEDICAL & REHAB", "Reduces the severity of injuries and increases weekly stamina recovery.", gameState.techMedical, gameState.venueLevel, () => notifier.buyTechUpgrade("MEDICAL", _getTechCost(gameState.techMedical)), gameState.cash),
         const SizedBox(height: 40), 
       ],
     );
@@ -575,10 +574,18 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
     return 0; // Maxed out
   }
 
-  Widget _buildTechCard(String title, String desc, int level, VoidCallback onUpgrade, int currentCash) {
+  // 🚨 THE FIX: Passed in Venue Level and added Dynamic Locking Logic!
+  Widget _buildTechCard(String title, String desc, int level, int venueLevel, VoidCallback onUpgrade, int currentCash) {
     int cost = _getTechCost(level);
-    bool canAfford = currentCash >= cost;
-    bool isMaxed = level >= 4;
+    
+    // Check if they are truly maxed out on the tech tree (Level 4)
+    bool isAbsoluteMax = level >= 4;
+    
+    // Check if they are capped by their current venue capacity
+    bool isVenueCapped = level >= venueLevel;
+    
+    // Can only afford and upgrade if neither cap is hit
+    bool canAfford = currentCash >= cost && !isAbsoluteMax && !isVenueCapped;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -598,27 +605,32 @@ class _BroadcastingHubScreenState extends ConsumerState<BroadcastingHubScreen> w
           const SizedBox(height: 8),
           Text(desc, style: const TextStyle(color: Colors.white54, fontSize: 11, height: 1.4)),
           const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(color: Colors.white10)),
-          isMaxed 
-            ? const Center(child: Text("MAXIMUM LEVEL REACHED", style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, letterSpacing: 1.0, fontSize: 11)))
-            : Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: Text("Cost: \$${cost.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}", style: TextStyle(color: canAfford ? Colors.white : Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 12)),
+          
+          // 🚨 THE FIX: Dynamic rendering based on which cap is hit
+          if (isAbsoluteMax)
+            const Center(child: Text("MAXIMUM LEVEL REACHED", style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, letterSpacing: 1.0, fontSize: 11)))
+          else if (isVenueCapped)
+            const Center(child: Text("REQUIRES LARGER VENUE", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, letterSpacing: 1.0, fontSize: 11)))
+          else
+            Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Text("Cost: \$${cost.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}", style: TextStyle(color: canAfford ? Colors.white : Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 12)),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: canAfford ? Colors.amber : Colors.grey.shade800),
+                    onPressed: canAfford ? () {
+                      HapticFeedback.lightImpact();
+                      onUpgrade();
+                    } : null,
+                    child: FittedBox(fit: BoxFit.scaleDown, child: Text("UPGRADE", style: TextStyle(color: canAfford ? Colors.black : Colors.grey, fontWeight: FontWeight.bold, fontSize: 11))),
                   ),
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: canAfford ? Colors.amber : Colors.grey.shade800),
-                      onPressed: canAfford ? () {
-                        HapticFeedback.lightImpact();
-                        onUpgrade();
-                      } : null,
-                      child: FittedBox(fit: BoxFit.scaleDown, child: Text("UPGRADE", style: TextStyle(color: canAfford ? Colors.black : Colors.grey, fontWeight: FontWeight.bold, fontSize: 11))),
-                    ),
-                  )
-                ],
-              )
+                )
+              ],
+            )
         ],
       ),
     );

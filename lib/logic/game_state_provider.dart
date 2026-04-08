@@ -1,4 +1,4 @@
-import 'dart:io' show Platform; // 🚨 ADDED FOR PLATFORM DETECTION
+import 'dart:io' show Platform; 
 import 'dart:math'; 
 import 'dart:convert'; 
 import 'package:flutter/material.dart'; 
@@ -17,6 +17,7 @@ import '../data/models/financial_record.dart';
 import '../data/models/news_item.dart';
 import '../data/models/rivalry.dart'; 
 import '../data/models/milestone.dart'; 
+import '../data/models/yearly_archive.dart'; 
 
 import 'rival_provider.dart'; 
 import 'promoter_provider.dart'; 
@@ -73,7 +74,7 @@ class GameState {
   final int week;
   final int year;
   final List<Match> currentCard;
-  final List<bool> titleMatchFlags; 
+  final List<String> bookedTitles; // 🚨 REPLACED titleMatchFlags
   final List<FinancialEntry> ledger;
   final List<String> ppvNames;
   final List<String> venueCustomNames; 
@@ -92,10 +93,10 @@ class GameState {
   final int venueLevel; 
   final int premierPpvIndex; 
   final bool isLoading; 
-  final bool isFullGameUnlocked; // 🚨 ADDED
+  final bool isFullGameUnlocked;
 
   GameState({
-    this.promotionName = "Squared Circle Universe",
+    this.promotionName = "Squared Circle Wrestling",
     this.tvShowName = "Adrenaline",
     this.cash = 50000,
     this.fans = 100,
@@ -103,7 +104,7 @@ class GameState {
     this.week = 1,
     this.year = 1,
     this.currentCard = const [],
-    this.titleMatchFlags = const [], 
+    this.bookedTitles = const [], // 🚨 REPLACED
     this.ledger = const [],
     this.ppvNames = const [
       "Winter Warfare", "Valentine's Vengeance", "March Massacre",
@@ -111,7 +112,7 @@ class GameState {
       "August Armageddon", "September Slam", "Fright Night",
       "November Nightmare", "Squared Circle Summit"
     ],
-    this.venueCustomNames = const ["High School Gym", "Civic Center", "City Arena", "Global Stadium"],
+    this.venueCustomNames = const ["High School Gym", "Civic Center", "State Arena", "Global Stadium"],
     this.activeSponsors = const [],
     this.availableOffers = const [], 
     
@@ -126,7 +127,7 @@ class GameState {
     this.venueLevel = 1, 
     this.premierPpvIndex = 11, 
     this.isLoading = true,
-    this.isFullGameUnlocked = false, // 🚨 ADDED
+    this.isFullGameUnlocked = false, 
   });
 
   int get playerWins => ledger.where((e) => e.warResult == "VICTORY").length;
@@ -152,11 +153,11 @@ class GameState {
 
   GameState copyWith({
     String? promotionName, String? tvShowName, int? cash, int? fans, int? reputation,
-    int? week, int? year, List<Match>? currentCard, List<bool>? titleMatchFlags, List<FinancialEntry>? ledger,
+    int? week, int? year, List<Match>? currentCard, List<String>? bookedTitles, List<FinancialEntry>? ledger, 
     List<String>? ppvNames, List<String>? venueCustomNames, List<SponsorshipDeal>? activeSponsors,
     List<SponsorshipDeal>? availableOffers, TvNetworkDeal? activeTvDeal, bool? isBiddingWarActive, 
     bool? isSandboxMode, int? techBroadcast, int? techPyro, int? techAudio, int? techMedical, 
-    int? venueLevel, int? premierPpvIndex, bool? isLoading, bool? isFullGameUnlocked, // 🚨 ADDED
+    int? venueLevel, int? premierPpvIndex, bool? isLoading, bool? isFullGameUnlocked, 
   }) {
     return GameState(
       promotionName: promotionName ?? this.promotionName,
@@ -167,7 +168,7 @@ class GameState {
       week: week ?? this.week,
       year: year ?? this.year,
       currentCard: currentCard ?? this.currentCard,
-      titleMatchFlags: titleMatchFlags ?? this.titleMatchFlags,
+      bookedTitles: bookedTitles ?? this.bookedTitles, 
       ledger: ledger ?? this.ledger,
       ppvNames: ppvNames ?? this.ppvNames,
       venueCustomNames: venueCustomNames ?? this.venueCustomNames,
@@ -183,7 +184,7 @@ class GameState {
       venueLevel: venueLevel ?? this.venueLevel,
       premierPpvIndex: premierPpvIndex ?? this.premierPpvIndex,
       isLoading: isLoading ?? this.isLoading,
-      isFullGameUnlocked: isFullGameUnlocked ?? this.isFullGameUnlocked, // 🚨 ADDED
+      isFullGameUnlocked: isFullGameUnlocked ?? this.isFullGameUnlocked, 
     );
   }
 }
@@ -193,7 +194,7 @@ class GameNotifier extends StateNotifier<GameState> {
   Isar? _isarInstance; 
   final Random _rng = Random(); 
   
-  bool _stagedTitleMatchFlag = false;
+  String _stagedTitle = ""; // 🚨 CHANGED
 
   GameNotifier(this.ref) : super(GameState()) {
     _initDb();
@@ -209,7 +210,12 @@ class GameNotifier extends StateNotifier<GameState> {
     
     final dir = await getApplicationDocumentsDirectory();
     _isarInstance = await Isar.open(
-      [WrestlerSchema, MatchSchema, ShowHistorySchema, GameSaveSchema, TvNetworkDealSchema, SponsorshipDealSchema, FinancialRecordSchema, NewsItemSchema, RivalrySchema, MilestoneSchema], 
+      [
+        WrestlerSchema, MatchSchema, ShowHistorySchema, GameSaveSchema, 
+        TvNetworkDealSchema, SponsorshipDealSchema, FinancialRecordSchema, 
+        NewsItemSchema, RivalrySchema, MilestoneSchema, 
+        YearlyArchiveSchema 
+      ], 
       directory: dir.path
     );
     return _isarInstance!;
@@ -242,14 +248,13 @@ class GameNotifier extends StateNotifier<GameState> {
     final currentSponsors = await db.sponsorshipDeals.filter().promotionIdEqualTo(0).findAll();
     final existingSave = await db.gameSaves.get(1); 
 
-    // 🚨 THE PLATFORM CHECK LOGIC 🚨
     bool isDesktop = false;
     try {
       if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
         isDesktop = true;
       }
     } catch (e) {
-      // Failsafe for web or weird environments
+      // Failsafe
     }
 
     if (existingSave != null) {
@@ -258,7 +263,6 @@ class GameNotifier extends StateNotifier<GameState> {
         loadedLedger = existingSave.ledgerJson.map((e) => FinancialEntry.fromMap(jsonDecode(e))).toList();
       } catch (e) {}
 
-      // 🚨 DETERMINE UNLOCK STATUS (Auto-true for PC, checks Isar DB for mobile)
       bool unlockedStatus = isDesktop;
       if (!isDesktop) {
         try { unlockedStatus = existingSave.isFullGameUnlocked; } catch(e) { unlockedStatus = false; }
@@ -271,7 +275,7 @@ class GameNotifier extends StateNotifier<GameState> {
         techAudio: existingSave.techAudio, techMedical: existingSave.techMedical, premierPpvIndex: existingSave.premierPpvIndex, 
         activeTvDeal: currentDeal, activeSponsors: currentSponsors, isBiddingWarActive: currentDeal == null, isLoading: false,
         ledger: loadedLedger, 
-        isFullGameUnlocked: unlockedStatus, // 🚨 LOAD UNLOCK STATUS
+        isFullGameUnlocked: unlockedStatus, 
       );
     } else {
       state = state.copyWith(
@@ -279,7 +283,7 @@ class GameNotifier extends StateNotifier<GameState> {
         isBiddingWarActive: true, 
         activeTvDeal: null, 
         activeSponsors: [],
-        isFullGameUnlocked: isDesktop, // 🚨 AUTO-UNLOCK FOR NEW PC SAVES
+        isFullGameUnlocked: isDesktop, 
       );
     }
     
@@ -394,6 +398,7 @@ class GameNotifier extends StateNotifier<GameState> {
       await db.financialRecords.clear(); 
       await db.newsItems.clear(); 
       await db.milestones.clear(); 
+      await db.yearlyArchives.clear(); 
       
       final deals = await db.tvNetworkDeals.where().findAll();
       for (var d in deals) { d.promotionId = -1; }
@@ -416,7 +421,8 @@ class GameNotifier extends StateNotifier<GameState> {
     await saveGame(); 
   }
 
-  void startNewSeason() => state = state.copyWith(week: 1, year: state.year + 1, currentCard: [], titleMatchFlags: []);
+  void startNewSeason() => state = state.copyWith(week: 1, year: state.year + 1, currentCard: [], bookedTitles: []); // 🚨 CHANGED
+  
   void renamePromotion(String name) { state = state.copyWith(promotionName: name); saveGame(); } 
   void renameTVShow(String name) { state = state.copyWith(tvShowName: name); saveGame(); } 
   void setPremierPpv(int index) { state = state.copyWith(premierPpvIndex: index); saveGame(); } 
@@ -511,19 +517,19 @@ class GameNotifier extends StateNotifier<GameState> {
 
   void spendCash(int amount) { state = state.copyWith(cash: state.cash - amount); saveGame(); } 
 
-  void stageTitleMatch(bool isTitle) {
-    _stagedTitleMatchFlag = isTitle;
+  void stageTitleMatch(String titleName) { // 🚨 CHANGED
+    _stagedTitle = titleName;
   }
 
   void addMatchToCard(Match m) {
     state = state.copyWith(
       currentCard: [...state.currentCard, m],
-      titleMatchFlags: [...state.titleMatchFlags, _stagedTitleMatchFlag]
+      bookedTitles: [...state.bookedTitles, _stagedTitle] // 🚨 CHANGED
     );
-    _stagedTitleMatchFlag = false; 
+    _stagedTitle = ""; 
   }
   
-  void clearCard() => state = state.copyWith(currentCard: [], titleMatchFlags: []);
+  void clearCard() => state = state.copyWith(currentCard: [], bookedTitles: []); // 🚨 CHANGED
 
   void _generateInitialSponsors() {
     final List<SponsorshipDeal> newOffers = [];
@@ -613,7 +619,6 @@ class GameNotifier extends StateNotifier<GameState> {
   // 🚀 PROCESS WEEK ENGINE 
   // =========================================================================
   Future<void> processWeek(List<Wrestler> roster) async {
-    // 🚨 THE PAYWALL ROADBLOCK 🚨
     if (!state.isFullGameUnlocked && state.week >= 12) {
       throw Exception("DEMO_LIMIT_REACHED");
     }
@@ -654,9 +659,10 @@ class GameNotifier extends StateNotifier<GameState> {
         weeklyHighlights.add("$matchPosition: $winnerName defeated $loserName ($matchScore ⭐)");
       }
       
-      bool isTitleMatch = state.titleMatchFlags.length > i ? state.titleMatchFlags[i] : false;
+      // 🚨 THE NEW TITLE HANDOVER LOGIC
+      String titleOnLine = state.bookedTitles.length > i ? state.bookedTitles[i] : "";
       
-      if (isTitleMatch) {
+      if (titleOnLine.isNotEmpty) {
         matchScore += 0.5;
         if (matchScore > 5.0) matchScore = 5.0;
         
@@ -664,37 +670,19 @@ class GameNotifier extends StateNotifier<GameState> {
           Wrestler? winner = roster.where((w) => w.name == match.winnerName).firstOrNull;
           Wrestler? loser = roster.where((w) => w.name == match.loserName).firstOrNull;
 
-          if (winner != null && loser != null) {
-            
-            if (loser.isChampion) {
-              loser.isChampion = false;
+          if (winner != null) {
+            if (titleOnLine == "World Heavyweight") {
+              if (loser != null) loser.isChampion = false;
               winner.isChampion = true;
               if (winner.isTVChampion) winner.isTVChampion = false; 
               ref.read(rosterProvider.notifier).recordTitleChange("World Heavyweight", winner.name);
               await unlockMilestone("world_champ"); 
-            }
-            else if (loser.isTVChampion) {
-              loser.isTVChampion = false;
-              if (!winner.isChampion) { 
-                winner.isTVChampion = true;
-                ref.read(rosterProvider.notifier).recordTitleChange("Television Title", winner.name);
-                await unlockMilestone("tv_champ"); 
-              }
-            }
-            else {
-              bool worldExists = roster.any((w) => w.isChampion && w.companyId == 0);
-              bool tvExists = roster.any((w) => w.isTVChampion && w.companyId == 0);
-              
-              if (!worldExists) {
-                winner.isChampion = true;
-                if (winner.isTVChampion) winner.isTVChampion = false; 
-                ref.read(rosterProvider.notifier).recordTitleChange("World Heavyweight", winner.name);
-                await unlockMilestone("world_champ"); 
-              } else if (!tvExists && !winner.isChampion) { 
-                winner.isTVChampion = true;
-                ref.read(rosterProvider.notifier).recordTitleChange("Television Title", winner.name);
-                await unlockMilestone("tv_champ"); 
-              }
+            } 
+            else if (titleOnLine == "Television Title") {
+              if (loser != null) loser.isTVChampion = false;
+              winner.isTVChampion = true;
+              ref.read(rosterProvider.notifier).recordTitleChange("Television Title", winner.name);
+              await unlockMilestone("tv_champ"); 
             }
           }
         }
@@ -993,12 +981,32 @@ class GameNotifier extends StateNotifier<GameState> {
       week: state.week + 1,
       ledger: [ FinancialEntry()..week = state.week..year = state.year..incomeTickets = gate..incomeMerch = merch..incomeSponsors = sponPay..incomeTvDeal = tvPayout..expenseSalaries = sal..expenseProduction = prod..expenseRent = rent..profit = prof..showRating = rating..rivalRating = rival..warResult = (rating > rival ? "VICTORY" : (rating < rival ? "DEFEAT" : "DRAW")), ...state.ledger ],
       currentCard: [], 
-      titleMatchFlags: [], 
+      bookedTitles: [], // 🚨 REPLACED titleMatchFlags
       activeSponsors: dealsToKeep,
     );
 
     _generateInitialSponsors();
     await saveGame(); 
+
+    try {
+      final supabase = Supabase.instance.client;
+      final user = supabase.auth.currentUser;
+      
+      if (user != null) {
+        final int legacyScore = (newCash ~/ 1000) + newFans + (newRep * 100);
+        
+        await supabase.from('leaderboard').upsert({
+          'user_id': user.id,
+          'promoter_name': state.promotionName,
+          'current_year': state.year,
+          'current_week': state.week, 
+          'total_score': legacyScore,
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      }
+    } catch (e) {
+      debugPrint("Silent Leaderboard Sync Failed: $e");
+    }
     
     await ref.read(rosterProvider.notifier).decayRivalries();
     await ref.read(rosterProvider.notifier).processContracts();
@@ -1024,11 +1032,54 @@ class GameNotifier extends StateNotifier<GameState> {
           ..techMedical = state.techMedical
           ..premierPpvIndex = state.premierPpvIndex
           ..ledgerJson = state.ledger.map((e) => jsonEncode(e.toMap())).toList()
-          ..isFullGameUnlocked = state.isFullGameUnlocked; // 🚨 ADDED
+          ..isFullGameUnlocked = state.isFullGameUnlocked; 
       await db.writeTxn(() async { await db.gameSaves.put(save); });
   }
 
   Future<void> processYearEnd() async {
+    final db = await _getDb();
+
+    // 1. Calculate the final Win-Loss-Draw Record and Profits
+    int yearlyWins = state.playerWins;
+    int yearlyLosses = state.rivalWins;
+    int yearlyDraws = state.draws;
+    int yearlyProfit = state.ledger.fold(0, (sum, e) => sum + e.profit);
+
+    // 2. Find the Event of the Year from the Database
+    final allShows = await db.showHistorys.filter().yearEqualTo(state.year).findAll();
+    double highestRating = 0.0;
+    String bestShowName = "N/A";
+
+    if (allShows.isNotEmpty) {
+      allShows.sort((a, b) => b.avgRating.compareTo(a.avgRating));
+      bestShowName = allShows.first.showName;
+      highestRating = allShows.first.avgRating;
+    }
+
+    // 3. Find the Wrestler of the Year
+    final allWrestlers = await db.wrestlers.where().findAll();
+    allWrestlers.sort((a, b) => b.pop.compareTo(a.pop));
+    String woty = allWrestlers.isNotEmpty ? allWrestlers.first.name : "N/A";
+
+    // 4. Create the Yearly Snapshot!
+    final archive = YearlyArchive()
+      ..year = state.year
+      ..wins = yearlyWins
+      ..losses = yearlyLosses
+      ..draws = yearlyDraws
+      ..totalProfit = yearlyProfit
+      ..bestShowName = bestShowName
+      ..bestShowRating = highestRating
+      ..wrestlerOfTheYear = woty;
+
+    // 5. Save the snapshot and WIPE the weekly history clean!
+    await db.writeTxn(() async {
+      await db.yearlyArchives.put(archive);
+      await db.showHistorys.clear(); // Wipes the Creative Hub History Tab
+      await db.financialRecords.clear(); // Keeps the DB fast
+    });
+
+    // 6. Supabase Cloud Sync
     try {
       final supabase = Supabase.instance.client;
       final user = supabase.auth.currentUser;
@@ -1043,6 +1094,7 @@ class GameNotifier extends StateNotifier<GameState> {
       }
     } catch (e) {}
 
+    // 7. Reset the week to 1, add a year, and WIPE the War Room ledger!
     state = state.copyWith(week: 1, year: state.year + 1, ledger: []);
     await saveGame();
   }

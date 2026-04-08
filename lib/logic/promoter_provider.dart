@@ -157,6 +157,38 @@ class RosterNotifier extends StateNotifier<RosterState> {
     }
   }
 
+  // 🚨 THE NEW DYNAMIC ECONOMY CALCULATOR 🚨
+  int calculateDynamicSalary(int pop, int greed, int venueLevel, int companyCash) {
+    // 1. Base Scale: Exponential growth for top stars
+    double baseValue = pop * 12.0;
+    if (pop >= 70) baseValue = pop * 25.0;
+    if (pop >= 85) baseValue = pop * 60.0;
+    if (pop >= 95) baseValue = pop * 100.0;
+
+    // 2. The Venue Tax: Richer companies pay more
+    double venueMultiplier = 1.0;
+    if (venueLevel == 2) venueMultiplier = 2.0;
+    if (venueLevel == 3) venueMultiplier = 5.0;
+    if (venueLevel == 4) venueMultiplier = 12.0;
+
+    // 3. The Greed Factor (0.7x to 1.7x)
+    double greedMultiplier = 0.7 + (greed / 100.0);
+
+    // 4. The Wealth Tax (or Desperation Discount)
+    double wealthTax = 1.0;
+    if (companyCash > 5000000) wealthTax = 1.5;
+    else if (companyCash > 1000000) wealthTax = 1.25;
+    else if (companyCash < 25000) wealthTax = 0.85; // Wrestlers take a cut to help a struggling company!
+
+    int finalSalary = (baseValue * venueMultiplier * greedMultiplier * wealthTax).toInt();
+    
+    // Round to the nearest 100 for clean UI numbers (e.g. $15,400 instead of $15,432)
+    int roundedSalary = (finalSalary / 100).round() * 100;
+    if (roundedSalary < 100) roundedSalary = 100; // Absolute floor
+
+    return roundedSalary;
+  }
+
   Future<void> loadRoster() async {
     if (_isar == null) {
       state = state.copyWith(isLoading: false);
@@ -165,11 +197,18 @@ class RosterNotifier extends StateNotifier<RosterState> {
     
     try {
       final allWrestlers = await _isar!.wrestlers.where().findAll();
+      final gameState = ref.read(gameProvider);
+      int absoluteWeek = (gameState.year * 48) + gameState.week;
       
       final rosterList = allWrestlers.where((w) => w.companyId == 0 && w.isOnIR != true).toList();
       final irList = allWrestlers.where((w) => w.companyId == 0 && w.isOnIR == true).toList();
       
-      final freeAgentList = allWrestlers.where((w) => w.companyId == -1 && w.isRookie != true).toList();
+      final freeAgentList = allWrestlers.where((w) => 
+        w.companyId == -1 && 
+        w.isRookie != true && 
+        absoluteWeek >= w.cooldownUntilWeek
+      ).toList();
+      
       final prospectList = allWrestlers.where((w) => w.companyId == -1 && w.isRookie == true).toList();
       
       List<UIRivalry> mappedRivalries = [];
@@ -269,7 +308,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
       await _isar!.wrestlers.put(w);
     });
     
-    // 🚨 TROPHY HOOK
     await ref.read(gameProvider.notifier).unlockMilestone("medical_ward");
     await loadRoster();
   }
@@ -303,10 +341,41 @@ class RosterNotifier extends StateNotifier<RosterState> {
   }
 
   Future<void> evaluateShowForNewFeuds(List<Match> completedCard) async {
-    if (completedCard.isEmpty) return;
+    if (completedCard.isEmpty || _isar == null) return;
+    
+    final gameState = ref.read(gameProvider);
+
+    await _isar!.writeTxn(() async {
+      final allWrestlers = await _isar!.wrestlers.where().findAll();
+      
+      for (var m in completedCard) {
+        for (String wName in [m.winnerName, m.loserName]) {
+          if (wName.isEmpty || wName == "Draw") continue;
+
+          try {
+            final w = allWrestlers.firstWhere((w) => w.name == wName);
+            w.matchesWorked += 1;
+
+            // Every 5 matches, they grow +1 POP (Up to their potential cap)
+            if (w.matchesWorked % 5 == 0 && w.pop < w.popPotential) {
+              w.pop += 1;
+              
+              // 🚨 The Fair Market Update: They demand more money when they evolve naturally!
+              if (w.pop >= 90 && w.contractType != ContractType.specialAttraction) {
+                w.contractType = ContractType.specialAttraction;
+                w.hasCreativeControl = true;
+                w.salary = calculateDynamicSalary(w.pop, w.greed, gameState.venueLevel, gameState.cash);
+              }
+            }
+            await _isar!.wrestlers.put(w);
+          } catch (e) {
+            // Ignored if generic opponent
+          }
+        }
+      }
+    });
 
     Match mainEvent = completedCard.last;
-    
     String w1 = mainEvent.winnerName;
     String w2 = mainEvent.loserName;
     
@@ -346,7 +415,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
           existing.status = RivalryStatus.active;
           await _isar!.rivalrys.put(existing);
           
-          // 🚨 TROPHY HOOKS for Heat
           if (existing.heat >= 60) await ref.read(gameProvider.notifier).unlockMilestone("red_hot");
           if (existing.heat >= 90) await ref.read(gameProvider.notifier).unlockMilestone("legendary_grudge");
           
@@ -360,7 +428,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
           );
           await _isar!.rivalrys.put(newRiv);
           
-          // 🚨 TROPHY HOOK
           await ref.read(gameProvider.notifier).unlockMilestone("first_feud");
         }
       });
@@ -403,6 +470,9 @@ class RosterNotifier extends StateNotifier<RosterState> {
     bool worldVacated = false;
     bool tvVacated = false;
 
+    final gameState = ref.read(gameProvider);
+    int absoluteWeek = (gameState.year * 48) + gameState.week;
+
     await _isar!.writeTxn(() async {
       final allWrestlers = await _isar!.wrestlers.where().findAll();
       List<Wrestler> toUpdate = [];
@@ -411,6 +481,7 @@ class RosterNotifier extends StateNotifier<RosterState> {
         if (w.companyId != -1) {
           w.contractWeeks -= 1;
 
+          // Contract Expired!
           if (w.contractWeeks <= 0) {
             if (w.companyId == 0) {
               playerExpired.add(w.name);
@@ -426,15 +497,29 @@ class RosterNotifier extends StateNotifier<RosterState> {
             w.isChampion = false;
             w.isTVChampion = false;
             w.isOnIR = false; 
+
+            if (w.pop >= 90 || w.contractType == ContractType.specialAttraction) {
+              w.cooldownUntilWeek = absoluteWeek + 8;
+            } else {
+              w.cooldownUntilWeek = 0;
+            }
           } 
+          // Contract Still Active -> Check for Holdouts!
           else {
-            // 🚨 THE FIX: Force morale to ZERO if they are holding out!
-            if (!w.isHoldingOut && w.pop >= (w.contractedPop + 15) && w.greed >= 75) {
-              w.isHoldingOut = true; 
-              w.morale = 0; // Hard-lock morale to 0
-              if (w.companyId == 0) playerHoldouts.add(w.name);
+            if (!w.isHoldingOut && w.companyId == 0) {
+              int currentMarketValue = calculateDynamicSalary(w.pop, w.greed, gameState.venueLevel, gameState.cash);
+              
+              bool popSpikeHoldout = w.pop >= (w.contractedPop + 15);
+              // 🚨 THE FIX: If they are making less than 50% of what they deserve at your new venue level, they hold out!
+              bool severelyUnderpaid = w.salary < (currentMarketValue * 0.5);
+
+              if ((popSpikeHoldout || severelyUnderpaid) && w.greed >= 60) {
+                w.isHoldingOut = true; 
+                w.morale = 0; 
+                playerHoldouts.add(w.name);
+              }
             } else if (w.isHoldingOut) {
-              w.morale = 0; // Keep morale locked at 0 until they are paid
+              w.morale = 0; 
             }
           }
           toUpdate.add(w);
@@ -460,10 +545,16 @@ class RosterNotifier extends StateNotifier<RosterState> {
       throw Exception("Roster Full! Place an injured star on the IR or release someone first.");
     }
 
+    final gameState = ref.read(gameProvider);
+
     await _isar!.writeTxn(() async { 
       wrestler.companyId = 0; 
       wrestler.contractedPop = wrestler.pop;
       wrestler.contractWeeks = 12 + _rng.nextInt(12);
+      
+      // 🚨 THE FIX: When you hire them, their salary adjusts to YOUR promotion's wealth/venue!
+      wrestler.salary = calculateDynamicSalary(wrestler.pop, wrestler.greed, gameState.venueLevel, gameState.cash);
+      
       wrestler.isHoldingOut = false; 
       wrestler.isRookie = false; 
       wrestler.isScouted = true;
@@ -472,8 +563,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
     });
     
     await ref.read(gameProvider.notifier).generatePlayerRosterNews(wrestler.name, true);
-    
-    // 🚨 TROPHY HOOK
     await ref.read(gameProvider.notifier).unlockMilestone("first_signing");
     await loadRoster();
   }
@@ -491,8 +580,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
     });
 
     await ref.read(gameProvider.notifier).generatePlayerRosterNews(wrestler.name, false);
-    
-    // 🚨 TROPHY HOOK
     await ref.read(gameProvider.notifier).unlockMilestone("future_endeavors");
     await loadRoster();
   }
@@ -558,8 +645,9 @@ class RosterNotifier extends StateNotifier<RosterState> {
       ..pop = pop
       ..ringSkill = ring
       ..micSkill = mic
-      ..potentialSkill = 99 
-      ..salary = (pop * 25) 
+      ..popPotential = 99 
+      ..contractType = pop >= 90 ? ContractType.specialAttraction : ContractType.standard
+      ..salary = calculateDynamicSalary(pop, greed, 1, 50000) 
       ..companyId = -1 
       ..isHeel = isHeel
       ..greed = greed
@@ -575,14 +663,12 @@ class RosterNotifier extends StateNotifier<RosterState> {
       ..cardPosition = "Main Eventer";
   }
 
-  // 🚨 THE FIX: The Rookie Lottery Engine
   List<Wrestler> _generateRandomRoster(int count, {bool isRookie = false}) {
     List<Wrestler> pool = [];
     List<String> firstNames = ["Rex", "Jimmy", "Johnny", "Tommy", "Big", "Sly", "Mad", "King", "El", "Kid", "Doc", "Shadow", "Ace", "Duke", "Jack", "Max", "Zack", "Blade", "Axel", "Steel"];
     List<String> lastNames = ["Danger", "Flash", "Strong", "Storm", "Black", "Justice", "Ruckus", "Steele", "Havoc", "Viper", "Gato", "Cross", "Stone", "Wolf", "Hunter", "Rage", "Knight", "Blood"];
     
     if (isRookie && count == 20) {
-      // We guarantee exactly 1 Generational star, 4 Decent stars, and 15 Scrubs in the pool of 20
       List<String> archetypes = [
         "GENERATIONAL", 
         "DECENT", "DECENT", "DECENT", "DECENT",
@@ -590,7 +676,7 @@ class RosterNotifier extends StateNotifier<RosterState> {
         "SCRUB", "SCRUB", "SCRUB", "SCRUB", "SCRUB", 
         "SCRUB", "SCRUB", "SCRUB", "SCRUB", "SCRUB"
       ];
-      archetypes.shuffle(_rng); // Shuffles them so you never know which region they are in!
+      archetypes.shuffle(_rng); 
 
       for (int i = 0; i < count; i++) {
         String name = "${firstNames[_rng.nextInt(firstNames.length)]} ${lastNames[_rng.nextInt(lastNames.length)]}";
@@ -601,19 +687,21 @@ class RosterNotifier extends StateNotifier<RosterState> {
         int potential;
 
         if (archetypes[i] == "GENERATIONAL") {
-          basePop = 60 + _rng.nextInt(15); // Instant Main Eventer/Upper Midcard
+          basePop = 60 + _rng.nextInt(15); 
           baseRing = 70 + _rng.nextInt(15); 
-          potential = 99; // Max potential
+          potential = 99; 
         } else if (archetypes[i] == "DECENT") {
-          basePop = 35 + _rng.nextInt(15); // Good Midcarder
+          basePop = 35 + _rng.nextInt(15); 
           baseRing = 45 + _rng.nextInt(15); 
           potential = 85 + _rng.nextInt(10); 
         } else {
-          basePop = 15 + _rng.nextInt(15); // True Rookie (Scrub)
+          basePop = 15 + _rng.nextInt(15); 
           baseRing = 20 + _rng.nextInt(15); 
           potential = 60 + _rng.nextInt(20); 
         }
         
+        int greedVal = 40 + _rng.nextInt(60);
+
         pool.add(
           Wrestler()
             ..name = name
@@ -621,11 +709,11 @@ class RosterNotifier extends StateNotifier<RosterState> {
             ..pop = basePop
             ..ringSkill = baseRing
             ..micSkill = (basePop * 0.8).toInt() + _rng.nextInt(15)
-            ..potentialSkill = potential 
-            ..salary = (basePop * 10) + _rng.nextInt(500)
+            ..popPotential = potential 
+            ..salary = calculateDynamicSalary(basePop, greedVal, 1, 50000)
             ..companyId = -1 
             ..isHeel = _rng.nextBool()
-            ..greed = 40 + _rng.nextInt(60)
+            ..greed = greedVal
             ..loyalty = 40 + _rng.nextInt(60)
             ..contractWeeks = 12 + _rng.nextInt(40)
             ..contractedPop = basePop
@@ -641,13 +729,13 @@ class RosterNotifier extends StateNotifier<RosterState> {
       return pool;
     }
 
-    // Standard Generation for the initial free agent/main roster pool
     for (int i = 0; i < count; i++) {
       String name = "${firstNames[_rng.nextInt(firstNames.length)]} ${lastNames[_rng.nextInt(lastNames.length)]}";
       WrestlingStyle style = WrestlingStyle.values[_rng.nextInt(WrestlingStyle.values.length)];
       
       int basePop = 30 + _rng.nextInt(40); 
       int baseRing = 40 + _rng.nextInt(40); 
+      int greedVal = 40 + _rng.nextInt(60);
       
       pool.add(
         Wrestler()
@@ -656,11 +744,11 @@ class RosterNotifier extends StateNotifier<RosterState> {
           ..pop = basePop
           ..ringSkill = baseRing
           ..micSkill = (basePop * 0.8).toInt() + _rng.nextInt(15)
-          ..potentialSkill = baseRing + 10 + _rng.nextInt(30) 
-          ..salary = (basePop * 10) + _rng.nextInt(500)
+          ..popPotential = basePop + 10 + _rng.nextInt(30) 
+          ..salary = calculateDynamicSalary(basePop, greedVal, 1, 50000)
           ..companyId = -1 
           ..isHeel = _rng.nextBool()
-          ..greed = 40 + _rng.nextInt(60)
+          ..greed = greedVal
           ..loyalty = 40 + _rng.nextInt(60)
           ..contractWeeks = 12 + _rng.nextInt(40)
           ..contractedPop = basePop
@@ -764,7 +852,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
       deductCash(cost);
     }
 
-    // 🚨 TROPHY HOOK
     await ref.read(gameProvider.notifier).unlockMilestone("developmental");
     await loadRoster();
     return prospect; 
@@ -785,7 +872,6 @@ class RosterNotifier extends StateNotifier<RosterState> {
       deductCash(cost);
     }
 
-    // 🚨 TROPHY HOOK
     await ref.read(gameProvider.notifier).unlockMilestone("developmental");
     await loadRoster();
   }
@@ -793,18 +879,47 @@ class RosterNotifier extends StateNotifier<RosterState> {
   Future<void> trainingAction(Wrestler w, String type, int cost) async {
     if (_isar == null) return;
     
+    final gameState = ref.read(gameProvider);
+    bool hitCap = false;
+
     await _isar!.writeTxn(() async {
-      if (type == "MIC" || type == "MIC SKILL") w.micSkill = (w.micSkill + 2).clamp(0, w.potentialSkill); 
-      if (type == "POP" || type == "POPULARITY") w.pop = (w.pop + 1).clamp(0, 100);
-      if (type == "RING" || type == "RING SKILL") w.ringSkill = (w.ringSkill + 2).clamp(0, w.potentialSkill); 
+      if (type == "MIC" || type == "MIC SKILL") w.micSkill = (w.micSkill + 2).clamp(0, 100);
+      
+      if (type == "POP" || type == "POPULARITY") {
+        if (w.pop >= w.popPotential) {
+          hitCap = true; 
+        } else {
+          w.pop = (w.pop + 1).clamp(0, w.popPotential);
+          
+          if (w.pop >= 90 && w.contractType != ContractType.specialAttraction) {
+            w.contractType = ContractType.specialAttraction;
+            w.greed = (w.greed + 25).clamp(0, 100);
+            w.hasCreativeControl = true;
+            // 🚨 THE FIX: Their salary dynamically skyrockets when they evolve into a special attraction!
+            w.salary = calculateDynamicSalary(w.pop, w.greed, gameState.venueLevel, gameState.cash);
+          }
+        }
+      }
+
+      if (type == "RING" || type == "RING SKILL") w.ringSkill = (w.ringSkill + 2).clamp(0, 100);
       if (type == "HEAL" || type == "MEDICAL") { w.stamina = 100; w.condition = 100; } 
+      
       if (type == "BONUS" || type == "MORALE") { 
         w.morale = 100; 
         w.isHoldingOut = false; 
         w.contractedPop = w.pop; 
+        // 🚨 THE FIX: When you pay their bonus, you are signing them to a new deal at Current Market Value!
+        w.salary = calculateDynamicSalary(w.pop, w.greed, gameState.venueLevel, gameState.cash);
       }
-      await _isar!.wrestlers.put(w);
+
+      if (!hitCap) {
+        await _isar!.wrestlers.put(w);
+      }
     });
+
+    if (hitCap) {
+      throw Exception("${w.name} has already reached their maximum popularity potential!");
+    }
 
     try {
       dynamic gameNotifier = ref.read(gameProvider.notifier);

@@ -20,7 +20,6 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
   Wrestler? _selectedWrestler;
   int _selectedTabIndex = 0; 
   
-  // Local state for Rivals (since they might not be in your promoter_provider yet)
   List<Wrestler> _rivalRoster = [];
   bool _isLoadingRivals = false;
 
@@ -30,13 +29,12 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
     _fetchRivals();
   }
 
-  // 🔍 Fetch Rivals directly from the database
   Future<void> _fetchRivals() async {
     setState(() => _isLoadingRivals = true);
     final isar = Isar.getInstance();
     if (isar != null) {
       final rivals = await isar.wrestlers.filter().companyIdEqualTo(1).findAll();
-      rivals.sort((a, b) => b.pop.compareTo(a.pop)); // Sort by biggest stars
+      rivals.sort((a, b) => b.pop.compareTo(a.pop)); 
       if (mounted) setState(() => _rivalRoster = rivals);
     }
     if (mounted) setState(() => _isLoadingRivals = false);
@@ -201,6 +199,8 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
                       Text(w.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
                       const SizedBox(height: 4),
                       Text("${w.style.name.toUpperCase()} • ${w.isHeel ? 'HEEL' : 'FACE'}", style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold)),
+                      if (w.contractType == ContractType.specialAttraction) 
+                        const Padding(padding: EdgeInsets.only(top: 4.0), child: Text("★ SPECIAL ATTRACTION", style: TextStyle(color: Colors.amber, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0))),
                       if (w.isHoldingOut) const Padding(padding: EdgeInsets.only(top: 4.0), child: Text("⚠ HOLDING OUT", style: TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold))),
                       if (w.isInjured) Padding(padding: const EdgeInsets.only(top: 4.0), child: Text("🚑 INJURED: ${w.injuryWeeks} WKS", style: const TextStyle(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold))),
                     ],
@@ -327,6 +327,9 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
         if (isSelected) {
           borderColor = Colors.amber;
           borderWidth = 2.0;
+        } else if (w.contractType == ContractType.specialAttraction) {
+          borderColor = Colors.amber.withOpacity(0.5); // Golden border for mega-stars
+          borderWidth = 1.5;
         } else if (w.isHoldingOut) {
           borderColor = Colors.redAccent;
           borderWidth = 2.0;
@@ -356,7 +359,13 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(w.name, style: TextStyle(color: (w.isChampion || w.isTVChampion) ? Colors.amber : Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                      Row(
+                        children: [
+                          Text(w.name, style: TextStyle(color: (w.isChampion || w.isTVChampion) ? Colors.amber : Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                          if (w.contractType == ContractType.specialAttraction) 
+                            const Padding(padding: EdgeInsets.only(left: 4.0), child: Icon(Icons.star, color: Colors.amber, size: 12)),
+                        ],
+                      ),
                       const SizedBox(height: 4),
                       Text("${w.style.name.toUpperCase()} • ${w.cardPosition.toUpperCase()}", style: const TextStyle(color: Colors.white54, fontSize: 10)),
                     ],
@@ -397,6 +406,8 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
     final w = _selectedWrestler!;
     final notifier = ref.read(rosterProvider.notifier);
     final rosterState = ref.watch(rosterProvider);
+    final gameState = ref.read(gameProvider);
+    final currentWeek = (gameState.year * 48) + gameState.week;
 
     IconData moraleIcon = Icons.sentiment_satisfied_alt;
     Color moraleColor = Colors.greenAccent;
@@ -428,6 +439,13 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
                         Text("${w.style.name.toUpperCase()} • ${w.isHeel ? 'HEEL' : 'FACE'} • ${w.cardPosition.toUpperCase()}", style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 12),
                         
+                        if (w.contractType == ContractType.specialAttraction) 
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(color: Colors.amber.withOpacity(0.2), borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.amber)),
+                            child: const Text("★ SPECIAL ATTRACTION", style: TextStyle(color: Colors.amber, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                          ),
                         if (w.isHoldingOut) const Text("⚠ HOLDING OUT (Morale Critical)", style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
                         if (w.isInjured) Text("🚑 INJURED: ${w.injuryWeeks} WEEKS", style: const TextStyle(color: Colors.orangeAccent, fontSize: 12, fontWeight: FontWeight.bold)),
                         
@@ -502,11 +520,21 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.greenAccent, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 16)),
-                        icon: const Icon(Icons.handshake),
-                        // 🚨 FIX: LAUNCHES THE NEGOTIATION DIALOG INSTEAD OF INSTANT SIGNING!
-                        label: const Text("ENTER NEGOTIATIONS", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: currentWeek >= w.cooldownUntilWeek ? Colors.greenAccent : Colors.grey, 
+                          foregroundColor: Colors.black, 
+                          padding: const EdgeInsets.symmetric(vertical: 16)
+                        ),
+                        icon: Icon(currentWeek >= w.cooldownUntilWeek ? Icons.handshake : Icons.lock_clock),
+                        label: Text(
+                          currentWeek >= w.cooldownUntilWeek ? "ENTER NEGOTIATIONS" : "BIDDING WAR / COOLDOWN", 
+                          style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0)
+                        ),
                         onPressed: () {
+                          if (currentWeek < w.cooldownUntilWeek) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("You cannot negotiate with this star yet. They are resting or entertaining massive rival offers!"), backgroundColor: Colors.redAccent));
+                            return;
+                          }
                           if (rosterState.roster.length >= 12) {
                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Roster Full! Release someone first."), backgroundColor: Colors.redAccent));
                             return;
@@ -588,14 +616,19 @@ class _RosterScreenState extends ConsumerState<RosterScreen> {
                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bonus Paid! Morale restored."), backgroundColor: Colors.amber));
               }),
               
-              _buildActionTile("🏋️ RING TRAINING (\$10,000)", "Ring Skill +1.", Icons.fitness_center, Colors.blue, () async {
-                await notifier.trainingAction(w, "RING", 10000);
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Training Complete! Ring Skill increased."), backgroundColor: Colors.blue));
-              }),
-              
-              _buildActionTile("🎤 PROMO CLASS (\$10,000)", "Mic Skill +1.", Icons.mic, Colors.purple, () async {
-                await notifier.trainingAction(w, "MIC", 10000);
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Promo Class Complete! Mic Skill increased."), backgroundColor: Colors.purple));
+              // 🚨 THE FIX: Disable training if they are at MAX POTENTIAL
+              _buildActionTile(
+                w.pop >= w.popPotential ? "MAX POTENTIAL REACHED" : "🎤 PROMO CLASS (\$10,000)", 
+                w.pop >= w.popPotential ? "Cannot increase Popularity further." : "Popularity +1.", 
+                w.pop >= w.popPotential ? Icons.block : Icons.mic, 
+                w.pop >= w.popPotential ? Colors.redAccent : Colors.purple, 
+                () async {
+                  if (w.pop >= w.popPotential) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("This wrestler has reached their maximum star power!"), backgroundColor: Colors.redAccent));
+                    return;
+                  }
+                  await notifier.trainingAction(w, "POP", 10000);
+                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Promo Class Complete! Popularity increased."), backgroundColor: Colors.purple));
               }),
 
               _buildActionTile("TURN ${w.isHeel ? 'FACE' : 'HEEL'}", "Switch alignment instantly.", Icons.compare_arrows, Colors.white, () {

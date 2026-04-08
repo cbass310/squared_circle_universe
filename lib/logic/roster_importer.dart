@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'promoter_provider.dart';
-import 'game_state_provider.dart'; // 🚨 NEW: Added this import to access the game engine
+import 'game_state_provider.dart'; 
 import '../data/models/wrestler.dart';
 
 class RosterImporter {
@@ -51,26 +51,46 @@ class RosterImporter {
       throw Exception("Invalid JSON format: Missing 'roster' list.");
     }
 
+    // 🚨 1. WIPE THE GAME CLEAN FIRST
+    final gameNotifier = ref.read(gameProvider.notifier);
+    await gameNotifier.resetGame();
+
+    // 🚨 2. APPLY PROMOTION OVERRIDES FROM THE MOD
+    if (data.containsKey('promotion')) {
+      var promoData = data['promotion'];
+      if (promoData['promotionName'] != null) {
+        gameNotifier.renamePromotion(promoData['promotionName']);
+      }
+      if (promoData['tvShowName'] != null) {
+        gameNotifier.renameTVShow(promoData['tvShowName']);
+      }
+    }
+
+    // 🚨 3. PROCESS THE WRESTLERS
     List<dynamic> wrestlerList = data['roster'];
     List<Wrestler> newRoster = [];
 
     for (var item in wrestlerList) {
       final w = Wrestler()
         ..name = item['name'] ?? "Unknown Worker"
-        ..imageUrl = item['imageUrl'] ?? "" 
+        ..imagePath = item['imagePath'] ?? item['imageUrl'] ?? "assets/images/default_avatar.png" 
         ..style = _parseStyle(item['style'])
         ..pop = (item['pop'] ?? 50)
         ..ringSkill = (item['ringSkill'] ?? 50)
         ..micSkill = (item['micSkill'] ?? 50)
+        ..popPotential = (item['popPotential'] ?? 99)
         ..stamina = (item['stamina'] ?? 100)        
         ..condition = (item['condition'] ?? 100)    
         ..morale = (item['morale'] ?? 100)          
         ..salary = (item['salary'] ?? 500)
         ..contractWeeks = (item['contractWeeks'] ?? 48)
         ..isHeel = item['isHeel'] ?? false
+        ..greed = (item['greed'] ?? 50)
+        ..loyalty = (item['loyalty'] ?? 50)
+        ..gimmickStaleness = (item['gimmickStaleness'] ?? 0) // 🚨 STALE GIMMICK MECHANIC
         ..isChampion = item['isChampion'] ?? false
         ..isTVChampion = item['isTVChampion'] ?? false
-        ..companyId = (item['companyId'] ?? 0); 
+        ..companyId = (item['companyId'] ?? -1); // Default to Free Agent (-1) if not specified!
         
       newRoster.add(w);
     }
@@ -79,15 +99,11 @@ class RosterImporter {
     await notifier.clearDatabaseForImport(); 
     await notifier.importWrestlers(newRoster);
 
-    // 🚨 THE NEW FIX: Reset the game economy, TV deals, and sponsors!
-    await ref.read(gameProvider.notifier).resetGame();
-
     if (context.mounted) {
-      int playerRosterCount = newRoster.where((w) => w.companyId == 0).length;
-      int rivalRosterCount = newRoster.where((w) => w.companyId == 1).length;
+      String modName = data['mod_name'] ?? 'Custom Roster';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("SUCCESS: Imported $playerRosterCount Player Stars & $rivalRosterCount Rivals!"),
+          content: Text("SUCCESS: '$modName' Installed!"),
           backgroundColor: Colors.greenAccent,
           duration: const Duration(seconds: 4),
         )

@@ -12,6 +12,17 @@ class GlobalNetworkAuthScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // 🚨 NEW: The Listener! 🚨
+    // This watches the background server. The millisecond the login is successful, 
+    // it automatically closes this screen and drops the player back at the Hub!
+    ref.listen<AuthState>(authStateProvider, (previous, next) {
+      if (next == AuthState.authenticated) {
+        if (context.mounted) {
+          Navigator.of(context).pop();
+        }
+      }
+    });
+
     final authState = ref.watch(authStateProvider);
     final isAuthenticating = authState == AuthState.authenticating;
 
@@ -178,66 +189,16 @@ class GlobalNetworkAuthScreen extends ConsumerWidget {
                         ref.read(authStateProvider.notifier).signInWithApple();
                       },
                     ),
-                    
-                    const SizedBox(height: 50),
-
-                    // 🚨 TEMPORARY DEV BYPASS BUTTON 🚨
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.redAccent, width: 2),
-                        boxShadow: [BoxShadow(color: Colors.redAccent.withOpacity(0.2), blurRadius: 10)],
-                      ),
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.bug_report, color: Colors.white),
-                          label: const Text("DEV BYPASS: INSTANT LOGIN", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.0)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.redAccent.shade700, 
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                          ),
-                          onPressed: () async {
-                            HapticFeedback.heavyImpact();
-                            try {
-                              // Force login using the fake account
-                              await Supabase.instance.client.auth.signInWithPassword(
-                                email: 'test@test.com',
-                                password: 'password123',
-                              );
-                              
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text("Bypass Successful! Access Granted.", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)), backgroundColor: Colors.cyanAccent),
-                                );
-                                Navigator.pop(context); 
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text("🚨 Error: $e", style: const TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.red),
-                                );
-                              }
-                            }
-                          },
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
-                    Center(
-                      child: TextButton.icon(
-                        icon: const Icon(Icons.account_balance_wallet, color: Colors.purpleAccent, size: 18),
-                        onPressed: () {
-                          HapticFeedback.selectionClick();
-                        },
-                        label: const Text(
-                          'CONNECT SOLANA WALLET (COMING SOON)',
-                          style: TextStyle(color: Colors.purpleAccent, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0),
-                        ),
-                      ),
+                    const SizedBox(height: 16),
+                    // 🚨 NEW SOLANA BUTTON 🚨
+                    _buildAuthButton(
+                      icon: Icons.account_balance_wallet,
+                      label: 'SIGN IN WITH SOLANA',
+                      onPressed: () {
+                        HapticFeedback.heavyImpact();
+                        // 🚨 PASSED THE CONTEXT HERE! 🚨
+                        ref.read(authStateProvider.notifier).signInWithSolana(context);
+                      },
                     ),
                   ],
                 ],

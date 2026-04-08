@@ -262,11 +262,12 @@ class OfficeScreen extends ConsumerWidget {
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TitleScreen())),
                   ),
                   
+                  // 🚨 THE FIX: Subtitle max limit now dynamically matches the Venue Level!
                   _buildPremiumMenuButton(
                     context,
                     icon: Icons.handshake,
                     title: "CORPORATE SPONSORS",
-                    subtitle: "Active Brand Deals: ${gameState.activeSponsors.length}/3",
+                    subtitle: "Active Brand Deals: ${gameState.activeSponsors.length}/${gameState.venueLevel}",
                     baseColor: Colors.tealAccent, 
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SponsorshipScreen())),
                   ),

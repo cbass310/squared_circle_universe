@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../logic/roster_importer.dart';
-// 🛠️ THE FIX: Added '../' so it correctly finds the modes folder!
 import '../modes/promoter/promoter_home_screen.dart'; 
 
 class CommunityRostersScreen extends ConsumerStatefulWidget {
@@ -27,7 +26,12 @@ class _CommunityRostersScreenState extends ConsumerState<CommunityRostersScreen>
 
   Future<void> _fetchRosters() async {
     try {
-      final data = await _supabase.from('community_rosters').select().order('downloads', ascending: false);
+      // 🚨 THE FIX: Only fetch the lightweight text to prevent RAM crashes!
+      final data = await _supabase
+          .from('community_rosters')
+          .select('id, mod_name, creator_name, description, downloads')
+          .order('downloads', ascending: false);
+          
       if (mounted) {
         setState(() {
           _rosters = data;
@@ -60,9 +64,19 @@ class _CommunityRostersScreenState extends ConsumerState<CommunityRostersScreen>
     setState(() => _isDownloading = true);
 
     try {
-      final importer = RosterImporter(ref, context);
-      await importer.importFromCloud(rosterData['json_data']);
+      // 🚨 THE FIX: Fetch the heavy JSON file ONLY when they click download
+      final fullRoster = await _supabase
+          .from('community_rosters')
+          .select('json_data')
+          .eq('id', rosterData['id'])
+          .single();
 
+      final importer = RosterImporter(ref, context);
+      
+      // Inject the freshly fetched JSON data
+      await importer.importFromCloud(fullRoster['json_data']);
+
+      // Increment the download counter
       int newCount = (rosterData['downloads'] ?? 0) + 1;
       await _supabase.from('community_rosters').update({'downloads': newCount}).eq('id', rosterData['id']);
 

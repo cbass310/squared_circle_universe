@@ -1,7 +1,9 @@
+import 'dart:io' show Platform; 
+import 'package:flutter/foundation.dart' show kIsWeb; 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import '../../logic/auth_provider.dart';
 
 class GlobalNetworkButton extends ConsumerWidget {
@@ -9,9 +11,11 @@ class GlobalNetworkButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final session = Supabase.instance.client.auth.currentSession;
-    final user = session?.user;
-    final bool isLoggedIn = user != null;
+    // 🚨 LIVE VIDEO FEED: Watch the Riverpod provider!
+    final authState = ref.watch(authStateProvider);
+    final bool isLoggedIn = authState == AuthState.authenticated;
+    final user = Supabase.instance.client.auth.currentUser;
+    
     final bool isDesktop = MediaQuery.of(context).size.width > 800;
 
     return GestureDetector(
@@ -61,7 +65,7 @@ class GlobalNetworkButton extends ConsumerWidget {
                     style: TextStyle(color: isLoggedIn ? Colors.cyanAccent : Colors.white54, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1.0),
                   ),
                   Text(
-                    isLoggedIn ? (user.email?.split('@')[0].toUpperCase() ?? "PLAYER") : "CONNECT PROFILE",
+                    isLoggedIn ? (user?.email?.split('@')[0].toUpperCase() ?? "PLAYER") : "CONNECT PROFILE",
                     style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 0.5),
                   ),
                 ],
@@ -78,6 +82,9 @@ class GlobalNetworkButton extends ConsumerWidget {
   // --- DIALOGS EXTRACTED FROM HUB SCREEN ---
 
   void _showQuickAuthModal(BuildContext context, WidgetRef ref) {
+    // 🚨 Check if the game is running on a PC (Windows, Mac, or Linux)
+    final isDesktopPlatform = !kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -89,6 +96,7 @@ class GlobalNetworkButton extends ConsumerWidget {
           children: [
             const Text("Join the Global Network to play Pick 'Ems and sync to the blockchain.", textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: 12)),
             const SizedBox(height: 24),
+
             _buildDialogButton("SIGN IN WITH GOOGLE", Icons.g_mobiledata, Colors.white, () {
               Navigator.pop(ctx);
               ref.read(authStateProvider.notifier).signInWithGoogle();
@@ -98,14 +106,11 @@ class GlobalNetworkButton extends ConsumerWidget {
               Navigator.pop(ctx);
               ref.read(authStateProvider.notifier).signInWithApple();
             }),
-            const SizedBox(height: 24),
-            _buildDialogButton("DEV BYPASS (TEST ACCOUNT)", Icons.bug_report, Colors.redAccent, () async {
+            const SizedBox(height: 12),
+            _buildDialogButton("SIGN IN WITH SOLANA", Icons.account_balance_wallet, Colors.purpleAccent, () {
               Navigator.pop(ctx);
-              try {
-                await Supabase.instance.client.auth.signInWithPassword(email: 'test@test.com', password: 'password123');
-              } catch (e) {
-                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("🚨 Error: $e")));
-              }
+              // 🚨 FIX IS HERE: We added 'context' to the parentheses! 🚨
+              ref.read(authStateProvider.notifier).signInWithSolana(context);
             }),
           ],
         ),
@@ -134,12 +139,13 @@ class GlobalNetworkButton extends ConsumerWidget {
             const SizedBox(height: 10),
             _buildDialogButton("CONNECT SOLANA WALLET", Icons.account_balance_wallet, Colors.purpleAccent, () async {
               Navigator.pop(ctx);
-              await ref.read(authStateProvider.notifier).connectSolanaWallet(context);
+              // 🚨 FIX IS HERE TOO: Added 'context' to the parentheses! 🚨
+              await ref.read(authStateProvider.notifier).signInWithSolana(context);
             }),
             const SizedBox(height: 12),
             _buildDialogButton("LOG OUT", Icons.logout, Colors.redAccent, () async {
               Navigator.pop(ctx);
-              await Supabase.instance.client.auth.signOut();
+              await ref.read(authStateProvider.notifier).signOut();
             }),
           ],
         ),

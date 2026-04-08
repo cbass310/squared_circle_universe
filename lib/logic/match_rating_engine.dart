@@ -39,6 +39,13 @@ class MatchRatingEngine {
     // A score of 100+ equals a 5-star match.
     double starRating = (finalScore / 100.0) * 5.0;
 
+    // 🚨 THE FIX: GLOBAL CROWD PSYCHOLOGY (ALIGNMENT PENALTIES) 🚨
+    if (wrestlerA.isHeel && wrestlerB.isHeel) {
+      starRating -= 1.0; // Heel vs Heel (Dead Crowd)
+    } else if (!wrestlerA.isHeel && !wrestlerB.isHeel) {
+      starRating -= 0.5; // Face vs Face (Respect Match, lacks heat)
+    }
+
     // Apply RNG variance (+/- 0.25 stars) to keep it slightly unpredictable
     final rng = Random();
     double variance = (rng.nextDouble() * 0.5) - 0.25; 

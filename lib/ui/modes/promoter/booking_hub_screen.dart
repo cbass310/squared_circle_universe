@@ -465,9 +465,15 @@ class _BookingHubScreenState extends ConsumerState<BookingHubScreen> {
       // Add to Isar Links Memory
       completedMatch.wrestlers.addAll([p1, p2]);
 
-      // If a champion is in the match, automatically stage it as a Title Match!
-      bool isTitleMatch = p1.isChampion || p1.isTVChampion || p2.isChampion || p2.isTVChampion;
-      gameNotifier.stageTitleMatch(isTitleMatch);
+      // 🚨 THE FIX: Precise String Title Handover Logic for Auto-Booking!
+      String titleToStage = "";
+      if (p1.isChampion || p2.isChampion) {
+        titleToStage = "World Heavyweight";
+      } else if (p1.isTVChampion || p2.isTVChampion) {
+        titleToStage = "Television Title";
+      }
+      
+      gameNotifier.stageTitleMatch(titleToStage);
 
       gameNotifier.addMatchToCard(completedMatch);
     }
