@@ -195,19 +195,20 @@ class GlobalNetworkAuthScreen extends ConsumerWidget {
                       },
                     ),
                     
-                    // 🚨 CONDITIONAL SOLANA BUTTON 🚨
-                    // Renders on the Web OR if we specifically flag it as a Solana Store build!
-                    if (kIsWeb || isSolanaStoreBuild) ...[
-                      const SizedBox(height: 16),
-                      _buildAuthButton(
-                        icon: Icons.account_balance_wallet,
-                        label: 'SIGN IN WITH SOLANA',
-                        onPressed: () {
-                          HapticFeedback.heavyImpact();
-                          ref.read(authStateProvider.notifier).signInWithSolana(context);
-                        },
-                      ),
-                    ],
+                    // 🚨 TEMPORARILY DISABLED FOR V1 LAUNCH 🚨
+                    // // 🚨 CONDITIONAL SOLANA BUTTON 🚨
+                    // // Renders on the Web OR if we specifically flag it as a Solana Store build!
+                    // if (kIsWeb || isSolanaStoreBuild) ...[
+                    //   const SizedBox(height: 16),
+                    //   _buildAuthButton(
+                    //     icon: Icons.account_balance_wallet,
+                    //     label: 'SIGN IN WITH SOLANA',
+                    //     onPressed: () {
+                    //       HapticFeedback.heavyImpact();
+                    //       ref.read(authStateProvider.notifier).signInWithSolana(context);
+                    //     },
+                    //   ),
+                    // ],
                   ],
                 ],
               ),

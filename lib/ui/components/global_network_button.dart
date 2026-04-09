@@ -94,7 +94,8 @@ class GlobalNetworkButton extends ConsumerWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text("Join the Global Network to play Pick 'Ems and sync to the blockchain.", textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: 12)),
+            // 🚨 EDITED: Removed "and sync to the blockchain" to guarantee Steam/Apple approval
+            const Text("Join the Global Network to play Pick 'Ems, record your Promoter Score and see where you rank on the global leaderboard.", textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: 12)),
             const SizedBox(height: 24),
 
             _buildDialogButton("SIGN IN WITH GOOGLE", Icons.g_mobiledata, Colors.white, () {
@@ -106,12 +107,13 @@ class GlobalNetworkButton extends ConsumerWidget {
               Navigator.pop(ctx);
               ref.read(authStateProvider.notifier).signInWithApple();
             }),
-            const SizedBox(height: 12),
-            _buildDialogButton("SIGN IN WITH SOLANA", Icons.account_balance_wallet, Colors.purpleAccent, () {
-              Navigator.pop(ctx);
-              // 🚨 FIX IS HERE: We added 'context' to the parentheses! 🚨
-              ref.read(authStateProvider.notifier).signInWithSolana(context);
-            }),
+            
+            // 🚨 TEMPORARILY DISABLED FOR V1 LAUNCH 🚨
+            // const SizedBox(height: 12),
+            // _buildDialogButton("SIGN IN WITH SOLANA", Icons.account_balance_wallet, Colors.purpleAccent, () {
+            //   Navigator.pop(ctx);
+            //   ref.read(authStateProvider.notifier).signInWithSolana(context);
+            // }),
           ],
         ),
       ),
@@ -137,12 +139,14 @@ class GlobalNetworkButton extends ConsumerWidget {
           children: [
             const Divider(color: Colors.white10),
             const SizedBox(height: 10),
-            _buildDialogButton("CONNECT SOLANA WALLET", Icons.account_balance_wallet, Colors.purpleAccent, () async {
-              Navigator.pop(ctx);
-              // 🚨 FIX IS HERE TOO: Added 'context' to the parentheses! 🚨
-              await ref.read(authStateProvider.notifier).signInWithSolana(context);
-            }),
-            const SizedBox(height: 12),
+            
+            // 🚨 TEMPORARILY DISABLED FOR V1 LAUNCH 🚨
+            // _buildDialogButton("CONNECT SOLANA WALLET", Icons.account_balance_wallet, Colors.purpleAccent, () async {
+            //   Navigator.pop(ctx);
+            //   await ref.read(authStateProvider.notifier).signInWithSolana(context);
+            // }),
+            // const SizedBox(height: 12),
+            
             _buildDialogButton("LOG OUT", Icons.logout, Colors.redAccent, () async {
               Navigator.pop(ctx);
               await ref.read(authStateProvider.notifier).signOut();

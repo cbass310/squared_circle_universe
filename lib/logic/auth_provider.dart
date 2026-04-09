@@ -117,9 +117,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> signInWithApple() async {
     state = AuthState.authenticating;
     try {
-      final isMobile = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+      // 🚨 THE PLATFORM DECIPHER 🚨
+      // ONLY use the native Apple hardware package if the user is physically on an iPhone, iPad, or Mac.
+      final isNativeApple = !kIsWeb && (Platform.isIOS || Platform.isMacOS);
 
-      if (isMobile) {
+      if (isNativeApple) {
         final rawNonce = _supabase.auth.generateRawNonce();
         final bytes = utf8.encode(rawNonce);
         final digest = sha256.convert(bytes);
@@ -142,6 +144,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
           nonce: rawNonce,
         );
       } else {
+        // 🚨 WINDOWS, ANDROID, & WEB FALLBACK 🚨
+        // If they are on a PC, route them through the standard web browser OAuth.
+        // This will now use the Services ID (.web) you set up in the Supabase Dashboard!
         await _supabase.auth.signInWithOAuth(
           OAuthProvider.apple,
           redirectTo: _getRedirectUrl,
